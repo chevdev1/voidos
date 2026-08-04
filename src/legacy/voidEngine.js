@@ -209,6 +209,39 @@ export function initVoidEngine() {
           hot: Math.random() < 0.04 || u < 0.06,
         });
       }
+
+      // Precompute a color-bucket index per star (color only ever depends
+      // on the star's fixed radial position `u`, never on time), then sort
+      // the array so each bucket occupies one contiguous range. This costs
+      // nothing at render time — it runs once, here, at galaxy build — and
+      // lets the 'medium'/'low' quality path below iterate one bucket's
+      // range into a single path and issue ONE fill() call for potentially
+      // hundreds of stars, instead of one fillStyle assignment + one fill
+      // per star. 12 buckets (not the 3-4 of a literal "batch by color"
+      // take) because this galaxy's color is a continuous hot-core →
+      // lime-arm → dim-rim gradient, not a handful of discrete colors —
+      // 3-4 buckets would band visibly; 12 doesn't, on stars this small.
+      const STAR_BUCKETS = 12;
+      for (const p of points) p.bucket = clamp(Math.floor(p.u * STAR_BUCKETS), 0, STAR_BUCKETS - 1);
+      points.sort((a, b) => a.bucket - b.bucket);
+      const starBucketRanges = [];
+      const starBucketRGB = [];
+      const starBucketAlphaScale = [];
+      {
+        let idx = 0;
+        for (let bi = 0; bi < STAR_BUCKETS; bi++) {
+          const start = idx;
+          while (idx < points.length && points[idx].bucket === bi) idx++;
+          starBucketRanges.push([start, idx]);
+          const uMid = (bi + 0.5) / STAR_BUCKETS;
+          starBucketRGB.push(starColor(uMid));
+          // Mirrors the per-star brightness falloff (1.35 - u*0.55) used
+          // in the individual-star path, since batched mode can't keep
+          // each star's own p.br variation once they're drawn as one path.
+          starBucketAlphaScale.push(0.12 + 0.34 * (1 - uMid));
+        }
+      }
+
       const nebulae = [];
       for (let i = 0; i < 56; i++) {
         const arm = ri(0, m.arms - 1);
@@ -330,7 +363,19 @@ export function initVoidEngine() {
       }
       const populated = constels.filter((c) => c.grains.length >= 2);
 
-      return { m, R, points, comets, nebulae, sectors, constels: populated, spin: 1.05 };
+      return {
+        m,
+        R,
+        points,
+        comets,
+        nebulae,
+        sectors,
+        constels: populated,
+        spin: 1.05,
+        starBucketRanges,
+        starBucketRGB,
+        starBucketAlphaScale,
+      };
     }
 
     const galaxies = [buildMegaGalaxy(GAL)];
@@ -368,9 +413,11 @@ export function initVoidEngine() {
       if (badStreak > 90 && quality !== 'low') {
         quality = quality === 'high' ? 'medium' : 'low';
         badStreak = 0;
+        resize(); // DPR/render-scale depend on quality — reapply immediately, don't wait for a container resize
       } else if (goodStreak > 240 && quality !== 'high') {
         quality = quality === 'low' ? 'medium' : 'high';
         goodStreak = 0;
+        resize();
       }
     }
 
@@ -382,19 +429,31 @@ export function initVoidEngine() {
       spike: Math.random() < 0.035,
     }));
 
+    // DPR cap and internal render resolution both shrink under sustained
+    // load. 'high' is unchanged for capable devices; 'medium'/'low' render
+    // to a genuinely smaller backing buffer (not just capped DPR) and let
+    // the browser upscale it via the canvas's CSS size, which stays at the
+    // container's full size the whole time — same "render small, display
+    // big" trick as a low-res game framebuffer.
+    function dprCapForQuality() {
+      return quality === 'high' ? 1.5 : 1;
+    }
+    function renderScaleForQuality() {
+      if (quality === 'high') return 1;
+      if (quality === 'medium') return 0.85;
+      return 0.7;
+    }
     function resize() {
       const r = frame.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      // Capped lower than the market chart's DPR (below): this canvas is the
-      // one doing thousands of fills/frame, so retina 3x/4x buys near-zero
-      // visible sharpness here for a large, avoidable fill-rate cost.
-      DPR = Math.min(devicePixelRatio || 1, 1.5);
-      canvas.width = W * DPR;
-      canvas.height = H * DPR;
+      DPR = Math.min(devicePixelRatio || 1, dprCapForQuality());
+      const renderScale = renderScaleForQuality();
+      canvas.width = W * DPR * renderScale;
+      canvas.height = H * DPR * renderScale;
       canvas.style.width = W + 'px';
       canvas.style.height = H + 'px';
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.setTransform(DPR * renderScale, 0, 0, DPR * renderScale, 0, 0);
     }
     const cosmosResizeObserver = new ResizeObserver(resize);
     cosmosResizeObserver.observe(frame);
@@ -727,6 +786,25 @@ export function initVoidEngine() {
 
     let hover = null;
     let alive = true;
+    // Real IntersectionObserver instead of a getBoundingClientRect() check
+    // re-run at the top of every frame forever: that read is cheap in the
+    // common case but still executes 60x/sec even while fully offscreen,
+    // and doesn't stop the rAF chain, just short-circuits inside it. This
+    // fully halts requestAnimationFrame while out of view and restarts it
+    // from the observer callback on re-entry — zero main-thread cost while
+    // scrolled away, not just "less work."
+    let inView = true;
+    let rafId = null;
+    const visibilityObserver = new IntersectionObserver(
+      ([entry]) => {
+        const wasInView = inView;
+        inView = entry.isIntersecting;
+        if (inView && !wasInView) rafId = requestAnimationFrame(draw);
+      },
+      { rootMargin: '200px 0px' } // start/stop slightly early — avoids a pop-in the instant it crosses the edge
+    );
+    visibilityObserver.observe(frame);
+    onCleanup(() => visibilityObserver.disconnect());
     // Reused every frame instead of a fresh `[]` — the array itself no
     // longer costs an allocation; entries are still short-lived per-frame
     // objects, which V8's generational GC handles cheaply, so this targets
@@ -734,12 +812,11 @@ export function initVoidEngine() {
     // star loop into a riskier flat-typed-array form I can't visually test.
     const starBatch = [];
     function draw(now) {
-      if (!alive) return;
-      const fr = frame.getBoundingClientRect();
-      if (fr.bottom < -50 || fr.top > innerHeight + 50) {
-        requestAnimationFrame(draw);
-        return;
-      }
+      // No requestAnimationFrame(draw) on either of these early returns —
+      // that's what actually stops the chain. alive=false (unmount) is
+      // permanent; !inView is temporary and gets restarted by the
+      // IntersectionObserver callback above once it re-enters view.
+      if (!alive || !inView) return;
       sampleFrameTime(now);
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
@@ -915,7 +992,9 @@ export function initVoidEngine() {
         }
       }
 
-      {
+      if (quality === 'high') {
+        // Individual stars, depth-sorted, each with its own twinkle/dust
+        // tint/depth-fade — full fidelity for devices that can afford it.
         starBatch.length = 0;
         for (let i = 0; i < g.points.length; i += lod) {
           const p = g.points[i];
@@ -928,10 +1007,7 @@ export function initVoidEngine() {
           if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
           starBatch.push({ p, pr, sx, sy });
         }
-        // Depth-sorting up to ~4200 entries every frame is real CPU cost
-        // for a painter's-algorithm ordering that's visually subtle at
-        // this dot size — so it's the first thing dropped under load.
-        if (quality !== 'low') starBatch.sort((a, b) => a.pr.depth - b.pr.depth);
+        starBatch.sort((a, b) => a.pr.depth - b.pr.depth);
         for (const { p, pr, sx, sy } of starBatch) {
           let col = starColor(p.u);
           if (p.dust) col = colLerp(col, [8, 10, 6], 0.72);
@@ -941,11 +1017,46 @@ export function initVoidEngine() {
           if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
           const a = ((p.dust ? 0.1 : 0.38) + p.br * 0.22 * tw) * depthFade;
           ctx.fillStyle = rgba(col, clamp(a, 0, 1));
-          // fillRect, integer-aligned: this is the hottest loop in the
-          // engine (up to ~4200 calls/frame), so cutting path construction
-          // + circular rasterization + sub-pixel AA here is where it counts.
           const d = Math.max(1, (sz * 2) | 0);
           ctx.fillRect((sx - sz) | 0, (sy - sz) | 0, d, d);
+        }
+      } else {
+        // Batched fallback (medium/low): one path + one fill() per color
+        // bucket instead of one fillStyle assignment + one fillRect per
+        // star — collapses up to ~4200 draw calls into 12. Traded away to
+        // get there: no per-star depth sort (painter's-algorithm order is
+        // already the first thing dropped at 'low'; here it's dropped
+        // whenever batching is active at all), no per-star twinkle (one
+        // shared pulse per bucket instead — bands of brightness breathing
+        // together rather than each star individually), and dust points
+        // render at full bucket brightness instead of darkened. All of
+        // that is a real, visible fidelity cut — it only kicks in once
+        // the adaptive monitor has already decided this device needs it.
+        for (let bi = 0; bi < g.starBucketRanges.length; bi++) {
+          const [start, end] = g.starBucketRanges[bi];
+          const groupTw = 0.6 + 0.4 * Math.sin(t * 0.6 + bi * 0.7);
+          ctx.beginPath();
+          let any = false;
+          for (let i = start; i < end; i += lod) {
+            const p = g.points[i];
+            const pr = pointProj(p, g, t);
+            let [sx, sy] = w2s(pr.x, pr.y);
+            const L = lensPoint(sx, sy);
+            if (L[2]) continue;
+            sx = L[0];
+            sy = L[1];
+            if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
+            let sz = Math.max(0.4, Math.min(1.8, p.br * pr.persp * 0.85 * groupTw));
+            if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
+            const d = Math.max(1, (sz * 2) | 0);
+            ctx.rect((sx - sz) | 0, (sy - sz) | 0, d, d);
+            any = true;
+          }
+          if (any) {
+            const a = clamp(g.starBucketAlphaScale[bi] * groupTw * 1.8, 0, 1);
+            ctx.fillStyle = rgba(g.starBucketRGB[bi], a);
+            ctx.fill();
+          }
         }
       }
 
@@ -1238,11 +1349,12 @@ export function initVoidEngine() {
         tip.classList.remove('show');
         if (!dragging) canvas.style.cursor = orbitMode ? 'grab' : 'grab';
       }
-      requestAnimationFrame(draw);
+      rafId = requestAnimationFrame(draw);
     }
-    requestAnimationFrame(draw);
+    rafId = requestAnimationFrame(draw);
     onCleanup(() => {
       alive = false;
+      if (rafId != null) cancelAnimationFrame(rafId);
     });
 
     let burned = 7218018;
