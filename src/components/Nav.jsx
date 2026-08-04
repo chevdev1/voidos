@@ -6,7 +6,6 @@ const LINKS = [
   { label: 'MAP', target: '#top' },
   { label: 'CONCEPT', target: '#concept' },
   { label: 'MARKET', target: '#market' },
-  { label: 'TOKEN', target: '#token' },
   { label: 'FAQ', target: '#faq' },
 ]
 

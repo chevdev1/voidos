@@ -3,6 +3,12 @@ import { AnimatePresence, motion } from 'framer-motion'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
 
+// Apple-style critically-damped spring (bounce: 0 = no overshoot) — the
+// duration-based spring API reads far more natural for a height reveal
+// than a fixed-duration tween, per Emil Kowalski's guidance: keep bounce
+// out of UI unless it's a drag/dismiss gesture.
+const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
+
 const FAQS = [
   {
     q: 'How do I acquire a sector?',
@@ -22,6 +28,23 @@ const FAQS = [
   },
 ]
 
+function PlusIcon({ isOpen }) {
+  return (
+    <motion.svg
+      width="14"
+      height="14"
+      viewBox="0 0 14 14"
+      fill="none"
+      animate={{ rotate: isOpen ? 45 : 0 }}
+      transition={SPRING}
+      className="shrink-0"
+    >
+      <path d="M7 1V13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M1 7H13" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </motion.svg>
+  )
+}
+
 function FAQItem({ faq, isOpen, onToggle, index }) {
   return (
     <motion.div
@@ -29,23 +52,23 @@ function FAQItem({ faq, isOpen, onToggle, index }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.5 }}
       transition={{ duration: 0.45, ease: EASE_OUT, delay: index * 0.05 }}
-      className="border-b border-white/10"
+      className="border-b border-gray-800"
     >
       <button
         onClick={onToggle}
         aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-6 py-6 text-left"
+        className="group flex w-full items-center justify-between gap-6 py-6 text-left"
       >
-        <span className="font-display text-base font-bold text-ink sm:text-lg">{faq.q}</span>
-        <motion.span
-          animate={{ rotate: isOpen ? 45 : 0 }}
-          transition={{ duration: 0.25, ease: EASE_OUT }}
-          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-lg ${
-            isOpen ? 'border-lime text-lime' : 'border-white/20 text-muted'
+        <span className="font-display text-base font-bold text-white transition-colors duration-200 ease-out group-hover:text-[#ccff00] sm:text-lg">
+          {faq.q}
+        </span>
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border transition-colors duration-200 ease-out ${
+            isOpen ? 'border-[#ccff00] text-[#ccff00]' : 'border-gray-700 text-gray-500 group-hover:border-gray-500'
           }`}
         >
-          +
-        </motion.span>
+          <PlusIcon isOpen={isOpen} />
+        </span>
       </button>
       <AnimatePresence initial={false}>
         {isOpen && (
@@ -54,10 +77,10 @@ function FAQItem({ faq, isOpen, onToggle, index }) {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.32, ease: EASE_OUT }}
-            className="overflow-hidden"
+            transition={SPRING}
+            style={{ overflow: 'hidden' }}
           >
-            <p className="max-w-2xl pb-6 text-[13.5px] leading-relaxed text-muted">{faq.a}</p>
+            <p className="max-w-2xl pb-6 text-[13.5px] leading-relaxed text-gray-400">{faq.a}</p>
           </motion.div>
         )}
       </AnimatePresence>
@@ -78,8 +101,8 @@ export function FAQSection() {
         className="mb-10 max-w-xl"
       >
         <span className="mb-3 block text-[11px] tracking-[0.2em] text-lime/70">KNOWLEDGE BASE</span>
-        <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-          Questions the probe <span className="text-lime">already logged.</span>
+        <h2 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+          Questions the probe <span className="text-[#ccff00]">already logged.</span>
         </h2>
       </motion.div>
 

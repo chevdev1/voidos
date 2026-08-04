@@ -4,7 +4,6 @@ import { Nav } from './components/Nav'
 import { Hero } from './components/Hero'
 import { ConceptSection } from './components/ConceptSection'
 import { MarketSection } from './components/MarketSection'
-import { TokenomicsSection } from './components/TokenomicsSection'
 import { FAQSection } from './components/FAQSection'
 import { Footer } from './components/Footer'
 import { SectorTerminal } from './components/SectorTerminal'
@@ -26,7 +25,6 @@ export default function App() {
       <main className="relative mx-auto max-w-6xl">
         <ConceptSection />
         <MarketSection />
-        <TokenomicsSection />
         <FAQSection />
       </main>
 
