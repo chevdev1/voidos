@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 *.pid
+.git-commit-msg.txt
 
 # Editor directories and files
 .vscode/*
