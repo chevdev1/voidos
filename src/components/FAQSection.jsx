@@ -52,7 +52,7 @@ function FAQItem({ faq, isOpen, onToggle, index }) {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.5 }}
       transition={{ duration: 0.45, ease: EASE_OUT, delay: index * 0.05 }}
-      className="border-b border-gray-800"
+      className="border-b border-gray-800 last:border-b-0"
     >
       <button
         onClick={onToggle}
@@ -106,7 +106,7 @@ export function FAQSection() {
         </h2>
       </motion.div>
 
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-sm sm:p-8">
         {FAQS.map((faq, i) => (
           <FAQItem
             key={faq.q}
