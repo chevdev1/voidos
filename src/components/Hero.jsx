@@ -93,9 +93,6 @@ export function Hero() {
           <a className="btn-ghost" href="#">
             Follow
           </a>
-          <a className="btn-ghost" href="#">
-            Telegram
-          </a>
         </motion.div>
 
         <motion.p

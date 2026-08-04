@@ -233,7 +233,17 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .trow .k{color:var(--muted2)}
 .trow .v.hot{color:var(--lime)}
 .note{margin:14px 0;padding:10px;border:1px solid var(--line);border-radius:10px;color:var(--muted);font-size:11.5px;line-height:1.5}
-.term .btn-lime{display:block;width:100%;text-align:center;padding:12px;margin-top:8px}
+/* Brutalist outline treatment for the sector "claim" action specifically —
+   base .btn-lime elsewhere (hero CTA) stays solid-fill on purpose. */
+.term .btn-lime{
+  display:block;width:100%;text-align:center;padding:12px;margin-top:8px;
+  background:transparent;border:1px solid var(--lime);color:var(--lime);
+  box-shadow:none;
+}
+.term .btn-lime:hover{
+  background:var(--lime);color:#000;
+  box-shadow:0 0 24px rgba(204,255,0,.45);transform:translateY(-1px);
+}
 
 @media(max-width:960px){
   .hero{grid-template-columns:1fr;padding-top:80px}

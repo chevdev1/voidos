@@ -61,13 +61,12 @@ export function initVoidEngine() {
     const tip = document.getElementById('tip');
     const zoomLabel = document.getElementById('zoomLabel');
     const ctx = canvas.getContext('2d', { alpha: false });
-    const bloom = document.createElement('canvas');
-    const bctx = bloom.getContext('2d');
+    // No offscreen bloom buffer / additive composite pass — a full-canvas
+    // drawImage with a 'lighter' blend every frame was the single priciest
+    // operation in the old draw loop for a purely decorative glow.
     let W = 0,
       H = 0,
-      DPR = 1,
-      BW = 0,
-      BH = 0;
+      DPR = 1;
     let scale = 1.05;
     const MIN_S = 0.35,
       MAX_S = 18;
@@ -176,7 +175,11 @@ export function initVoidEngine() {
       });
 
       const points = [];
-      for (let i = 0; i < 6200; i++) {
+      // Cut from 6200 → 4200 base points (further thinned by the zoom/
+      // quality LOD stride at render time). Density is faked back in via
+      // a slightly larger brightness/size range below, per the request to
+      // trade raw particle count for rendered size rather than fill-rate.
+      for (let i = 0; i < 4200; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -200,7 +203,7 @@ export function initVoidEngine() {
           u,
           dust,
           arm,
-          br: rnd(0.25, 1.9) * (1.35 - u * 0.55) * m.bright * (mode < 0.14 ? 1.4 : 1),
+          br: rnd(0.32, 2.3) * (1.35 - u * 0.55) * m.bright * (mode < 0.14 ? 1.4 : 1),
           ph: rnd(0, 6.28),
           sp: rnd(0.2, 1.2),
           hot: Math.random() < 0.04 || u < 0.06,
@@ -339,7 +342,7 @@ export function initVoidEngine() {
      * hysteresis (slow to downgrade on a blip, slower to upgrade back) so
      * it doesn't flap. 'high' matches the original engine exactly; 'medium'
      * and 'low' progressively shed the most expensive, least-noticeable
-     * work — see the gates on nebulae/comets/spiral ribbons/bloom below.
+     * work — see the gates on nebulae/comets/spiral ribbons below.
      */
     let quality = 'high'; // 'high' | 'medium' | 'low'
     let frameMs = 16.7;
@@ -392,10 +395,6 @@ export function initVoidEngine() {
       canvas.style.width = W + 'px';
       canvas.style.height = H + 'px';
       ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      BW = Math.max(1, (W / 2.2) | 0);
-      BH = Math.max(1, (H / 2.2) | 0);
-      bloom.width = BW;
-      bloom.height = BH;
     }
     const cosmosResizeObserver = new ResizeObserver(resize);
     cosmosResizeObserver.observe(frame);
@@ -420,18 +419,22 @@ export function initVoidEngine() {
       return true;
     }
 
+    // yaw/pitch are identical for every point/sector/nebula/constellation
+    // within a single frame (there's only ever one galaxy, g0) — this used
+    // to call Math.cos/Math.sin on them *inside* projectLocal, which runs
+    // thousands of times a frame (up to ~4200 star points + up to 2800
+    // sectors, twice over when hovering). draw() now computes the four
+    // trig values once per frame; this function just reads them.
+    let frameCosYaw = 1,
+      frameSinYaw = 0,
+      frameCosPitch = Math.cos(viewPitch),
+      frameSinPitch = Math.sin(viewPitch);
     function projectLocal(lx, ly, lz, g) {
-      const yaw = viewYaw + rot * (autoSpin ? g.spin : 0) + g.m.roll;
-      const pitch = viewPitch;
-      const cy = Math.cos(yaw),
-        sy = Math.sin(yaw);
-      let x = lx * cy - ly * sy;
-      let y = lx * sy + ly * cy;
-      let z = lz;
-      const cp = Math.cos(pitch),
-        sp = Math.sin(pitch);
-      const y2 = y * cp - z * sp;
-      const z2 = y * sp + z * cp;
+      const x = lx * frameCosYaw - ly * frameSinYaw;
+      const y = lx * frameSinYaw + ly * frameCosYaw;
+      const z = lz;
+      const y2 = y * frameCosPitch - z * frameSinPitch;
+      const z2 = y * frameSinPitch + z * frameCosPitch;
       const persp = 1 / (1 + z2 * 0.00135);
       return { x: g.m.x + x * persp, y: g.m.y + y2 * persp, z: z2, persp, depth: z2 };
     }
@@ -738,9 +741,13 @@ export function initVoidEngine() {
         return;
       }
       sampleFrameTime(now);
-      const bloomOn = quality === 'high';
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
+      const frameYaw = viewYaw + rot * (autoSpin ? g0.spin : 0) + g0.m.roll;
+      frameCosYaw = Math.cos(frameYaw);
+      frameSinYaw = Math.sin(frameYaw);
+      frameCosPitch = Math.cos(viewPitch);
+      frameSinPitch = Math.sin(viewPitch);
       scale = lerp(scale, targetScale, 0.1);
       panX = lerp(panX, targetPanX, 0.1);
       panY = lerp(panY, targetPanY, 0.1);
@@ -748,14 +755,6 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
-      if (bloomOn) {
-        bctx.setTransform(1, 0, 0, 1, 0, 0);
-        bctx.clearRect(0, 0, BW, BH);
-        bctx.fillStyle = '#000';
-        bctx.fillRect(0, 0, BW, BH);
-      }
-      const bsx = BW / W,
-        bsy = BH / H;
       const g = g0;
 
       const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
@@ -906,12 +905,6 @@ export function initVoidEngine() {
           ctx.arc(0, 0, 1, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
-          if (bloomOn && pulse > 0.07) {
-            bctx.fillStyle = rgba(n.col, pulse * 0.45);
-            bctx.beginPath();
-            bctx.ellipse(sx * bsx, sy * bsy, rad * bsx * 0.35 * n.stretch, rad * bsy * 0.2, n.ang, 0, Math.PI * 2);
-            bctx.fill();
-          }
         }
       }
 
@@ -944,12 +937,6 @@ export function initVoidEngine() {
           ctx.beginPath();
           ctx.arc(sx, sy, sz, 0, Math.PI * 2);
           ctx.fill();
-          if (bloomOn && (p.hot || (p.u < 0.1 && p.br > 1))) {
-            bctx.fillStyle = rgba(col, 0.2);
-            bctx.beginPath();
-            bctx.arc(sx * bsx, sy * bsy, sz * bsx * 1.25, 0, Math.PI * 2);
-            bctx.fill();
-          }
         }
       }
 
@@ -985,10 +972,6 @@ export function initVoidEngine() {
         ctx.beginPath();
         ctx.arc(hx, hy, Math.max(1.2, c.thick * scale * 0.7), 0, Math.PI * 2);
         ctx.fill();
-        bctx.fillStyle = rgba(LIME, 0.35);
-        bctx.beginPath();
-        bctx.arc(hx * bsx, hy * bsy, 3 * bsx, 0, Math.PI * 2);
-        bctx.fill();
       }
 
       {
@@ -1040,13 +1023,6 @@ export function initVoidEngine() {
         ctx.beginPath();
         ctx.arc(gcx, gcy, eh * 0.72, 0, Math.PI * 2);
         ctx.stroke();
-
-        if (bloomOn) {
-          bctx.fillStyle = rgba(LIME, 0.3);
-          bctx.beginPath();
-          bctx.arc(gcx * bsx, gcy * bsy, eh * bsx * 0.9, 0, Math.PI * 2);
-          bctx.fill();
-        }
       }
 
       {
@@ -1241,17 +1217,6 @@ export function initVoidEngine() {
         ctx.fillText('EXOMIND', gcx, ly2);
       }
 
-      // The bloom composite is a full-canvas drawImage with a 'lighter'
-      // blend — one of the pricier single operations per frame — so it's
-      // the last thing enabled and the first thing dropped.
-      if (bloomOn) {
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.imageSmoothingEnabled = true;
-        ctx.globalAlpha = 0.32;
-        ctx.drawImage(bloom, 0, 0, BW, BH, 0, 0, W, H);
-        ctx.restore();
-      }
 
       if (hover && hover.s.hover > 0.2) {
         document.getElementById('tip1').textContent = `${hover.s.cName} · #${hover.s.id}`;

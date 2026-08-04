@@ -1,65 +1,58 @@
-import { motion } from 'framer-motion'
-
 const LINKS = [
-  { label: 'X / TWITTER', href: '#' },
-  { label: 'GITHUB', href: '#' },
-  { label: 'DOCUMENTATION', href: '#' },
-  { label: 'DEXSCREENER', href: '#' },
+  { label: 'X / Twitter', href: '#' },
+  { label: 'GitHub', href: '#' },
+  { label: 'Documentation', href: '#' },
+  { label: 'DexScreener', href: '#' },
 ]
 
 function FooterLink({ label, href }) {
   return (
-    <motion.a
+    <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      whileHover="hover"
-      className="group flex items-center justify-between border-t border-white/10 py-5 text-ink sm:py-6"
+      className="group inline-flex items-center gap-1.5 font-mono text-[13px] tracking-wide text-muted transition-colors duration-200 ease-out hover:text-lime"
     >
-      <span className="font-display text-xl font-extrabold tracking-tight sm:text-3xl">
-        {label}
-      </span>
-      <motion.span
-        variants={{ hover: { x: 6, color: '#ccff00' } }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-        className="text-2xl text-muted"
+      {label}
+      <span
         aria-hidden
+        className="inline-block transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
       >
         ↗
-      </motion.span>
-    </motion.a>
+      </span>
+    </a>
   )
 }
 
 export function Footer() {
   return (
-    <footer className="relative border-t-2 border-lime/30 px-5 pb-8 pt-16 sm:px-10">
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <img src="/assets/void-logo.png" alt="" className="h-9 w-9" />
-            <span className="font-display text-2xl font-extrabold tracking-tight text-ink">
+    <footer className="border-t border-white/10 px-5 py-10 sm:px-10">
+      <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
+        <div className="max-w-xs">
+          <div className="flex items-center gap-2.5">
+            <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
+            <span className="font-display text-base font-extrabold tracking-tight text-ink">
               VOID<span className="text-lime">.OS</span>
             </span>
           </div>
-          <p className="mt-2 text-[11px] tracking-wide text-muted-2">
+          <p className="mt-2 text-xs tracking-wide text-muted-2">
             you buy the pull, not the permanence.
           </p>
+          <p className="mt-3 text-xs leading-relaxed text-muted-2">
+            An autonomous probe, listening. Nothing on this page is financial advice — verify
+            the contract independently before you transmit anything of value.
+          </p>
         </div>
-        <p className="max-w-xs text-[11px] leading-relaxed text-muted-2">
-          An autonomous probe, listening. Nothing on this page is financial advice — verify the
-          contract independently before you transmit anything of value.
-        </p>
+
+        <nav className="flex flex-col items-start gap-3 sm:items-end">
+          {LINKS.map((link) => (
+            <FooterLink key={link.label} {...link} />
+          ))}
+        </nav>
       </div>
 
-      <nav>
-        {LINKS.map((link) => (
-          <FooterLink key={link.label} {...link} />
-        ))}
-      </nav>
-
-      <div className="mt-10 flex flex-col gap-2 text-[10px] tracking-wide text-muted-2 sm:flex-row sm:items-center sm:justify-between">
-        <span>© {new Date().getFullYear()} EXOMIND NETWORK</span>
+      <div className="mt-8 flex flex-col gap-2 border-t border-white/5 pt-5 text-[10px] tracking-wide text-muted-2 sm:flex-row sm:items-center sm:justify-between">
+        <span>© {new Date().getFullYear()} VOID.OS / EXOMIND</span>
         <span>SIGNAL STATUS: NOMINAL</span>
       </div>
     </footer>
