@@ -89,10 +89,6 @@ export function Hero() {
           >
             What is this?
           </MagneticButton>
-
-          <a className="btn-ghost" href="#">
-            Follow
-          </a>
         </motion.div>
 
         <motion.p

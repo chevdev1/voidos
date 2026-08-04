@@ -764,14 +764,19 @@ export function initVoidEngine() {
       ctx.fillStyle = deep;
       ctx.fillRect(0, 0, W, H);
 
+      // fillRect instead of arc()+fill(): at 1-2px there's no visible
+      // difference between a filled square and a filled circle, but a rect
+      // skips path construction and circular rasterization entirely — a
+      // real, measurable win at thousands of calls/frame. Coordinates are
+      // floored to whole pixels first so the browser draws a crisp block
+      // instead of anti-aliasing a fractional-pixel edge.
+      const bgSize = 2;
       for (const s of bgStars) {
         const [sx, sy] = w2s(s.x + panX * 0.06, s.y + panY * 0.06);
         if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
         const a = 0.15 + 0.55 * s.a;
         ctx.fillStyle = `rgba(220,230,255,${a})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect((sx | 0) - 1, (sy | 0) - 1, bgSize, bgSize);
       }
 
       hover = null;
@@ -807,7 +812,9 @@ export function initVoidEngine() {
       // Base LOD already thins the star field at low zoom; the quality
       // multiplier additionally thins it under sustained low frame rate —
       // this is the actual "halve the particle count under load" lever.
-      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      // 'low' was bumped 3->4: rather than cutting the base count again
+      // for every device, struggling ones now shed more automatically.
+      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 4;
       const lod = (scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1) * qualityLodMul;
       const [gcx, gcy] = w2s(g.m.x, g.m.y);
       const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
@@ -921,9 +928,9 @@ export function initVoidEngine() {
           if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
           starBatch.push({ p, pr, sx, sy });
         }
-        // Depth-sorting ~6200 entries every frame is real CPU cost for a
-        // painter's-algorithm ordering that's visually subtle at this dot
-        // size — so it's the first thing dropped under sustained load.
+        // Depth-sorting up to ~4200 entries every frame is real CPU cost
+        // for a painter's-algorithm ordering that's visually subtle at
+        // this dot size — so it's the first thing dropped under load.
         if (quality !== 'low') starBatch.sort((a, b) => a.pr.depth - b.pr.depth);
         for (const { p, pr, sx, sy } of starBatch) {
           let col = starColor(p.u);
@@ -934,9 +941,11 @@ export function initVoidEngine() {
           if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
           const a = ((p.dust ? 0.1 : 0.38) + p.br * 0.22 * tw) * depthFade;
           ctx.fillStyle = rgba(col, clamp(a, 0, 1));
-          ctx.beginPath();
-          ctx.arc(sx, sy, sz, 0, Math.PI * 2);
-          ctx.fill();
+          // fillRect, integer-aligned: this is the hottest loop in the
+          // engine (up to ~4200 calls/frame), so cutting path construction
+          // + circular rasterization + sub-pixel AA here is where it counts.
+          const d = Math.max(1, (sz * 2) | 0);
+          ctx.fillRect((sx - sz) | 0, (sy - sz) | 0, d, d);
         }
       }
 
@@ -1027,6 +1036,7 @@ export function initVoidEngine() {
 
       {
         const grainR = 2.1;
+        const grainD = Math.max(1, (grainR * 2) | 0); // constant size — compute once, not per sector
         for (const s of g.sectors) {
           if (!sectorVisible(s)) continue;
           const p = sectorProj(s, g);
@@ -1044,9 +1054,7 @@ export function initVoidEngine() {
           if (yoursSet.has(s.id)) col = [180, 255, 120];
           const empty = s.kind === 'empty' && !heatMode;
           ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
-          ctx.beginPath();
-          ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillRect((sx - grainR) | 0, (sy - grainR) | 0, grainD, grainD);
           if (s.hover > 0.2) {
             ctx.strokeStyle = rgba(col, 0.75);
             ctx.lineWidth = 1;
@@ -1076,9 +1084,7 @@ export function initVoidEngine() {
           ctx.lineTo(x, y + 3.5);
           ctx.stroke();
           ctx.fillStyle = rgba([255, 255, 230], a);
-          ctx.beginPath();
-          ctx.arc(x, y, 1.35, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.fillRect((x | 0) - 1, (y | 0) - 1, 2, 2);
         }
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;

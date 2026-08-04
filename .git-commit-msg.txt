@@ -1,0 +1,27 @@
+perf: fillRect + pixel-aligned dots, hero spacing, HUD reposition
+
+Extreme 2D-canvas pass on voidEngine.js:
+- Replaced ctx.arc()+fill() with ctx.fillRect() for the three highest-
+  volume dot draws (star field, sector grains, constellation sparks) --
+  path construction + circular rasterization is real cost at thousands
+  of calls/frame, and a filled square vs circle is indistinguishable at
+  1-4px. Left arc()/gradients alone on nebulae, comets, and the core
+  glow, where the shape is the point.
+- Coordinates floored with |0| before fillRect so the browser draws a
+  crisp pixel-aligned block instead of anti-aliasing a fractional edge.
+- Bounds culling already existed on every one of these loops (checked,
+  not re-added) -- noting it rather than claiming a new fix.
+- Didn't cut the base star count again (was 6200 -> 4200 last pass);
+  instead made the adaptive 'low' quality tier shed more (LOD multiplier
+  3 -> 4), so only genuinely struggling devices pay that cost.
+
+Hero.jsx / void.css:
+- Removed the "Follow" ghost button.
+- Narrower lede column (380px -> 320px) and more vertical margin between
+  badge/title/lede/CA-row/CTAs so the left column reads as stacked
+  blocks instead of one crowded cluster.
+- Moved .cosmos-hud (the "burned forever" pill) from pinned-top-left to
+  middle-right (34% from top, right-aligned), clear of the zoom controls
+  and minimap that already own the bottom-right corner. Its dark-glass +
+  backdrop-blur was already correct -- added the -webkit- prefix for
+  Safari, that's the only change there.

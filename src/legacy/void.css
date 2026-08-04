@@ -48,18 +48,21 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 @keyframes pulse{50%{opacity:.35}}
 .hero h1{
   font-family:'Syne',sans-serif;font-weight:800;
-  font-size:clamp(44px,6.5vw,78px);line-height:.92;letter-spacing:-.03em;margin-bottom:14px;
+  font-size:clamp(44px,6.5vw,78px);line-height:.92;letter-spacing:-.03em;margin-bottom:22px;
 }
 .hero h1 em{font-style:normal;color:var(--lime);text-shadow:0 0 32px rgba(204,255,0,.35)}
-.lead{color:var(--muted);font-size:13.5px;line-height:1.65;max-width:380px;margin-bottom:20px}
-.ca-row{display:flex;gap:8px;max-width:400px;margin-bottom:14px}
+/* Narrower column + more vertical rhythm so the left side reads as
+   deliberate stacked blocks (badge / title / lede / CA / CTAs) instead of
+   one crowded paragraph-and-buttons cluster. */
+.lead{color:var(--muted);font-size:13.5px;line-height:1.65;max-width:320px;margin-bottom:28px}
+.ca-row{display:flex;gap:8px;max-width:360px;margin-bottom:22px}
 .ca-box{
   flex:1;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.12);
   border-radius:12px;padding:11px 12px;font-size:11.5px;color:var(--muted);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .ca-copy{width:44px;border-radius:12px;background:var(--lime);color:#000;display:grid;place-items:center;font-weight:700}
-.cta{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
+.cta{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center}
 .btn-ghost{
   background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.14);
   color:#fff;font-size:12.5px;padding:11px 14px;border-radius:999px;
@@ -116,14 +119,20 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .hero-right canvas.grab{cursor:grabbing}
 
 .cosmos-hud{
-  position:absolute;top:42px;left:14px;transform:none;
-  z-index:6;text-align:left;pointer-events:none;max-width:min(280px,70%);
+  /* Middle-right instead of pinned to the top: that spot was colliding
+     with the densest part of the galaxy (core + most star traffic) right
+     under the fixed nav. 34% (not a flat 50%) keeps it clear of the zoom
+     controls (.vc) and minimap, which already own the bottom-right corner. */
+  position:absolute;top:34%;left:auto;right:14px;transform:translateY(-50%);
+  z-index:6;text-align:right;pointer-events:none;max-width:min(280px,70%);
 }
 .cosmos-hud .tag{font-size:9px;letter-spacing:.22em;color:var(--lime);margin-bottom:6px}
 .pill{
+  /* Already dark-glass + blurred (this was never the bug) — stars pass
+     behind it legibly; -webkit- prefix added for Safari. */
   display:inline-block;background:rgba(0,0,0,.72);border:1px solid rgba(204,255,0,.32);
   border-radius:14px;padding:10px 14px 8px;box-shadow:0 0 20px rgba(204,255,0,.08);
-  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
 }
 .pill .lab{color:var(--muted2);font-size:9px}
 .pill .num{font-family:'Syne',sans-serif;font-weight:800;font-size:clamp(18px,2.4vw,24px);color:var(--lime)}
