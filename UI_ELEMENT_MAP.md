@@ -68,6 +68,22 @@ Brutalist link list (X / GitHub / Documentation / DexScreener), oversized type, 
 
 ---
 
+## 3b. Performance pass on the cosmos canvas
+
+A request came in framed around React Three Fiber (`<Canvas dpr>`, `<PerformanceMonitor>` from drei, `<Points>`/`BufferGeometry`, `<InstancedMesh>`, postprocessing `multisampling`) — **none of that exists in this project**; there's no `three`/`@react-three/*` dependency at all. The Hero's galaxy is a plain 2D `<canvas>` (`getContext('2d')`) driven by `src/legacy/voidEngine.js`. Confirmed with the user, then applied the real, canvas2D-equivalent version of the same intent to `voidEngine.js`:
+
+- **DPR cap tightened**: 2 → 1.5 on the cosmos canvas specifically (the market chart canvas stays at 2 — it's a handful of candle rects, not a bottleneck).
+- **Hand-rolled adaptive quality tiers** (`'high' | 'medium' | 'low'`) — the honest equivalent of drei's `<PerformanceMonitor>` since that package isn't in the stack: an exponential moving average of frame time, with hysteresis (90 bad samples to downgrade, 240 good samples to upgrade — slow to downgrade on a blip, slower to upgrade so it doesn't flap), gates:
+  - star-field density (`lod` stride ×1/×2/×3) — the actual "cut particle count under load" lever,
+  - nebulae (skipped entirely below `'high'`),
+  - comets (only render at `'high'`),
+  - spiral-arm gas-lane ribbons (3 lanes → 1 → 0),
+  - the bloom composite pass (the offscreen-buffer clear/fill/composite is skipped below `'high'` — it's one of the priciest single operations per frame: a full-canvas `drawImage` with a `'lighter'` blend).
+- **Removed the biggest per-frame allocation/compute costs that don't need a quality gate at all**: nebula gradients (`ctx.createRadialGradient`) were being rebuilt from scratch for up to 68 nebulae, every frame. They're now built once per nebula at unit radius with the alpha *shape* baked in, and the frame-varying radius/pulse are applied via `ctx.scale` + `ctx.globalAlpha` — mathematically identical output (alpha multiplication commutes), a few dozen gradient allocations total instead of thousands per second. The star-field's per-frame array is reused (`.length = 0`) instead of a fresh `[]` literal each frame; its ~6200-entry depth sort (the actual expensive part) is skipped under `'low'` quality rather than removed outright, since it matters for visual correctness at full quality but is a fair trade to drop on a struggling device.
+- Left untouched (not identified as bottlenecks, so not worth the added risk): sector rendering, constellation figures/labels, the black hole/core glow, hit-testing, the minimap, and the market chart — none of these run into the thousands-of-ops-per-frame territory the star field and nebulae did.
+
+---
+
 ## 4. Before this ships
 
 1. Swap Footer link `href="#"` placeholders for real X / GitHub / Docs / DexScreener URLs, and the Hero's `Follow` / `Telegram` ghost links likewise.

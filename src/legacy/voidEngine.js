@@ -108,6 +108,7 @@ export function initVoidEngine() {
     };
 
     const LIME = [204, 255, 0];
+    const EMPTY_LIST = []; // shared, never mutated — avoids a fresh [] every frame when comets are skipped
     const NAME_A = [
       'VOID', 'LIME', 'ASH', 'NYX', 'HOLLOW', 'RIM', 'CORE', 'GHOST', 'EDGE', 'BURN', 'SILENT', 'FAR', 'DRIFT',
       'ECHO', 'SIGIL', 'MERIDIAN', 'PULSE', 'VEIL', 'CROWN', 'KEY', 'SPINE', 'WING', 'BELT', 'CHOIR', 'TAIL',
@@ -332,6 +333,44 @@ export function initVoidEngine() {
     const galaxies = [buildMegaGalaxy(GAL)];
     const g0 = galaxies[0];
 
+    /**
+     * Hand-rolled equivalent of drei's <PerformanceMonitor>: an exponential
+     * moving average of frame time drives three quality tiers with
+     * hysteresis (slow to downgrade on a blip, slower to upgrade back) so
+     * it doesn't flap. 'high' matches the original engine exactly; 'medium'
+     * and 'low' progressively shed the most expensive, least-noticeable
+     * work — see the gates on nebulae/comets/spiral ribbons/bloom below.
+     */
+    let quality = 'high'; // 'high' | 'medium' | 'low'
+    let frameMs = 16.7;
+    let goodStreak = 0,
+      badStreak = 0;
+    let lastSampleT = performance.now();
+    function sampleFrameTime(now) {
+      const dt = now - lastSampleT;
+      lastSampleT = now;
+      frameMs = frameMs * 0.9 + dt * 0.1; // EMA smooths one-off hitches (GC pause, tab switch)
+      if (frameMs > 22) {
+        // sustained < ~45fps
+        badStreak++;
+        goodStreak = 0;
+      } else if (frameMs < 15) {
+        // sustained > ~65fps
+        goodStreak++;
+        badStreak = 0;
+      } else {
+        badStreak = 0;
+        goodStreak = 0;
+      }
+      if (badStreak > 90 && quality !== 'low') {
+        quality = quality === 'high' ? 'medium' : 'low';
+        badStreak = 0;
+      } else if (goodStreak > 240 && quality !== 'high') {
+        quality = quality === 'low' ? 'medium' : 'high';
+        goodStreak = 0;
+      }
+    }
+
     const bgStars = Array.from({ length: 240 }, () => ({
       x: rnd(-1500, 1500),
       y: rnd(-1100, 1100),
@@ -344,7 +383,10 @@ export function initVoidEngine() {
       const r = frame.getBoundingClientRect();
       W = r.width;
       H = r.height;
-      DPR = Math.min(devicePixelRatio || 1, 2);
+      // Capped lower than the market chart's DPR (below): this canvas is the
+      // one doing thousands of fills/frame, so retina 3x/4x buys near-zero
+      // visible sharpness here for a large, avoidable fill-rate cost.
+      DPR = Math.min(devicePixelRatio || 1, 1.5);
       canvas.width = W * DPR;
       canvas.height = H * DPR;
       canvas.style.width = W + 'px';
@@ -682,6 +724,12 @@ export function initVoidEngine() {
 
     let hover = null;
     let alive = true;
+    // Reused every frame instead of a fresh `[]` — the array itself no
+    // longer costs an allocation; entries are still short-lived per-frame
+    // objects, which V8's generational GC handles cheaply, so this targets
+    // the one allocation actually worth removing without rewriting the
+    // star loop into a riskier flat-typed-array form I can't visually test.
+    const starBatch = [];
     function draw(now) {
       if (!alive) return;
       const fr = frame.getBoundingClientRect();
@@ -689,6 +737,8 @@ export function initVoidEngine() {
         requestAnimationFrame(draw);
         return;
       }
+      sampleFrameTime(now);
+      const bloomOn = quality === 'high';
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
       scale = lerp(scale, targetScale, 0.1);
@@ -698,10 +748,12 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
-      bctx.setTransform(1, 0, 0, 1, 0, 0);
-      bctx.clearRect(0, 0, BW, BH);
-      bctx.fillStyle = '#000';
-      bctx.fillRect(0, 0, BW, BH);
+      if (bloomOn) {
+        bctx.setTransform(1, 0, 0, 1, 0, 0);
+        bctx.clearRect(0, 0, BW, BH);
+        bctx.fillStyle = '#000';
+        bctx.fillRect(0, 0, BW, BH);
+      }
       const bsx = BW / W,
         bsy = BH / H;
       const g = g0;
@@ -753,7 +805,11 @@ export function initVoidEngine() {
         hud.style.transition = 'opacity .35s';
       }
 
-      const lod = scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1;
+      // Base LOD already thins the star field at low zoom; the quality
+      // multiplier additionally thins it under sustained low frame rate —
+      // this is the actual "halve the particle count under load" lever.
+      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      const lod = (scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1) * qualityLodMul;
       const [gcx, gcy] = w2s(g.m.x, g.m.y);
       const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
       const eh = filters.core ? Math.max(36, 58 * Math.min(scale, 2.2)) : 0;
@@ -781,9 +837,14 @@ export function initVoidEngine() {
         ctx.fill();
       }
 
-      if (scale < 6) {
+      // Gas-lane ribbons: 3 lanes/arm at full quality, thinned to 1 under
+      // load, skipped entirely at 'low' — each lane is a 56-segment stroked
+      // path rebuilt every frame, so this is one of the pricier decorative
+      // layers relative to how subtle it is.
+      const ribbonLanes = quality === 'high' ? 3 : quality === 'medium' ? 1 : 0;
+      if (scale < 6 && ribbonLanes > 0) {
         for (let arm = 0; arm < g.m.arms; arm++) {
-          for (let lane = 0; lane < 3; lane++) {
+          for (let lane = 0; lane < ribbonLanes; lane++) {
             const off = (lane - 1) * 0.045;
             ctx.beginPath();
             let first = true;
@@ -806,7 +867,15 @@ export function initVoidEngine() {
         }
       }
 
-      {
+      // Nebulae are skipped outright under sustained load, and — even at
+      // full quality — no longer call createRadialGradient() per nebula
+      // per frame (that was up to 68 fresh gradient objects, 60x/sec).
+      // Each nebula's gradient is built once, at unit radius with its
+      // alpha *shape* baked in (1 → 0.4 → 0); the actual per-frame radius
+      // and pulse are applied afterwards via ctx.scale + ctx.globalAlpha,
+      // which is a mathematically identical result to rebuilding the
+      // gradient every frame since alpha multiplication commutes.
+      if (quality !== 'low') {
         const breath = 0.85 + 0.15 * Math.sin(t * 0.7);
         for (const n of g.nebulae) {
           const [lx2, ly2] = polarLocal(n.r, n.a0 + Math.sin(t * n.sp + n.ph) * 0.02, 0);
@@ -820,20 +889,24 @@ export function initVoidEngine() {
           const rad = n.rad * scale * pr.persp * (scale < 2 ? 1 : 0.75);
           if (rad < 4) continue;
           const pulse = n.a * breath * (0.9 + 0.1 * Math.sin(t * n.sp + n.ph));
+          if (!n._grd) {
+            const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+            grd.addColorStop(0, rgba(n.col, 1));
+            grd.addColorStop(0.45, rgba(n.col, 0.4));
+            grd.addColorStop(1, 'rgba(0,0,0,0)');
+            n._grd = grd;
+          }
           ctx.save();
           ctx.translate(sx, sy);
           ctx.rotate(n.ang + viewYaw * 0.5);
-          const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
-          grd.addColorStop(0, rgba(n.col, pulse));
-          grd.addColorStop(0.45, rgba(n.col, pulse * 0.4));
-          grd.addColorStop(1, 'rgba(0,0,0,0)');
-          ctx.fillStyle = grd;
-          ctx.scale(n.stretch, 1);
+          ctx.globalAlpha = pulse;
+          ctx.fillStyle = n._grd;
+          ctx.scale(rad * n.stretch, rad);
           ctx.beginPath();
-          ctx.arc(0, 0, rad, 0, Math.PI * 2);
+          ctx.arc(0, 0, 1, 0, Math.PI * 2);
           ctx.fill();
           ctx.restore();
-          if (pulse > 0.07) {
+          if (bloomOn && pulse > 0.07) {
             bctx.fillStyle = rgba(n.col, pulse * 0.45);
             bctx.beginPath();
             bctx.ellipse(sx * bsx, sy * bsy, rad * bsx * 0.35 * n.stretch, rad * bsy * 0.2, n.ang, 0, Math.PI * 2);
@@ -843,7 +916,7 @@ export function initVoidEngine() {
       }
 
       {
-        const batch = [];
+        starBatch.length = 0;
         for (let i = 0; i < g.points.length; i += lod) {
           const p = g.points[i];
           const pr = pointProj(p, g, t);
@@ -853,10 +926,13 @@ export function initVoidEngine() {
           sx = L[0];
           sy = L[1];
           if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
-          batch.push({ p, pr, sx, sy });
+          starBatch.push({ p, pr, sx, sy });
         }
-        batch.sort((a, b) => a.pr.depth - b.pr.depth);
-        for (const { p, pr, sx, sy } of batch) {
+        // Depth-sorting ~6200 entries every frame is real CPU cost for a
+        // painter's-algorithm ordering that's visually subtle at this dot
+        // size — so it's the first thing dropped under sustained load.
+        if (quality !== 'low') starBatch.sort((a, b) => a.pr.depth - b.pr.depth);
+        for (const { p, pr, sx, sy } of starBatch) {
           let col = starColor(p.u);
           if (p.dust) col = colLerp(col, [8, 10, 6], 0.72);
           const tw = 0.6 + 0.4 * Math.sin(t * p.sp * 1.3 + p.ph);
@@ -868,7 +944,7 @@ export function initVoidEngine() {
           ctx.beginPath();
           ctx.arc(sx, sy, sz, 0, Math.PI * 2);
           ctx.fill();
-          if (p.hot || (p.u < 0.1 && p.br > 1)) {
+          if (bloomOn && (p.hot || (p.u < 0.1 && p.br > 1))) {
             bctx.fillStyle = rgba(col, 0.2);
             bctx.beginPath();
             bctx.arc(sx * bsx, sy * bsy, sz * bsx * 1.25, 0, Math.PI * 2);
@@ -877,7 +953,9 @@ export function initVoidEngine() {
         }
       }
 
-      for (const c of g.comets) {
+      // Comets are the cheapest visual thing to lose first — a handful of
+      // gradient strokes that read as a bonus flourish, not core structure.
+      for (const c of quality === 'high' ? g.comets : EMPTY_LIST) {
         const ang = c.a0 + t * c.spd * 0.35;
         const [lx2, ly2] = polarLocal(c.r, ang, 0);
         const head = projectLocal(lx2, ly2, Math.sin(t * 0.7 + c.ph) * 8 + c.tilt * 20, g);
@@ -963,10 +1041,12 @@ export function initVoidEngine() {
         ctx.arc(gcx, gcy, eh * 0.72, 0, Math.PI * 2);
         ctx.stroke();
 
-        bctx.fillStyle = rgba(LIME, 0.3);
-        bctx.beginPath();
-        bctx.arc(gcx * bsx, gcy * bsy, eh * bsx * 0.9, 0, Math.PI * 2);
-        bctx.fill();
+        if (bloomOn) {
+          bctx.fillStyle = rgba(LIME, 0.3);
+          bctx.beginPath();
+          bctx.arc(gcx * bsx, gcy * bsy, eh * bsx * 0.9, 0, Math.PI * 2);
+          bctx.fill();
+        }
       }
 
       {
@@ -1161,12 +1241,17 @@ export function initVoidEngine() {
         ctx.fillText('EXOMIND', gcx, ly2);
       }
 
-      ctx.save();
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.imageSmoothingEnabled = true;
-      ctx.globalAlpha = 0.32;
-      ctx.drawImage(bloom, 0, 0, BW, BH, 0, 0, W, H);
-      ctx.restore();
+      // The bloom composite is a full-canvas drawImage with a 'lighter'
+      // blend — one of the pricier single operations per frame — so it's
+      // the last thing enabled and the first thing dropped.
+      if (bloomOn) {
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.imageSmoothingEnabled = true;
+        ctx.globalAlpha = 0.32;
+        ctx.drawImage(bloom, 0, 0, BW, BH, 0, 0, W, H);
+        ctx.restore();
+      }
 
       if (hover && hover.s.hover > 0.2) {
         document.getElementById('tip1').textContent = `${hover.s.cName} · #${hover.s.id}`;
