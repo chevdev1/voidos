@@ -1,0 +1,1317 @@
+/**
+ * This is the original VOID.OS canvas engine (galaxy map + market chart +
+ * burned-supply ticker + sector terminal wiring), ported close to verbatim
+ * from the static site. It's a large, tuned, imperative canvas simulation —
+ * rewriting it as idiomatic React would mean re-deriving hundreds of lines
+ * of hand-tuned math for zero visual benefit, so instead it's wrapped as a
+ * single mount function that returns a `destroy()` teardown.
+ *
+ * All DOM access is by id, matching the ids rendered in Hero/CosmosPanel/
+ * MarketSection/SectorTerminal — those ids exist by the time this runs
+ * because it's invoked from an effect in App.jsx, after the full tree has
+ * committed to the DOM.
+ */
+export function initVoidEngine() {
+  'use strict';
+  const disposers = [];
+  const onCleanup = (fn) => disposers.push(fn);
+
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const ri = (a, b) => Math.floor(rnd(a, b + 1));
+  const fmt = (n) => n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  document.getElementById('termX').onclick = () =>
+    document.getElementById('term').classList.remove('open');
+  document.getElementById('termBuy').onclick = () =>
+    alert('wallet preview — claim burns $EXO.');
+
+  function openTerm(d) {
+    document.getElementById('termTitle').textContent = d.title;
+    document.getElementById('termSub').textContent = d.sub;
+    document.getElementById('tStatus').textContent = d.status;
+    document.getElementById('tRing').textContent = d.ring;
+    document.getElementById('tPrice').textContent = d.price;
+    document.getElementById('tSize').textContent = d.size;
+    document.getElementById('tGrav').textContent = d.grav;
+    document.getElementById('tNote').textContent = d.note;
+    document.getElementById('term').classList.add('open');
+  }
+
+  /* price from distance to galaxy core: closer = more expensive */
+  function priceFromDist(dist, maxR) {
+    const t = clamp(1 - dist / maxR, 0, 1); // 1 at core, 0 at edge
+    const usd = 0.04 + Math.pow(t, 1.55) * 2.46;
+    return usd;
+  }
+  function ringName(dist, maxR) {
+    const t = dist / maxR;
+    if (t < 0.18) return 'core ring';
+    if (t < 0.38) return 'inner arm';
+    if (t < 0.62) return 'mid spiral';
+    if (t < 0.82) return 'outer belt';
+    return 'far rim';
+  }
+
+  /* ================= COSMOS ================= */
+  (function () {
+    const frame = document.getElementById('cosmosFrame');
+    const canvas = document.getElementById('cosmos');
+    const tip = document.getElementById('tip');
+    const zoomLabel = document.getElementById('zoomLabel');
+    const ctx = canvas.getContext('2d', { alpha: false });
+    const bloom = document.createElement('canvas');
+    const bctx = bloom.getContext('2d');
+    let W = 0,
+      H = 0,
+      DPR = 1,
+      BW = 0,
+      BH = 0;
+    let scale = 1.05;
+    const MIN_S = 0.35,
+      MAX_S = 18;
+    let panX = 0,
+      panY = 0,
+      targetScale = scale,
+      targetPanX = 0,
+      targetPanY = 0;
+    let dragging = false,
+      moved = false,
+      lx = 0,
+      ly = 0,
+      mx = null,
+      my = null;
+    let autoSpin = true,
+      rot = 0;
+    let viewYaw = 0.22,
+      viewPitch = 0.82; // flatter MW angle — stays optically centered
+    let orbitMode = true,
+      orbiting = false;
+    const t0 = performance.now();
+    const filters = { empty: true, claimed: true, fed: true, core: true, heat: false, yours: true };
+    const yoursSet = new Set();
+    let heatMode = false;
+
+    /* ONE mega-galaxy — fills the frame */
+    const GAL = {
+      x: 0,
+      y: 0,
+      s: 4.6,
+      name: 'ExoMind',
+      kind: 'spiral',
+      arms: 4,
+      twist: 5.2,
+      tilt: 1.05,
+      roll: 0.15,
+      bright: 1.35,
+    };
+
+    const LIME = [204, 255, 0];
+    const NAME_A = [
+      'VOID', 'LIME', 'ASH', 'NYX', 'HOLLOW', 'RIM', 'CORE', 'GHOST', 'EDGE', 'BURN', 'SILENT', 'FAR', 'DRIFT',
+      'ECHO', 'SIGIL', 'MERIDIAN', 'PULSE', 'VEIL', 'CROWN', 'KEY', 'SPINE', 'WING', 'BELT', 'CHOIR', 'TAIL',
+      'NODE', 'ARC', 'LANE', 'RIB', 'HALO', 'FLUX', 'SEED', 'QUILL', 'MIRROR', 'TORCH', 'RELIC', 'CIPHER',
+      'ORBIT', 'PRISM', 'VEIN', 'AETHER', 'NOVA', 'DUST', 'IRON', 'SOLAR', 'LUNAR', 'EMBER', 'FROST', 'GLINT',
+      'SHADE', 'WRAITH', 'OMEGA', 'ALPHA', 'ZETA', 'ION', 'AXIOM', 'NEXUS', 'HELIX', 'QUASAR', 'PULSE',
+    ];
+    const NAME_B = [
+      'CROWN', 'KEY', 'ARC', 'SPINE', 'VEIL', 'PULSE', 'MERIDIAN', 'WING', 'BELT', 'SIGIL', 'CHOIR', 'NODE',
+      'LANE', 'TAIL', 'ECHO', 'RIB', 'HALO', 'DRIFT', 'SEED', 'QUILL', 'MIRROR', 'TORCH', 'RELIC', 'CIPHER',
+      'ORBIT', 'PRISM', 'VEIN', 'FIELD', 'GATE', 'WELL', 'NEST', 'RING', 'FORK', 'SPIRE', 'BRIDGE', 'CLUSTER',
+      'FOLD', 'REACH', 'DELTA', 'THRONE',
+    ];
+    function limeShade(i) {
+      const t = (i % 20) / 19;
+      return [Math.floor(100 + t * 155), Math.floor(150 + t * 105), Math.floor(15 + t * 55)];
+    }
+    /* dense constellation grid — ~200 across the disk */
+    const CONSTEL_DEFS = [];
+    {
+      let n = 0;
+      const arms = 4,
+        perArm = 50;
+      for (let arm = 0; arm < arms; arm++) {
+        for (let k = 0; k < perArm; k++) {
+          const u = 0.04 + k * (0.94 / (perArm - 1)) + (((arm * 5 + k * 3) % 7) - 3) * 0.006;
+          const name = NAME_A[n % NAME_A.length] + ' ' + NAME_B[(n * 5 + arm * 2) % NAME_B.length];
+          const tag = n > NAME_A.length ? ' ' + (n + 1) : '';
+          CONSTEL_DEFS.push({
+            id: 'c' + n,
+            name: (name + tag).toUpperCase(),
+            col: limeShade(n + arm * 2),
+            arm,
+            u: clamp(u, 0.03, 0.97),
+            spread: 0.22 + (n % 7) * 0.035,
+            figure: n % 6,
+          });
+          n++;
+        }
+      }
+    }
+
+    function colLerp(a, b, t) {
+      return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+    }
+    /* milky-way lime: hot core → bright arms → faint olive rim */
+    function starColor(u) {
+      u = clamp(u, 0, 1);
+      if (u < 0.08) return colLerp([255, 255, 245], [255, 245, 180], u / 0.08);
+      if (u < 0.28) return colLerp([240, 255, 140], [204, 255, 0], (u - 0.08) / 0.2);
+      if (u < 0.55) return colLerp([204, 255, 0], [160, 210, 40], (u - 0.28) / 0.27);
+      if (u < 0.8) return colLerp([130, 170, 50], [90, 120, 40], (u - 0.55) / 0.25);
+      return colLerp([70, 95, 30], [40, 55, 20], (u - 0.8) / 0.2);
+    }
+    function rgba(c, a) {
+      return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+    }
+
+    function buildMegaGalaxy(m) {
+      const R = 210 * m.s;
+      const constels = CONSTEL_DEFS.map((d) => {
+        const a0 = (d.arm / m.arms) * Math.PI * 2 + d.u * m.twist;
+        const r = d.u * R;
+        return { ...d, r, a0, x: r * Math.cos(a0), y: r * Math.sin(a0), grains: [], hover: 0 };
+      });
+
+      const points = [];
+      for (let i = 0; i < 6200; i++) {
+        const arm = ri(0, m.arms - 1);
+        let r,
+          a0,
+          dust = 0,
+          mode = Math.random();
+        if (mode < 0.14) {
+          r = Math.pow(Math.random(), 0.85) * R * 0.22;
+          a0 = rnd(0, Math.PI * 2);
+        } else if (mode < 0.78) {
+          r = Math.pow(Math.random(), 0.48) * R;
+          a0 = (arm / m.arms) * Math.PI * 2 + (r / R) * m.twist + rnd(-0.12, 0.12) * (1.05 - r / R);
+          dust = Math.sin(a0 * m.arms - (r / R) * m.twist * 2.2) > 0.72 ? 1 : 0;
+        } else {
+          r = rnd(R * 0.35, R * 1.05);
+          a0 = rnd(0, Math.PI * 2);
+        }
+        const u = clamp(r / R, 0, 1);
+        points.push({
+          r: Math.max(1.5, r),
+          a0,
+          u,
+          dust,
+          arm,
+          br: rnd(0.25, 1.9) * (1.35 - u * 0.55) * m.bright * (mode < 0.14 ? 1.4 : 1),
+          ph: rnd(0, 6.28),
+          sp: rnd(0.2, 1.2),
+          hot: Math.random() < 0.04 || u < 0.06,
+        });
+      }
+      const nebulae = [];
+      for (let i = 0; i < 56; i++) {
+        const arm = ri(0, m.arms - 1);
+        const u = rnd(0.12, 0.92);
+        const a0 = (arm / m.arms) * Math.PI * 2 + u * m.twist + rnd(-0.18, 0.18);
+        const r = u * R;
+        nebulae.push({
+          r,
+          a0,
+          u,
+          arm,
+          rad: rnd(28, 70),
+          stretch: rnd(1.6, 3.2),
+          ang: a0 + Math.PI / 2,
+          col: u < 0.25 ? [255, 245, 180] : u < 0.55 ? [204, 255, 0] : [130, 175, 40],
+          a: rnd(0.04, 0.11),
+          ph: rnd(0, 6.28),
+          sp: rnd(0.15, 0.5),
+        });
+      }
+      for (let i = 0; i < 12; i++) {
+        nebulae.push({
+          r: rnd(R * 0.04, R * 0.22),
+          a0: rnd(0, Math.PI * 2),
+          u: rnd(0.05, 0.2),
+          arm: 0,
+          rad: rnd(40, 90),
+          stretch: rnd(1.1, 1.8),
+          ang: rnd(0, Math.PI),
+          col: [255, 250, 200],
+          a: rnd(0.06, 0.14),
+          ph: rnd(0, 6),
+          sp: rnd(0.2, 0.6),
+        });
+      }
+
+      const comets = [];
+      for (let i = 0; i < 10; i++) {
+        comets.push({
+          a0: rnd(0, Math.PI * 2),
+          r: rnd(R * 0.25, R * 1.15),
+          spd: rnd(0.35, 1.1) * (Math.random() < 0.5 ? 1 : -1),
+          len: rnd(55, 120),
+          thick: rnd(1.2, 2.4),
+          tilt: rnd(-0.4, 0.4),
+          ph: rnd(0, 10),
+        });
+      }
+
+      function nearestConstel(r, a0) {
+        const x = r * Math.cos(a0),
+          y = r * Math.sin(a0);
+        let best = constels[0],
+          bd = 1e9;
+        for (const c of constels) {
+          const d = Math.hypot(x - c.x, y - c.y) / (c.spread * R * 0.35 + 20);
+          if (d < bd) {
+            bd = d;
+            best = c;
+          }
+        }
+        return best;
+      }
+
+      const sectors = [];
+      let tries = 0;
+      while (sectors.length < 2800 && tries++ < 90000) {
+        const r = rnd(R * 0.04, R * 0.98);
+        const arm = ri(0, m.arms - 1);
+        const a0 = (arm / m.arms) * Math.PI * 2 + (r / R) * m.twist + rnd(-0.28, 0.28);
+        const off = rnd(-14, 14);
+        let ok = true;
+        for (const s of sectors) {
+          if (Math.hypot(r * Math.cos(a0) - s.r * Math.cos(s.a0), r * Math.sin(a0) - s.r * Math.sin(s.a0)) < 5.2) {
+            ok = false;
+            break;
+          }
+        }
+        if (!ok) continue;
+        const c = nearestConstel(r, a0);
+        const usd = priceFromDist(r, R);
+        const sec = {
+          id: 1000 + sectors.length,
+          r,
+          a0,
+          off,
+          u: r / R,
+          radius: rnd(6, 11),
+          size: ri(40, 220),
+          kind: Math.random() < 0.14 ? 'fed' : Math.random() < 0.22 ? 'empty' : 'claimed',
+          usd,
+          ring: ringName(r, R),
+          grav: (100 * (1 - r / R)).toFixed(0) + '%',
+          hover: 0,
+          gx: m.x,
+          gy: m.y,
+          gName: m.name,
+          maxR: R,
+          constel: c.id,
+          cName: c.name,
+          cCol: c.col,
+        };
+        sectors.push(sec);
+        c.grains.push(sec);
+      }
+
+      for (const c of constels) {
+        if (!c.grains.length) continue;
+        let sx = 0,
+          sy = 0;
+        for (const s of c.grains) {
+          sx += s.r * Math.cos(s.a0);
+          sy += s.r * Math.sin(s.a0);
+        }
+        c.x = sx / c.grains.length;
+        c.y = sy / c.grains.length;
+        c.r = Math.hypot(c.x, c.y);
+        c.a0 = Math.atan2(c.y, c.x);
+      }
+      const populated = constels.filter((c) => c.grains.length >= 2);
+
+      return { m, R, points, comets, nebulae, sectors, constels: populated, spin: 1.05 };
+    }
+
+    const galaxies = [buildMegaGalaxy(GAL)];
+    const g0 = galaxies[0];
+
+    const bgStars = Array.from({ length: 240 }, () => ({
+      x: rnd(-1500, 1500),
+      y: rnd(-1100, 1100),
+      r: rnd(0.3, 1.9),
+      a: Math.random(),
+      spike: Math.random() < 0.035,
+    }));
+
+    function resize() {
+      const r = frame.getBoundingClientRect();
+      W = r.width;
+      H = r.height;
+      DPR = Math.min(devicePixelRatio || 1, 2);
+      canvas.width = W * DPR;
+      canvas.height = H * DPR;
+      canvas.style.width = W + 'px';
+      canvas.style.height = H + 'px';
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      BW = Math.max(1, (W / 2.2) | 0);
+      BH = Math.max(1, (H / 2.2) | 0);
+      bloom.width = BW;
+      bloom.height = BH;
+    }
+    const cosmosResizeObserver = new ResizeObserver(resize);
+    cosmosResizeObserver.observe(frame);
+    onCleanup(() => cosmosResizeObserver.disconnect());
+    resize();
+
+    function viewLabel() {
+      if (scale < 0.5) return 'EXOMIND';
+      if (scale < 1) return 'GALAXY';
+      if (scale < 2) return 'ARMS';
+      if (scale < 4) return 'CONSTELLATIONS';
+      if (scale < 7) return 'CLUSTERS';
+      if (scale < 11) return 'GRAINS';
+      return 'GRAIN · x' + scale.toFixed(1);
+    }
+
+    function sectorVisible(s) {
+      if (yoursSet.has(s.id)) return filters.yours;
+      if (s.kind === 'empty') return filters.empty;
+      if (s.kind === 'claimed') return filters.claimed;
+      if (s.kind === 'fed') return filters.fed;
+      return true;
+    }
+
+    function projectLocal(lx, ly, lz, g) {
+      const yaw = viewYaw + rot * (autoSpin ? g.spin : 0) + g.m.roll;
+      const pitch = viewPitch;
+      const cy = Math.cos(yaw),
+        sy = Math.sin(yaw);
+      let x = lx * cy - ly * sy;
+      let y = lx * sy + ly * cy;
+      let z = lz;
+      const cp = Math.cos(pitch),
+        sp = Math.sin(pitch);
+      const y2 = y * cp - z * sp;
+      const z2 = y * sp + z * cp;
+      const persp = 1 / (1 + z2 * 0.00135);
+      return { x: g.m.x + x * persp, y: g.m.y + y2 * persp, z: z2, persp, depth: z2 };
+    }
+    function polarLocal(r, a, off) {
+      return [r * Math.cos(a) + Math.cos(a + 1.1) * (off || 0), r * Math.sin(a) + Math.sin(a + 1.1) * (off || 0) * 0.5];
+    }
+    function pitchLift() {
+      return Math.sin(viewPitch) * g0.R * scale * 0.22;
+    }
+    function w2s(x, y) {
+      return [W / 2 + panX + x * scale, H / 2 + panY + y * scale - pitchLift()];
+    }
+    function s2w(sx, sy) {
+      return [(sx - W / 2 - panX) / scale, (sy - H / 2 - panY + pitchLift()) / scale];
+    }
+    function localXY(e) {
+      const r = canvas.getBoundingClientRect();
+      return [e.clientX - r.left, e.clientY - r.top];
+    }
+    function inside(e) {
+      const r = canvas.getBoundingClientRect();
+      return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    }
+
+    function sectorProj(s, g) {
+      const [lx, ly] = polarLocal(s.r, s.a0, s.off);
+      return projectLocal(lx, ly, (s.u - 0.5) * 18, g);
+    }
+    function pointProj(p, g, t) {
+      const wob = Math.sin(t * p.sp + p.ph) * 1.5;
+      const [lx, ly] = polarLocal(p.r + wob, p.a0, 0);
+      return projectLocal(lx, ly, (p.u - 0.45) * 18 + (p.dust ? -8 : 0) + Math.sin(t * 0.35 + p.ph) * 2.5, g);
+    }
+    function constelWorld(c, g) {
+      const [lx, ly] = polarLocal(c.r, c.a0, 0);
+      return projectLocal(lx, ly, 0, g);
+    }
+    function focusOn(wx, wy, want) {
+      targetScale = clamp(want, MIN_S, MAX_S);
+      targetPanX = -wx * targetScale;
+      targetPanY = -wy * targetScale;
+    }
+
+    function onMouseDown(e) {
+      dragging = true;
+      moved = false;
+      lx = e.clientX;
+      ly = e.clientY;
+      orbiting = e.button !== 1 && !e.shiftKey && (orbitMode || e.altKey || e.button === 2);
+      if (e.shiftKey || e.button === 1) orbiting = false;
+      canvas.classList.add('grab');
+    }
+    function onContextMenu(e) {
+      e.preventDefault();
+    }
+    function onWindowMouseMove(e) {
+      if (inside(e)) {
+        const [sx, sy] = localXY(e);
+        const p = s2w(sx, sy);
+        mx = p[0];
+        my = p[1];
+      } else {
+        mx = null;
+        my = null;
+        tip.classList.remove('show');
+      }
+      if (!dragging) return;
+      const dx = e.clientX - lx,
+        dy = e.clientY - ly;
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      if (orbiting) {
+        viewYaw += dx * 0.01;
+        viewPitch += dy * 0.01;
+      } else {
+        panX += dx;
+        panY += dy;
+        targetPanX = panX;
+        targetPanY = panY;
+      }
+      lx = e.clientX;
+      ly = e.clientY;
+    }
+    function onWindowMouseUp(e) {
+      if (!dragging) return;
+      if (!moved && inside(e)) {
+        const [sx, sy] = localXY(e);
+        const [wx, wy] = s2w(sx, sy);
+        const hit = pickSector(wx, wy);
+        if (hit) {
+          focusOn(hit.wx, hit.wy, clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S)));
+          openTerm({
+            title: 'GRAIN #' + hit.s.id,
+            sub: hit.s.cName + ' · ' + hit.s.ring,
+            status: yoursSet.has(hit.s.id) ? 'yours' : hit.s.kind === 'empty' ? 'unclaimed' : hit.s.kind,
+            ring: hit.s.ring,
+            price: '$' + hit.s.usd.toFixed(2) + ' · burn $EXO',
+            size: fmt(hit.s.size) + ' cells',
+            grav: hit.s.grav + ' core proximity',
+            note: hit.s.cName + ' · ' + (hit.s.usd > 1.2 ? 'Core pull: expensive.' : hit.s.usd > 0.4 ? 'Arm balance.' : 'Rim chaos: cheap.'),
+          });
+          document.getElementById('termBuy').onclick = () => {
+            yoursSet.add(hit.s.id);
+            if (hit.s.kind === 'empty') hit.s.kind = 'claimed';
+            document.getElementById('yoursCnt').textContent = String(yoursSet.size);
+            alert('preview claim — #' + hit.s.id + ' · ' + hit.s.cName + ' · burns $EXO');
+          };
+        } else {
+          let best = null,
+            bd = 1e9;
+          for (const c of g0.constels) {
+            const p = constelWorld(c, g0);
+            const d = Math.hypot(wx - p.x, wy - p.y);
+            if (d < g0.R * 0.22 && d < bd) {
+              bd = d;
+              best = { c, p };
+            }
+          }
+          if (best) focusOn(best.p.x, best.p.y, clamp(Math.max(scale, 2.4), 2.2, 4.5));
+          else focusOn(0, 0, Math.max(scale, 0.65));
+        }
+      }
+      dragging = false;
+      canvas.classList.remove('grab');
+    }
+    function onWheel(e) {
+      e.preventDefault();
+      const [sx, sy] = localXY(e);
+      const before = s2w(sx, sy);
+      const zin = scale < 1 ? 1.14 : scale < 3 ? 1.18 : scale < 7 ? 1.22 : 1.28;
+      const zout = scale < 1 ? 0.88 : scale < 3 ? 0.87 : 0.84;
+      const next = clamp(scale * (e.deltaY < 0 ? zin : zout), MIN_S, MAX_S);
+      scale = next;
+      targetScale = next;
+      const after = s2w(sx, sy);
+      panX += (after[0] - before[0]) * scale;
+      panY += (after[1] - before[1]) * scale;
+      targetPanX = panX;
+      targetPanY = panY;
+    }
+
+    canvas.addEventListener('mousedown', onMouseDown);
+    canvas.addEventListener('contextmenu', onContextMenu);
+    window.addEventListener('mousemove', onWindowMouseMove);
+    window.addEventListener('mouseup', onWindowMouseUp);
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    onCleanup(() => {
+      canvas.removeEventListener('mousedown', onMouseDown);
+      canvas.removeEventListener('contextmenu', onContextMenu);
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+      canvas.removeEventListener('wheel', onWheel);
+    });
+
+    document.getElementById('zoomIn').onclick = () => {
+      targetScale = clamp(scale * 1.35, MIN_S, MAX_S);
+      targetPanX = panX * (targetScale / scale);
+      targetPanY = panY * (targetScale / scale);
+    };
+    document.getElementById('zoomOut').onclick = () => {
+      targetScale = clamp(scale / 1.35, MIN_S, MAX_S);
+      targetPanX = panX * (targetScale / scale);
+      targetPanY = panY * (targetScale / scale);
+    };
+    document.getElementById('homeBtn').onclick = () => {
+      targetScale = 1.05;
+      targetPanX = 0;
+      targetPanY = 0;
+      viewYaw = 0.22;
+      viewPitch = 0.82;
+    };
+    document.getElementById('orbitBtn').onclick = function () {
+      orbitMode = !orbitMode;
+      this.classList.toggle('on', orbitMode);
+    };
+    document.getElementById('spinBtn').onclick = function () {
+      autoSpin = !autoSpin;
+      this.classList.toggle('on', autoSpin);
+    };
+    document.getElementById('searchBtn').onclick = () => {
+      const q = prompt('find GRAIN # or constellation');
+      if (!q) return;
+      const id = parseInt(q, 10);
+      if (!isNaN(id)) {
+        const found = g0.sectors.find((x) => x.id === id);
+        if (!found) {
+          alert('grain #' + q + ' not found');
+          return;
+        }
+        const p = sectorProj(found, g0);
+        focusOn(p.x, p.y, 11);
+        openTerm({
+          title: 'GRAIN #' + found.id,
+          sub: found.cName + ' · ' + found.ring,
+          status: found.kind === 'empty' ? 'unclaimed' : found.kind,
+          ring: found.ring,
+          price: '$' + found.usd.toFixed(2) + ' · burn $EXO',
+          size: fmt(found.size) + ' cells',
+          grav: found.grav + ' core proximity',
+          note: 'Search · ' + found.cName,
+        });
+        return;
+      }
+      const cq = q.trim().toUpperCase();
+      const c = g0.constels.find((x) => x.name.includes(cq) || x.id.includes(q.toLowerCase()));
+      if (!c) {
+        alert('constellation not found');
+        return;
+      }
+      focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
+    };
+
+    document.getElementById('filters').addEventListener('click', (e) => {
+      const chip = e.target.closest('.fchip');
+      if (!chip) return;
+      const f = chip.dataset.f;
+      if (f === 'heat') {
+        heatMode = !heatMode;
+        filters.heat = heatMode;
+        chip.classList.toggle('on', heatMode);
+        chip.classList.toggle('off', !heatMode);
+        return;
+      }
+      filters[f] = !filters[f];
+      chip.classList.toggle('on', filters[f]);
+      chip.classList.toggle('off', !filters[f]);
+    });
+
+    const mini = document.getElementById('mini');
+    const mctx = mini.getContext('2d');
+    const WORLD = 2200;
+    mini.addEventListener('click', (e) => {
+      const r = mini.getBoundingClientRect();
+      const wx = ((e.clientX - r.left) / r.width - 0.5) * WORLD;
+      const wy = ((e.clientY - r.top) / r.height - 0.5) * WORLD * 0.75;
+      focusOn(wx, wy, Math.max(scale, 1.6));
+    });
+
+    function drawMini() {
+      const mw = mini.width,
+        mh = mini.height;
+      mctx.fillStyle = '#030508';
+      mctx.fillRect(0, 0, mw, mh);
+      const sx = mw / WORLD,
+        sy = mh / (WORLD * 0.75);
+      let shown = 0;
+      for (const c of g0.constels) {
+        const p = constelWorld(c, g0);
+        const x = mw / 2 + p.x * sx,
+          y = mh / 2 + p.y * sy;
+        const grd = mctx.createRadialGradient(x, y, 0, x, y, 20);
+        grd.addColorStop(0, rgba(c.col, 0.5));
+        grd.addColorStop(1, 'rgba(0,0,0,0)');
+        mctx.fillStyle = grd;
+        mctx.beginPath();
+        mctx.arc(x, y, 20, 0, Math.PI * 2);
+        mctx.fill();
+      }
+      for (const s of g0.sectors) {
+        if (!sectorVisible(s)) continue;
+        shown++;
+        const p = sectorProj(s, g0);
+        mctx.fillStyle = yoursSet.has(s.id) ? '#ccff00' : rgba(s.cCol, 0.9);
+        mctx.fillRect(mw / 2 + p.x * sx, mh / 2 + p.y * sy, 1.4, 1.4);
+      }
+      const vw = (W / scale) * sx,
+        vh = (H / scale) * sy;
+      mctx.strokeStyle = 'rgba(204,255,0,.9)';
+      mctx.lineWidth = 1.2;
+      mctx.strokeRect(mw / 2 - (panX / scale) * sx - vw / 2, mh / 2 - (panY / scale) * sy - vh / 2, vw, vh);
+      document.getElementById('miniCap').textContent = shown + ' grains · ' + g0.constels.length + ' constellations';
+    }
+    const miniIntervalId = setInterval(drawMini, 280);
+    onCleanup(() => clearInterval(miniIntervalId));
+
+    function pickSector(wx, wy) {
+      let best = null,
+        bd = 1e9;
+      const hitR = Math.max(4.5, 8 / scale);
+      for (const s of g0.sectors) {
+        if (!sectorVisible(s)) continue;
+        const p = sectorProj(s, g0);
+        const d = Math.hypot(p.x - wx, p.y - wy);
+        if (d < hitR && d < bd) {
+          bd = d;
+          best = { s, wx: p.x, wy: p.y, g: g0 };
+        }
+      }
+      return best;
+    }
+
+    let hover = null;
+    let alive = true;
+    function draw(now) {
+      if (!alive) return;
+      const fr = frame.getBoundingClientRect();
+      if (fr.bottom < -50 || fr.top > innerHeight + 50) {
+        requestAnimationFrame(draw);
+        return;
+      }
+      const t = (now - t0) / 1000;
+      if (autoSpin) rot = t * 0.028;
+      scale = lerp(scale, targetScale, 0.1);
+      panX = lerp(panX, targetPanX, 0.1);
+      panY = lerp(panY, targetPanY, 0.1);
+      zoomLabel.textContent = viewLabel();
+
+      ctx.fillStyle = '#010308';
+      ctx.fillRect(0, 0, W, H);
+      bctx.setTransform(1, 0, 0, 1, 0, 0);
+      bctx.clearRect(0, 0, BW, BH);
+      bctx.fillStyle = '#000';
+      bctx.fillRect(0, 0, BW, BH);
+      const bsx = BW / W,
+        bsy = BH / H;
+      const g = g0;
+
+      const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
+      deep.addColorStop(0, '#050a18');
+      deep.addColorStop(0.55, '#02040c');
+      deep.addColorStop(1, '#000');
+      ctx.fillStyle = deep;
+      ctx.fillRect(0, 0, W, H);
+
+      for (const s of bgStars) {
+        const [sx, sy] = w2s(s.x + panX * 0.06, s.y + panY * 0.06);
+        if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
+        const a = 0.15 + 0.55 * s.a;
+        ctx.fillStyle = `rgba(220,230,255,${a})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, s.r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      hover = null;
+      let bestH = 0;
+      if (mx != null) {
+        for (const s of g.sectors) {
+          if (!sectorVisible(s)) continue;
+          const p = sectorProj(s, g);
+          const d = Math.hypot(p.x - mx, p.y - my);
+          const hitR = Math.max(4.5, 8 / scale);
+          const target = d < hitR ? 1 - d / hitR : 0;
+          s.hover += (target - s.hover) * 0.28;
+          if (s.hover > bestH) {
+            bestH = s.hover;
+            hover = { s, wx: p.x, wy: p.y };
+          }
+        }
+        for (const c of g.constels) {
+          const p = constelWorld(c, g);
+          c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+        }
+      } else {
+        for (const s of g.sectors) s.hover *= 0.85;
+        for (const c of g.constels) c.hover *= 0.9;
+      }
+
+      const hud = document.querySelector('.cosmos-hud');
+      if (hud) {
+        hud.style.opacity = scale > 3.2 ? '0' : '1';
+        hud.style.transition = 'opacity .35s';
+      }
+
+      const lod = scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1;
+      const [gcx, gcy] = w2s(g.m.x, g.m.y);
+      const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
+      const eh = filters.core ? Math.max(36, 58 * Math.min(scale, 2.2)) : 0;
+      g._eh = eh;
+      g._gcx = gcx;
+      g._gcy = gcy;
+      g._flat = holeFlat;
+      function lensPoint(sx, sy) {
+        if (eh < 1) return [sx, sy, false];
+        const d = Math.hypot(sx - gcx, sy - gcy);
+        if (d < eh * 0.72) return [sx, sy, true];
+        return [sx, sy, false];
+      }
+
+      {
+        const R = g.R * scale * 0.85;
+        const flat = Math.max(0.08, Math.abs(Math.cos(viewPitch)) * 0.72 + 0.1);
+        const hg = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, R * 1.25);
+        hg.addColorStop(0, rgba(LIME, 0.09));
+        hg.addColorStop(0.4, rgba([150, 190, 25], 0.04));
+        hg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = hg;
+        ctx.beginPath();
+        ctx.ellipse(gcx, gcy, R * 1.25, R * 1.25 * flat, viewYaw, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      if (scale < 6) {
+        for (let arm = 0; arm < g.m.arms; arm++) {
+          for (let lane = 0; lane < 3; lane++) {
+            const off = (lane - 1) * 0.045;
+            ctx.beginPath();
+            let first = true;
+            for (let k = 0; k <= 56; k++) {
+              const u = k / 56;
+              const r = u * g.R * (0.98 + lane * 0.01);
+              const a0 = (arm / g.m.arms) * Math.PI * 2 + u * g.m.twist + off;
+              const [lx2, ly2] = polarLocal(r, a0, 0);
+              const pr = projectLocal(lx2, ly2, (u - 0.5) * 8, g);
+              const [sx, sy] = w2s(pr.x, pr.y);
+              if (first) {
+                ctx.moveTo(sx, sy);
+                first = false;
+              } else ctx.lineTo(sx, sy);
+            }
+            ctx.strokeStyle = rgba(LIME, (0.04 + lane * 0.015) * (scale < 3 ? 1 : 0.55));
+            ctx.lineWidth = (2.8 - lane * 0.6) * Math.min(scale, 1.8);
+            ctx.stroke();
+          }
+        }
+      }
+
+      {
+        const breath = 0.85 + 0.15 * Math.sin(t * 0.7);
+        for (const n of g.nebulae) {
+          const [lx2, ly2] = polarLocal(n.r, n.a0 + Math.sin(t * n.sp + n.ph) * 0.02, 0);
+          const pr = projectLocal(lx2, ly2, (n.u - 0.5) * 10, g);
+          let [sx, sy] = w2s(pr.x, pr.y);
+          const L = lensPoint(sx, sy);
+          if (L[2]) continue;
+          sx = L[0];
+          sy = L[1];
+          if (sx < -80 || sy < -80 || sx > W + 80 || sy > H + 80) continue;
+          const rad = n.rad * scale * pr.persp * (scale < 2 ? 1 : 0.75);
+          if (rad < 4) continue;
+          const pulse = n.a * breath * (0.9 + 0.1 * Math.sin(t * n.sp + n.ph));
+          ctx.save();
+          ctx.translate(sx, sy);
+          ctx.rotate(n.ang + viewYaw * 0.5);
+          const grd = ctx.createRadialGradient(0, 0, 0, 0, 0, rad);
+          grd.addColorStop(0, rgba(n.col, pulse));
+          grd.addColorStop(0.45, rgba(n.col, pulse * 0.4));
+          grd.addColorStop(1, 'rgba(0,0,0,0)');
+          ctx.fillStyle = grd;
+          ctx.scale(n.stretch, 1);
+          ctx.beginPath();
+          ctx.arc(0, 0, rad, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          if (pulse > 0.07) {
+            bctx.fillStyle = rgba(n.col, pulse * 0.45);
+            bctx.beginPath();
+            bctx.ellipse(sx * bsx, sy * bsy, rad * bsx * 0.35 * n.stretch, rad * bsy * 0.2, n.ang, 0, Math.PI * 2);
+            bctx.fill();
+          }
+        }
+      }
+
+      {
+        const batch = [];
+        for (let i = 0; i < g.points.length; i += lod) {
+          const p = g.points[i];
+          const pr = pointProj(p, g, t);
+          let [sx, sy] = w2s(pr.x, pr.y);
+          const L = lensPoint(sx, sy);
+          if (L[2]) continue;
+          sx = L[0];
+          sy = L[1];
+          if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
+          batch.push({ p, pr, sx, sy });
+        }
+        batch.sort((a, b) => a.pr.depth - b.pr.depth);
+        for (const { p, pr, sx, sy } of batch) {
+          let col = starColor(p.u);
+          if (p.dust) col = colLerp(col, [8, 10, 6], 0.72);
+          const tw = 0.6 + 0.4 * Math.sin(t * p.sp * 1.3 + p.ph);
+          const depthFade = clamp(0.55 + pr.persp * 0.5, 0.35, 1.2);
+          let sz = Math.max(0.4, Math.min(1.8, p.br * pr.persp * 0.85 * tw));
+          if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
+          const a = ((p.dust ? 0.1 : 0.38) + p.br * 0.22 * tw) * depthFade;
+          ctx.fillStyle = rgba(col, clamp(a, 0, 1));
+          ctx.beginPath();
+          ctx.arc(sx, sy, sz, 0, Math.PI * 2);
+          ctx.fill();
+          if (p.hot || (p.u < 0.1 && p.br > 1)) {
+            bctx.fillStyle = rgba(col, 0.2);
+            bctx.beginPath();
+            bctx.arc(sx * bsx, sy * bsy, sz * bsx * 1.25, 0, Math.PI * 2);
+            bctx.fill();
+          }
+        }
+      }
+
+      for (const c of g.comets) {
+        const ang = c.a0 + t * c.spd * 0.35;
+        const [lx2, ly2] = polarLocal(c.r, ang, 0);
+        const head = projectLocal(lx2, ly2, Math.sin(t * 0.7 + c.ph) * 8 + c.tilt * 20, g);
+        const [hx, hy] = w2s(head.x, head.y);
+        const tang = ang - 0.08 * Math.sign(c.spd || 1);
+        const [tlx, tly] = polarLocal(c.r * 1.02, tang, 0);
+        const tail = projectLocal(tlx, tly, c.tilt * 20, g);
+        const [tx, ty] = w2s(tail.x, tail.y);
+        const dx = hx - tx,
+          dy = hy - ty;
+        const len = Math.hypot(dx, dy) || 1;
+        const trail = c.len * scale * 0.35;
+        const ex = hx - (dx / len) * trail,
+          ey = hy - (dy / len) * trail;
+        const grd = ctx.createLinearGradient(hx, hy, ex, ey);
+        grd.addColorStop(0, rgba([255, 255, 220], 0.9));
+        grd.addColorStop(0.25, rgba(LIME, 0.55));
+        grd.addColorStop(1, 'rgba(204,255,0,0)');
+        ctx.strokeStyle = grd;
+        ctx.lineWidth = c.thick * Math.min(scale, 2);
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(hx, hy);
+        ctx.lineTo(ex, ey);
+        ctx.stroke();
+        ctx.fillStyle = rgba([255, 255, 240], 0.95);
+        ctx.beginPath();
+        ctx.arc(hx, hy, Math.max(1.2, c.thick * scale * 0.7), 0, Math.PI * 2);
+        ctx.fill();
+        bctx.fillStyle = rgba(LIME, 0.35);
+        bctx.beginPath();
+        bctx.arc(hx * bsx, hy * bsy, 3 * bsx, 0, Math.PI * 2);
+        bctx.fill();
+      }
+
+      {
+        const n = 3;
+        for (let i = 0; i < n; i++) {
+          const phase = (t * 0.22 + i * 1.7) % 4.2;
+          if (phase > 1.1) continue;
+          const u = phase / 1.1;
+          const x0 = W * (-0.1 + i * 0.28) + Math.sin(i * 2.1) * 40;
+          const y0 = H * (0.15 + i * 0.22);
+          const x1 = x0 + W * 0.55,
+            y1 = y0 + H * 0.18;
+          const x = x0 + (x1 - x0) * u,
+            y = y0 + (y1 - y0) * u;
+          const px = x - (x1 - x0) * 0.08,
+            py = y - (y1 - y0) * 0.08;
+          const grd = ctx.createLinearGradient(x, y, px, py);
+          grd.addColorStop(0, 'rgba(255,255,230,.95)');
+          grd.addColorStop(1, 'rgba(204,255,0,0)');
+          ctx.strokeStyle = grd;
+          ctx.lineWidth = 1.4;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(x, y);
+          ctx.lineTo(px, py);
+          ctx.stroke();
+        }
+      }
+
+      if (filters.core) {
+        const pulse = 0.7 + 0.3 * Math.sin(t * 1.2);
+        const glow = ctx.createRadialGradient(gcx, gcy, eh * 0.4, gcx, gcy, eh * 2.4);
+        glow.addColorStop(0, rgba([255, 255, 230], 0.55 * pulse));
+        glow.addColorStop(0.28, rgba(LIME, 0.35 * pulse));
+        glow.addColorStop(0.6, rgba([140, 180, 20], 0.1));
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, eh * 2.4, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, eh * 0.72, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = rgba(LIME, 0.5 + pulse * 0.25);
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, eh * 0.72, 0, Math.PI * 2);
+        ctx.stroke();
+
+        bctx.fillStyle = rgba(LIME, 0.3);
+        bctx.beginPath();
+        bctx.arc(gcx * bsx, gcy * bsy, eh * bsx * 0.9, 0, Math.PI * 2);
+        bctx.fill();
+      }
+
+      {
+        const grainR = 2.1;
+        for (const s of g.sectors) {
+          if (!sectorVisible(s)) continue;
+          const p = sectorProj(s, g);
+          let [sx, sy] = w2s(p.x, p.y);
+          const L = lensPoint(sx, sy);
+          if (L[2]) continue;
+          sx = L[0];
+          sy = L[1];
+          if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
+          let col = s.cCol;
+          if (heatMode) {
+            const h = clamp(s.usd / 2.5, 0, 1);
+            col = [255, Math.floor(255 * (1 - h * 0.55)), Math.floor(40 + h * 40)];
+          }
+          if (yoursSet.has(s.id)) col = [180, 255, 120];
+          const empty = s.kind === 'empty' && !heatMode;
+          ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
+          ctx.beginPath();
+          ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
+          ctx.fill();
+          if (s.hover > 0.2) {
+            ctx.strokeStyle = rgba(col, 0.75);
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, grainR + 2.5, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          if (scale > 6 && (s.hover > 0.25 || scale > 10)) {
+            ctx.fillStyle = rgba(col, 0.8);
+            ctx.font = '9px IBM Plex Mono';
+            ctx.textAlign = 'center';
+            ctx.fillText('#' + s.id, sx, sy - grainR - 6);
+            if (s.hover > 0.45) ctx.fillText('$' + s.usd.toFixed(2), sx, sy + grainR + 10);
+          }
+        }
+      }
+
+      {
+        const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.9 : 1;
+        function spark(x, y, col, a) {
+          ctx.strokeStyle = rgba(col, a);
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(x - 3.5, y);
+          ctx.lineTo(x + 3.5, y);
+          ctx.moveTo(x, y - 3.5);
+          ctx.lineTo(x, y + 3.5);
+          ctx.stroke();
+          ctx.fillStyle = rgba([255, 255, 230], a);
+          ctx.beginPath();
+          ctx.arc(x, y, 1.35, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        function strokePath(pts, close, col, a, w) {
+          if (pts.length < 2) return;
+          ctx.strokeStyle = rgba(col, a);
+          ctx.lineWidth = w;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.beginPath();
+          ctx.moveTo(pts[0].sx, pts[0].sy);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
+          if (close) ctx.closePath();
+          ctx.stroke();
+        }
+        for (const c of g.constels) {
+          const raw = [];
+          for (const s of c.grains) {
+            if (!sectorVisible(s)) continue;
+            const p = sectorProj(s, g);
+            const [sx, sy] = w2s(p.x, p.y);
+            if (sx < -50 || sy < -50 || sx > W + 50 || sy > H + 50) continue;
+            raw.push({ s, sx, sy, wx: p.x, wy: p.y, br: s.usd + (s.kind === 'fed' ? 1.2 : 0) + s.hover });
+          }
+          if (raw.length < 3) continue;
+          raw.sort((a, b) => b.br - a.br);
+          const n = Math.min(raw.length, c.figure === 3 ? 6 : 7);
+          let stars = raw.slice(0, n);
+          let cx = 0,
+            cy = 0;
+          stars.forEach((p) => {
+            cx += p.sx;
+            cy += p.sy;
+          });
+          cx /= stars.length;
+          cy /= stars.length;
+          stars.forEach((p) => {
+            p.ang = Math.atan2(p.sy - cy, p.sx - cx);
+          });
+          const hot = c.hover > 0.2 || stars.some((p) => p.s.hover > 0.2);
+          const pulse = 0.82 + 0.18 * Math.sin(t * 1.8 + c.a0 * 3);
+          const aMain = (hot ? 0.9 : 0.55 * vis) * pulse;
+          const fig = c.figure | 0;
+          let path = stars.slice().sort((a, b) => a.ang - b.ang);
+          let close = true;
+          if (fig === 1) {
+            const hub = stars[0];
+            const ordered = stars.slice(1).sort((a, b) => a.ang - b.ang);
+            path = [hub, ...ordered];
+            close = true;
+          } else if (fig === 2) {
+            path = stars.slice().sort((a, b) => a.sx - b.sx || a.sy - b.sy);
+            close = false;
+          } else if (fig === 3) {
+            const hub = stars[0];
+            path = [];
+            for (let i = 1; i < stars.length; i++) {
+              strokePath([hub, stars[i]], false, c.col, aMain * 0.85, hot ? 1.35 : 1.05);
+              strokePath([hub, stars[i]], false, c.col, aMain * 0.2, 3.5);
+            }
+            path = [hub];
+            close = false;
+          } else if (fig === 4) {
+            let N = stars[0],
+              S = stars[0],
+              E = stars[0],
+              Wp = stars[0];
+            for (const p of stars) {
+              if (p.sy < N.sy) N = p;
+              if (p.sy > S.sy) S = p;
+              if (p.sx > E.sx) E = p;
+              if (p.sx < Wp.sx) Wp = p;
+            }
+            strokePath([N, S], false, c.col, aMain * 0.25, 3.2);
+            strokePath([E, Wp], false, c.col, aMain * 0.25, 3.2);
+            strokePath([N, S], false, c.col, aMain, 1.15);
+            strokePath([E, Wp], false, c.col, aMain, 1.15);
+            path = [N, E, S, Wp];
+            close = true;
+          } else if (fig === 5) {
+            path = stars.slice().sort((a, b) => a.ang - b.ang);
+            close = false;
+            if (path.length >= 4) {
+              const tip2 = path[path.length - 1],
+                a = path[path.length - 2],
+                b = path[Math.max(0, path.length - 3)];
+              strokePath([a, tip2, b], false, c.col, aMain * 0.25, 3);
+              strokePath([a, tip2, b], false, c.col, aMain, 1.2);
+            }
+          }
+          if (fig !== 3 && fig !== 4) {
+            strokePath(path, close, c.col, aMain * 0.22, 3.8);
+            strokePath(path, close, c.col, aMain, hot ? 1.35 : 1.1);
+            if (path.length >= 4 && fig === 0) {
+              strokePath([path[0], path[(path.length / 2) | 0]], false, c.col, aMain * 0.45, 0.9);
+            }
+          } else if (fig === 4) {
+            strokePath(path, true, c.col, aMain * 0.35, 0.85);
+          }
+          for (const p of stars) {
+            spark(p.sx, p.sy, c.col, (hot ? 0.95 : 0.65) * vis * pulse);
+          }
+        }
+      }
+
+      if (scale > 0.7 && scale < 9) {
+        const step = scale < 1.3 ? 4 : scale < 2.2 ? 2 : 1;
+        g.constels.forEach((c, idx) => {
+          if (idx % step) return;
+          if (c.grains.length < 3 && scale < 2.5) return;
+          const p = constelWorld(c, g);
+          const [sx, sy] = w2s(p.x, p.y);
+          if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
+          const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
+          const a = clamp(0.3 + c.hover * 0.6 + (scale > 1.4 && scale < 5 ? 0.4 : 0) * pulse, 0, 0.92);
+          const fs = scale < 1.4 ? 7 : scale < 2.8 ? 10 : 9;
+          ctx.font = `600 ${fs}px IBM Plex Mono`;
+          ctx.textAlign = 'center';
+          ctx.fillStyle = `rgba(0,0,0,${a * 0.5})`;
+          ctx.fillText(c.name, sx + 1, sy + 1);
+          ctx.fillStyle = rgba(c.col, a);
+          ctx.fillText(c.name, sx, sy);
+          if (scale > 2.2 && scale < 6) {
+            ctx.fillStyle = rgba(c.col, a * 0.45);
+            ctx.font = '7px IBM Plex Mono';
+            ctx.fillText(c.grains.length + 'g', sx, sy + 11);
+          }
+        });
+      }
+
+      if (scale < 1.15) {
+        ctx.font = '11px IBM Plex Mono';
+        ctx.textAlign = 'center';
+        const ly2 = gcy + (eh || 40) * 1.15 + 18;
+        ctx.fillStyle = 'rgba(0,0,0,.4)';
+        ctx.fillText('EXOMIND', gcx + 1, ly2 + 1);
+        ctx.fillStyle = 'rgba(204,255,0,.55)';
+        ctx.fillText('EXOMIND', gcx, ly2);
+      }
+
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.imageSmoothingEnabled = true;
+      ctx.globalAlpha = 0.32;
+      ctx.drawImage(bloom, 0, 0, BW, BH, 0, 0, W, H);
+      ctx.restore();
+
+      if (hover && hover.s.hover > 0.2) {
+        document.getElementById('tip1').textContent = `${hover.s.cName} · #${hover.s.id}`;
+        document.getElementById('tip2').textContent = `$${hover.s.usd.toFixed(2)} · ${hover.s.ring} · ${
+          hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
+        }`;
+        const [sx, sy] = w2s(hover.wx, hover.wy);
+        tip.style.left = Math.min(W - 200, sx + 12) + 'px';
+        tip.style.top = Math.min(H - 70, sy + 12) + 'px';
+        tip.classList.add('show');
+        canvas.style.cursor = 'pointer';
+      } else {
+        tip.classList.remove('show');
+        if (!dragging) canvas.style.cursor = orbitMode ? 'grab' : 'grab';
+      }
+      requestAnimationFrame(draw);
+    }
+    requestAnimationFrame(draw);
+    onCleanup(() => {
+      alive = false;
+    });
+
+    let burned = 7218018;
+    const burnedIntervalId = setInterval(() => {
+      burned += ri(10, 200);
+      document.getElementById('burned').textContent = fmt(burned);
+    }, 2600);
+    onCleanup(() => clearInterval(burnedIntervalId));
+  })();
+
+  /* ================= MARKET ================= */
+  (function () {
+    let price = 0.002278,
+      open24 = price / 1.6486,
+      mcap = 2.16e6,
+      liq = 1.3e6;
+    const candles = [];
+    function seed(n) {
+      candles.length = 0;
+      let p = price * 0.75;
+      for (let i = 0; i < n; i++) {
+        const o = p,
+          c = Math.max(0.0002, o + (Math.random() - 0.46) * 0.00012);
+        candles.push({ o, h: Math.max(o, c) * (1 + Math.random() * 0.01), l: Math.min(o, c) * (1 - Math.random() * 0.01), c, v: Math.random() });
+        p = c;
+      }
+      price = candles.at(-1).c;
+    }
+    seed(70);
+    const box = document.getElementById('chartBox');
+    const cnv = document.getElementById('chart');
+    const c = cnv.getContext('2d');
+    const fmtP = (p) => '$' + p.toFixed(6);
+    const fmtM = (n) => (n >= 1e6 ? '$' + (n / 1e6).toFixed(2) + 'M' : '$' + (n / 1e3).toFixed(0) + 'K');
+    function push() {
+      const chg = ((price - open24) / open24) * 100;
+      document.getElementById('mPrice').textContent = fmtP(price);
+      document.getElementById('mCap').textContent = fmtM(mcap);
+      document.getElementById('mLiq').textContent = fmtM(liq);
+      const el = document.getElementById('mChg');
+      el.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+      el.className = 'v ' + (chg >= 0 ? 'up' : 'dn');
+    }
+    function resize() {
+      const r = box.getBoundingClientRect();
+      const d = Math.min(devicePixelRatio || 1, 2);
+      cnv.width = r.width * d;
+      cnv.height = r.height * d;
+      cnv.style.width = r.width + 'px';
+      cnv.style.height = r.height + 'px';
+      c.setTransform(d, 0, 0, d, 0, 0);
+      draw();
+    }
+    function draw() {
+      const W = box.clientWidth,
+        H = box.clientHeight;
+      if (!W) return;
+      c.clearRect(0, 0, W, H);
+      let lo = Infinity,
+        hi = -Infinity;
+      candles.forEach((k) => {
+        lo = Math.min(lo, k.l);
+        hi = Math.max(hi, k.h);
+      });
+      const span = hi - lo || 1e-6;
+      lo -= span * 0.05;
+      hi += span * 0.05;
+      const n = candles.length,
+        slot = W / n,
+        bw = Math.max(2, slot * 0.55);
+      for (let i = 0; i < n; i++) {
+        const k = candles[i],
+          x = i * slot + slot / 2;
+        const y = (v) => 8 + (1 - (v - lo) / (hi - lo)) * (H - 36);
+        const up = k.c >= k.o,
+          col = up ? '#ccff00' : '#ff4d5e';
+        c.strokeStyle = col;
+        c.beginPath();
+        c.moveTo(x, y(k.h));
+        c.lineTo(x, y(k.l));
+        c.stroke();
+        c.fillStyle = col;
+        c.fillRect(x - bw / 2, Math.min(y(k.o), y(k.c)), bw, Math.max(1, Math.abs(y(k.c) - y(k.o))));
+      }
+    }
+    const tickerIntervalId = setInterval(() => {
+      const last = candles.at(-1);
+      const nc = Math.max(0.00015, last.c + (Math.random() - 0.48) * 0.00004);
+      last.c = nc;
+      last.h = Math.max(last.h, nc);
+      last.l = Math.min(last.l, nc);
+      if (Math.random() < 0.1) {
+        candles.push({ o: nc, h: nc, l: nc, c: nc, v: Math.random() * 0.3 });
+        if (candles.length > 100) candles.shift();
+      }
+      price = nc;
+      mcap = price * 9.5e8;
+      push();
+      draw();
+    }, 800);
+    onCleanup(() => clearInterval(tickerIntervalId));
+
+    document.getElementById('tfs').onclick = (e) => {
+      const b = e.target.closest('.tf');
+      if (!b) return;
+      document.querySelectorAll('.tf').forEach((t) => t.classList.remove('on'));
+      b.classList.add('on');
+      seed(+b.dataset.n);
+      push();
+      draw();
+    };
+    const marketResizeObserver = new ResizeObserver(resize);
+    marketResizeObserver.observe(box);
+    onCleanup(() => marketResizeObserver.disconnect());
+    push();
+    setTimeout(resize, 40);
+  })();
+
+  return function destroy() {
+    disposers.forEach((fn) => {
+      try {
+        fn();
+      } catch {
+        /* no-op — teardown best-effort */
+      }
+    });
+  };
+}
