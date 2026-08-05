@@ -696,7 +696,7 @@ export function initVoidEngine() {
             : 'ARENA · click map to zoom · otherwise page scrolls · shift+click stack'
           : on
             ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
-            : 'demo · click to explore · View full map for deep play';
+            : 'click to explore · shift+click stack · MAP for deep play';
       }
     }
     function onFramePointerLeave() {

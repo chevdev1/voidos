@@ -23,12 +23,6 @@ export function Hero() {
     setTimeout(() => setCopied(false), 800)
   }
 
-  function openFullMap() {
-    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-    else window.__voidCosmosPendingEnter = true
-    goTo('#map')
-  }
-
   return (
     <section className="void hero" id="top">
       <div className="hero-left">
@@ -55,8 +49,8 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.22 }}
           className="lead"
         >
-          A digital void for the next-gen OS. One autonomous AI probe — mind split across sectors of
-          different mass. Micro grains. Mega cores. Stack several. Burn once.
+          A digital void for the next-gen OS. One autonomous AI probe — mind split across 50,000
+          sectors in 500 systems. Zoom the cosmos. Hover a cluster. Claim the pull.
         </motion.p>
 
         <motion.div
@@ -79,9 +73,16 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.42 }}
           className="cta"
         >
-          <button type="button" className="btn-lime" onClick={openFullMap}>
-            View full map ↗
-          </button>
+          <a
+            className="btn-lime"
+            href="#market"
+            onClick={(e) => {
+              e.preventDefault()
+              goTo('#market')
+            }}
+          >
+            Claim a sector ↗
+          </a>
 
           <MagneticButton
             onClick={() => goTo('#concept')}
@@ -97,8 +98,8 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.55 }}
           className="price-note"
         >
-          Closer to a galaxy core = more expensive. Grain <b>size</b> stacks on top — megas cost more
-          cells to claim. Shift+click to build a stack.
+          Sectors are scattered organic clusters — not a grid.{' '}
+          <b>Closer to a galaxy core = more expensive.</b> Outer rim is cheap fuel for wild signals.
         </motion.p>
       </div>
 
@@ -110,9 +111,6 @@ export function Hero() {
         id="heroCosmosSlot"
       >
         <CosmosPanel />
-        <button type="button" className="hero-map-open" onClick={openFullMap}>
-          Open full map
-        </button>
       </motion.div>
 
       <div className="scroll-cue">
