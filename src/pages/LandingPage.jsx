@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { SmoothScrollProvider } from '../lib/SmoothScroll'
 import { Nav } from '../components/Nav'
 import { Hero } from '../components/Hero'
+import { CosmosArena } from '../components/CosmosArena'
 import { ConceptSection } from '../components/ConceptSection'
 import { MarketSection } from '../components/MarketSection'
 import { FAQSection } from '../components/FAQSection'
@@ -12,8 +13,6 @@ import { initVoidEngine } from '../legacy/voidEngine'
 
 export default function LandingPage() {
   useEffect(() => {
-    // Let the first paint + fonts settle before the heavy galaxy build
-    // (sector packing can hitch the main thread for a beat on mid PCs).
     let destroy = null
     let cancelled = false
     const start = () => {
@@ -39,13 +38,9 @@ export default function LandingPage() {
     <SmoothScrollProvider>
       <Nav />
 
-      {/* Full-bleed: the cosmos canvas is meant to fill the viewport edge to edge */}
       <Hero />
+      <CosmosArena />
 
-      {/* One continuous beams background behind Concept + Market + FAQ,
-          instead of a separate instance per section — the effect flows
-          across the whole span with no seam at section boundaries, and
-          it's a single SVG animation instead of three. */}
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
         <main className="relative z-10 mx-auto max-w-6xl">

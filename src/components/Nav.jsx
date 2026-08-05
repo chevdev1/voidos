@@ -3,7 +3,7 @@ import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 
 const LINKS = [
-  { label: 'MAP', target: '#top' },
+  { label: 'MAP', target: '#map' },
   { label: 'CONCEPT', target: '#concept' },
   { label: 'MARKET', target: '#market' },
   { label: 'FAQ', target: '#faq' },

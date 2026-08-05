@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { MagneticButton } from './MagneticButton'
 import { ScrambleText } from './ScrambleText'
+import { CosmosPanel } from './CosmosPanel'
 import '../legacy/void.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
@@ -20,6 +21,11 @@ export function Hero() {
     navigator.clipboard?.writeText(CA)
     setCopied(true)
     setTimeout(() => setCopied(false), 800)
+  }
+
+  function openFullMap() {
+    window.__voidCosmos?.enterArena?.()
+    goTo('#map')
   }
 
   return (
@@ -48,8 +54,8 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.22 }}
           className="lead"
         >
-          A digital void for the next-gen OS. One autonomous AI probe — mind split across 50,000
-          sectors in 500 systems. Zoom the cosmos. Hover a cluster. Claim the pull.
+          A digital void for the next-gen OS. One autonomous AI probe — mind split across sectors of
+          different mass. Micro grains. Mega cores. Stack several. Burn once.
         </motion.p>
 
         <motion.div
@@ -72,16 +78,9 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.42 }}
           className="cta"
         >
-          <a
-            className="btn-lime"
-            href="#market"
-            onClick={(e) => {
-              e.preventDefault()
-              goTo('#market')
-            }}
-          >
-            Claim a sector ↗
-          </a>
+          <button type="button" className="btn-lime" onClick={openFullMap}>
+            View full map ↗
+          </button>
 
           <MagneticButton
             onClick={() => goTo('#concept')}
@@ -97,8 +96,8 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.55 }}
           className="price-note"
         >
-          Sectors are scattered organic clusters — not a grid.{' '}
-          <b>Closer to a galaxy core = more expensive.</b> Outer rim is cheap fuel for wild signals.
+          Closer to a galaxy core = more expensive. Grain <b>size</b> stacks on top — megas cost more
+          cells to claim. Shift+click to build a stack.
         </motion.p>
       </div>
 
@@ -106,89 +105,13 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.9, delay: 0.25 }}
-        className="hero-right"
-        id="cosmosFrame"
+        className="hero-cosmos-slot"
+        id="heroCosmosSlot"
       >
-        <div className="cosmos-bar">
-          <b>◎ COSMOS</b>
-          <span id="cosmosHint">click map to explore · then wheel zooms · leave to scroll page</span>
-        </div>
-        <canvas id="cosmos" />
-        <div className="cosmos-fx" aria-hidden="true" />
-        <div className="cosmos-scan" aria-hidden="true" />
-        <div className="cosmos-hud">
-          <div className="tag">THE VOID · EXOMIND</div>
-          <div className="pill">
-            <div className="lab">✦ burned forever</div>
-            <div className="num" id="burned">
-              7,218,018
-            </div>
-            <div className="sub">$EXO · 0.72% of supply · 1,000,000,000 ever minted</div>
-          </div>
-          <div className="zoom-lvl">
-            view · <b id="zoomLabel">EXOMIND</b>
-          </div>
-        </div>
-        <div className="tip" id="tip">
-          <div className="t1" id="tip1">
-            sector #0
-          </div>
-          <div className="t2" id="tip2">
-            —
-          </div>
-        </div>
-        <div className="vc">
-          <button id="searchBtn" title="find grain #">
-            ⌕
-          </button>
-          <button id="zoomIn" title="zoom in">
-            +
-          </button>
-          <button id="zoomOut" title="zoom out">
-            −
-          </button>
-          <button id="homeBtn" title="reset">
-            ⌂
-          </button>
-          <button id="orbitBtn" className="on" title="orbit 360°">
-            ⊕
-          </button>
-          <button id="spinBtn" className="on" title="auto spin">
-            ⟳
-          </button>
-        </div>
-        <div className="filters" id="filters">
-          <span className="fchip on" data-f="empty">
-            <i className="box" />
-            empty
-          </span>
-          <span className="fchip on" data-f="claimed">
-            <i className="box" />
-            claimed
-          </span>
-          <span className="fchip on" data-f="fed">
-            <i className="box" />
-            fed
-          </span>
-          <span className="fchip on" data-f="core">
-            <i className="box" />
-            core
-          </span>
-          <span className="fchip" data-f="heat">
-            <i className="box" />
-            heat
-          </span>
-          <span className="fchip on" data-f="yours">
-            <i className="box" />
-            yours <b id="yoursCnt">0</b>
-          </span>
-        </div>
-        <div className="minimap">
-          <canvas id="mini" width="240" height="170" />
-          <div className="cap" id="miniCap">
-            0 grains · map
-          </div>
-        </div>
+        <CosmosPanel />
+        <button type="button" className="hero-map-open" onClick={openFullMap}>
+          Open full map
+        </button>
       </motion.div>
 
       <div className="scroll-cue">

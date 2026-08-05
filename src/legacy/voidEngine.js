@@ -32,11 +32,28 @@ export function initVoidEngine() {
     document.getElementById('termSub').textContent = d.sub;
     document.getElementById('tStatus').textContent = d.status;
     document.getElementById('tRing').textContent = d.ring;
+    const tierEl = document.getElementById('tTier');
+    if (tierEl) tierEl.textContent = d.tier || '—';
     document.getElementById('tPrice').textContent = d.price;
     document.getElementById('tSize').textContent = d.size;
     document.getElementById('tGrav').textContent = d.grav;
     document.getElementById('tNote').textContent = d.note;
     document.getElementById('term').classList.add('open');
+  }
+
+  /** Weighted grain mass — most mid/micro, rare megas you can actually see. */
+  function rollGrainMass() {
+    const r = Math.random();
+    if (r < 0.035) return { size: ri(480, 980), tier: 'MEGA', viz: rnd(4.4, 6.5) };
+    if (r < 0.14) return { size: ri(240, 479), tier: 'LARGE', viz: rnd(3.0, 4.2) };
+    if (r < 0.55) return { size: ri(110, 239), tier: 'MID', viz: rnd(1.9, 2.9) };
+    return { size: ri(32, 109), tier: 'MICRO', viz: rnd(1.15, 1.85) };
+  }
+  function priceForGrain(dist, maxR, size) {
+    const base = priceFromDist(dist, maxR);
+    // Mass premium on top of core proximity — megas aren't "just bigger dots".
+    const massMul = 0.65 + Math.pow(size / 220, 0.85) * 0.9;
+    return base * massMul;
   }
 
   /* price from distance to galaxy core: closer = more expensive */
@@ -90,6 +107,9 @@ export function initVoidEngine() {
     const t0 = performance.now();
     const filters = { empty: true, claimed: true, fed: true, core: true, heat: false, yours: true };
     const yoursSet = new Set();
+    const selectedSet = new Set();
+    let lastTermSector = null;
+    let arenaMode = false;
     let heatMode = false;
 
     /* ONE mega-galaxy — fills the frame */
@@ -309,28 +329,35 @@ export function initVoidEngine() {
       const sectors = [];
       let tries = 0;
       while (sectors.length < 2800 && tries++ < 90000) {
+        const mass = rollGrainMass();
         const r = rnd(R * 0.04, R * 0.98);
         const arm = ri(0, m.arms - 1);
         const a0 = (arm / m.arms) * Math.PI * 2 + (r / R) * m.twist + rnd(-0.28, 0.28);
         const off = rnd(-14, 14);
+        const minDist = 4.0 + mass.viz * 0.95;
         let ok = true;
         for (const s of sectors) {
-          if (Math.hypot(r * Math.cos(a0) - s.r * Math.cos(s.a0), r * Math.sin(a0) - s.r * Math.sin(s.a0)) < 5.2) {
+          if (
+            Math.hypot(r * Math.cos(a0) - s.r * Math.cos(s.a0), r * Math.sin(a0) - s.r * Math.sin(s.a0)) <
+            minDist
+          ) {
             ok = false;
             break;
           }
         }
         if (!ok) continue;
         const c = nearestConstel(r, a0);
-        const usd = priceFromDist(r, R);
+        const usd = priceForGrain(r, R, mass.size);
         const sec = {
           id: 1000 + sectors.length,
           r,
           a0,
           off,
           u: r / R,
-          radius: rnd(6, 11),
-          size: ri(40, 220),
+          radius: mass.viz,
+          viz: mass.viz,
+          size: mass.size,
+          tier: mass.tier,
           kind: Math.random() < 0.14 ? 'fed' : Math.random() < 0.22 ? 'empty' : 'claimed',
           usd,
           ring: ringName(r, R),
@@ -567,6 +594,78 @@ export function initVoidEngine() {
       targetPanY = -wy * targetScale + lift;
     }
 
+    function refreshCartDock() {
+      const dock = document.getElementById('cartDock');
+      const list = document.getElementById('cartList');
+      const title = document.getElementById('cartTitle');
+      const massEl = document.getElementById('cartMass');
+      const burnEl = document.getElementById('cartBurn');
+      if (!dock || !list) return;
+      const items = [...selectedSet]
+        .map((id) => g0.sectors.find((s) => s.id === id))
+        .filter(Boolean);
+      if (!items.length) {
+        dock.hidden = true;
+        list.innerHTML = '';
+        return;
+      }
+      dock.hidden = false;
+      let mass = 0,
+        burn = 0;
+      list.innerHTML = items
+        .map((s) => {
+          mass += s.size;
+          burn += s.usd;
+          return `<button type="button" class="cart-chip" data-id="${s.id}" title="remove">#${s.id} · ${s.tier} · ${s.size}c</button>`;
+        })
+        .join('');
+      if (title) title.textContent = `STACK · ${items.length}`;
+      if (massEl) massEl.textContent = fmt(mass);
+      if (burnEl) burnEl.textContent = '$' + burn.toFixed(2);
+      list.querySelectorAll('.cart-chip').forEach((btn) => {
+        btn.onclick = () => {
+          selectedSet.delete(+btn.dataset.id);
+          refreshCartDock();
+        };
+      });
+    }
+
+    function toggleSelect(s) {
+      if (selectedSet.has(s.id)) selectedSet.delete(s.id);
+      else selectedSet.add(s.id);
+      refreshCartDock();
+    }
+
+    function claimSectors(list) {
+      for (const s of list) {
+        yoursSet.add(s.id);
+        selectedSet.delete(s.id);
+        if (s.kind === 'empty') s.kind = 'claimed';
+      }
+      document.getElementById('yoursCnt').textContent = String(yoursSet.size);
+      refreshCartDock();
+    }
+
+    function openSectorTerm(s) {
+      lastTermSector = s;
+      openTerm({
+        title: 'GRAIN #' + s.id,
+        sub: s.cName + ' · ' + s.ring + ' · ' + s.tier,
+        status: yoursSet.has(s.id) ? 'yours' : s.kind === 'empty' ? 'unclaimed' : s.kind,
+        ring: s.ring,
+        tier: s.tier + ' · viz ' + s.viz.toFixed(1),
+        price: '$' + s.usd.toFixed(2) + ' · burn $EXO',
+        size: fmt(s.size) + ' cells',
+        grav: s.grav + ' core proximity',
+        note:
+          s.tier === 'MEGA'
+            ? 'MEGA grain — rare mass. Price stacks size on core pull.'
+            : s.tier === 'MICRO'
+              ? 'MICRO grain — cheap fuel for wild signals.'
+              : s.cName + ' · ' + (s.usd > 1.2 ? 'Core pull: expensive.' : 'Arm / rim balance.'),
+      });
+    }
+
     function onMouseDown(e) {
       setMapActive(true);
       dragging = true;
@@ -586,17 +685,21 @@ export function initVoidEngine() {
     let mapActive = false;
     const cosmosHint = document.getElementById('cosmosHint');
     function setMapActive(on) {
+      if (arenaMode) on = true;
       mapActive = on;
       if (on) frame.dataset.mapActive = '1';
       else delete frame.dataset.mapActive;
       frame.classList.toggle('map-active', on);
       if (cosmosHint) {
-        cosmosHint.textContent = on
-          ? 'exploring · wheel zoom · drag orbit · leave map to scroll page'
-          : 'click map to explore · then wheel zooms · leave to scroll page';
+        cosmosHint.textContent = arenaMode
+          ? 'ARENA · wheel zoom · shift+click stack · drag orbit'
+          : on
+            ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
+            : 'click map to explore · shift+click stack · View full map for deep play';
       }
     }
     function onFramePointerLeave() {
+      if (arenaMode) return;
       setMapActive(false);
     }
     function onWindowMouseMove(e) {
@@ -633,24 +736,18 @@ export function initVoidEngine() {
         const [wx, wy] = s2w(sx, sy);
         const hit = pickSector(wx, wy);
         if (hit) {
-          focusOn(hit.wx, hit.wy, clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S)));
-          openTerm({
-            title: 'GRAIN #' + hit.s.id,
-            sub: hit.s.cName + ' · ' + hit.s.ring,
-            status: yoursSet.has(hit.s.id) ? 'yours' : hit.s.kind === 'empty' ? 'unclaimed' : hit.s.kind,
-            ring: hit.s.ring,
-            price: '$' + hit.s.usd.toFixed(2) + ' · burn $EXO',
-            size: fmt(hit.s.size) + ' cells',
-            grav: hit.s.grav + ' core proximity',
-            note: hit.s.cName + ' · ' + (hit.s.usd > 1.2 ? 'Core pull: expensive.' : hit.s.usd > 0.4 ? 'Arm balance.' : 'Rim chaos: cheap.'),
-          });
-          document.getElementById('termBuy').onclick = () => {
-            yoursSet.add(hit.s.id);
-            if (hit.s.kind === 'empty') hit.s.kind = 'claimed';
-            document.getElementById('yoursCnt').textContent = String(yoursSet.size);
-            alert('preview claim — #' + hit.s.id + ' · ' + hit.s.cName + ' · burns $EXO');
-          };
-        } else {
+          if (e.shiftKey) {
+            toggleSelect(hit.s);
+            openSectorTerm(hit.s);
+          } else {
+            openSectorTerm(hit.s);
+            focusOn(
+              hit.wx,
+              hit.wy,
+              clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S))
+            );
+          }
+        } else if (!e.shiftKey) {
           let best = null,
             bd = 1e9;
           for (const c of g0.constels) {
@@ -749,6 +846,89 @@ export function initVoidEngine() {
       autoSpin = !autoSpin;
       this.classList.toggle('on', autoSpin);
     };
+
+    const termAdd = document.getElementById('termAdd');
+    if (termAdd) {
+      termAdd.onclick = () => {
+        if (!lastTermSector) return;
+        selectedSet.add(lastTermSector.id);
+        refreshCartDock();
+      };
+    }
+    document.getElementById('termBuy').onclick = () => {
+      if (!lastTermSector) return;
+      claimSectors([lastTermSector]);
+      alert('preview claim — #' + lastTermSector.id + ' · ' + lastTermSector.tier + ' · burns $EXO');
+    };
+    const cartClear = document.getElementById('cartClear');
+    if (cartClear) {
+      cartClear.onclick = () => {
+        selectedSet.clear();
+        refreshCartDock();
+      };
+    }
+    const cartClaim = document.getElementById('cartClaim');
+    if (cartClaim) {
+      cartClaim.onclick = () => {
+        const items = [...selectedSet]
+          .map((id) => g0.sectors.find((s) => s.id === id))
+          .filter(Boolean);
+        if (!items.length) return;
+        const mass = items.reduce((a, s) => a + s.size, 0);
+        const burn = items.reduce((a, s) => a + s.usd, 0);
+        claimSectors(items);
+        alert(
+          'preview stack claim — ' +
+            items.length +
+            ' grains · ' +
+            fmt(mass) +
+            ' cells · $' +
+            burn.toFixed(2) +
+            ' $EXO'
+        );
+      };
+    }
+
+    function enterArena() {
+      const stage = document.getElementById('arenaStage');
+      const placeholder = document.getElementById('arenaPlaceholder');
+      const slot = document.getElementById('heroCosmosSlot');
+      if (!stage || !frame) return;
+      stage.appendChild(frame);
+      if (placeholder) placeholder.hidden = true;
+      if (slot) slot.classList.add('cosmos-away');
+      document.body.classList.add('arena-live');
+      arenaMode = true;
+      frame.classList.add('in-arena');
+      setMapActive(true);
+      requestAnimationFrame(() => resize());
+    }
+    function exitArena() {
+      const slot = document.getElementById('heroCosmosSlot');
+      const placeholder = document.getElementById('arenaPlaceholder');
+      if (!slot || !frame) return;
+      slot.appendChild(frame);
+      slot.classList.remove('cosmos-away');
+      if (placeholder) placeholder.hidden = false;
+      document.body.classList.remove('arena-live');
+      arenaMode = false;
+      frame.classList.remove('in-arena');
+      setMapActive(false);
+      requestAnimationFrame(() => resize());
+    }
+    window.__voidCosmos = {
+      enterArena,
+      exitArena,
+      relocateTo(parent) {
+        if (parent && frame) {
+          parent.appendChild(frame);
+          resize();
+        }
+      },
+    };
+    onCleanup(() => {
+      if (window.__voidCosmos) delete window.__voidCosmos;
+    });
     document.getElementById('searchBtn').onclick = () => {
       const q = prompt('find GRAIN # or constellation');
       if (!q) return;
@@ -761,16 +941,7 @@ export function initVoidEngine() {
         }
         const p = sectorProj(found, g0);
         focusOn(p.x, p.y, 11);
-        openTerm({
-          title: 'GRAIN #' + found.id,
-          sub: found.cName + ' · ' + found.ring,
-          status: found.kind === 'empty' ? 'unclaimed' : found.kind,
-          ring: found.ring,
-          price: '$' + found.usd.toFixed(2) + ' · burn $EXO',
-          size: fmt(found.size) + ' cells',
-          grav: found.grav + ' core proximity',
-          note: 'Search · ' + found.cName,
-        });
+        openSectorTerm(found);
         return;
       }
       const cq = q.trim().toUpperCase();
@@ -848,11 +1019,11 @@ export function initVoidEngine() {
     function pickSector(wx, wy) {
       let best = null,
         bd = 1e9;
-      const hitR = Math.max(4.5, 8 / scale);
       for (const s of g0.sectors) {
         if (!sectorVisible(s)) continue;
         const p = sectorProj(s, g0);
         const d = Math.hypot(p.x - wx, p.y - wy);
+        const hitR = Math.max((s.viz || 2) * 1.35, 3.2) / Math.max(scale, 0.35);
         if (d < hitR && d < bd) {
           bd = d;
           best = { s, wx: p.x, wy: p.y, g: g0 };
@@ -956,7 +1127,7 @@ export function initVoidEngine() {
           if (!sectorVisible(s)) continue;
           const p = sectorProj(s, g);
           const d = Math.hypot(p.x - mx, p.y - my);
-          const hitR = Math.max(4.5, 8 / scale);
+          const hitR = Math.max((s.viz || 2) * 1.35, 3.2) / Math.max(scale, 0.35);
           const target = d < hitR ? 1 - d / hitR : 0;
           s.hover += (target - s.hover) * 0.28;
           if (s.hover > bestH) {
@@ -1237,10 +1408,6 @@ export function initVoidEngine() {
       }
 
       {
-        const grainR = 2.1;
-        const grainD = Math.max(1, (grainR * 2) | 0); // constant size — compute once, not per sector
-        // ~2800 sectors was the biggest ungated cost; stride under load keeps
-        // the lime disk readable without ~3k fillRect/frame on weak GPUs.
         const sectorStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
         const drawLabels = quality === 'high' && scale > 6;
         for (let si = 0; si < g.sectors.length; si += sectorStep) {
@@ -1253,6 +1420,8 @@ export function initVoidEngine() {
           sx = L[0];
           sy = L[1];
           if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
+          const grainR = s.viz || 2.1;
+          const grainD = Math.max(1, (grainR * 2) | 0);
           let col = s.cCol;
           if (heatMode) {
             const h = clamp(s.usd / 2.5, 0, 1);
@@ -1260,21 +1429,38 @@ export function initVoidEngine() {
           }
           if (yoursSet.has(s.id)) col = [180, 255, 120];
           const empty = s.kind === 'empty' && !heatMode;
+          const selected = selectedSet.has(s.id);
           ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
           ctx.fillRect((sx - grainR) | 0, (sy - grainR) | 0, grainD, grainD);
-          if (s.hover > 0.2) {
+          if (s.tier === 'MEGA' || s.tier === 'LARGE') {
+            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.55 : 0.28);
+            ctx.lineWidth = s.tier === 'MEGA' ? 1.4 : 1;
+            ctx.beginPath();
+            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 3.2 : 1.6), 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          if (selected) {
+            ctx.strokeStyle = 'rgba(204,255,0,.95)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(sx, sy, grainR + 4, 0, Math.PI * 2);
+            ctx.stroke();
+          } else if (s.hover > 0.2) {
             ctx.strokeStyle = rgba(col, 0.75);
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.arc(sx, sy, grainR + 2.5, 0, Math.PI * 2);
             ctx.stroke();
           }
-          if (drawLabels && (s.hover > 0.25 || scale > 10)) {
-            ctx.fillStyle = rgba(col, 0.8);
+          if (drawLabels && (s.hover > 0.25 || selected || scale > 10 || s.tier === 'MEGA')) {
+            ctx.fillStyle = rgba(col, 0.85);
             ctx.font = '9px IBM Plex Mono';
             ctx.textAlign = 'center';
             ctx.fillText('#' + s.id, sx, sy - grainR - 6);
-            if (s.hover > 0.45) ctx.fillText('$' + s.usd.toFixed(2), sx, sy + grainR + 10);
+            if (s.hover > 0.45 || selected) {
+              ctx.fillText(s.tier + ' · ' + s.size + 'c', sx, sy + grainR + 10);
+              ctx.fillText('$' + s.usd.toFixed(2), sx, sy + grainR + 20);
+            }
           }
         }
       }
@@ -1443,7 +1629,7 @@ export function initVoidEngine() {
           const tip2 = document.getElementById('tip2');
           if (tip1) tip1.textContent = `${hover.s.cName} · #${hover.s.id}`;
           if (tip2)
-            tip2.textContent = `$${hover.s.usd.toFixed(2)} · ${hover.s.ring} · ${
+            tip2.textContent = `${hover.s.tier} · ${hover.s.size}c · $${hover.s.usd.toFixed(2)} · ${
               hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
             }`;
         }
