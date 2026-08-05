@@ -1,25 +1,40 @@
+import { Link } from 'react-router-dom'
+
 const LINKS = [
   { label: 'X / Twitter', href: '#' },
   { label: 'GitHub', href: '#' },
-  { label: 'Documentation', href: '#' },
+  { label: 'Documentation', to: '/docs' },
   { label: 'DexScreener', href: '#' },
 ]
 
-function FooterLink({ label, href }) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group inline-flex items-center gap-1.5 font-mono text-[13px] tracking-wide text-muted transition-colors duration-200 ease-out hover:text-lime"
+function FooterLink({ label, href, to }) {
+  const className =
+    'group inline-flex items-center gap-1.5 font-mono text-[13px] tracking-wide text-muted transition-colors duration-200 ease-out hover:text-lime'
+
+  const arrow = (
+    <span
+      aria-hidden
+      className="inline-block transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
     >
+      ↗
+    </span>
+  )
+
+  // `to` = internal route (React Router Link, no full page reload).
+  // `href` = external placeholder (plain anchor, opens in a new tab).
+  if (to) {
+    return (
+      <Link to={to} className={className}>
+        {label}
+        {arrow}
+      </Link>
+    )
+  }
+
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={className}>
       {label}
-      <span
-        aria-hidden
-        className="inline-block transition-transform duration-200 ease-out group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
-      >
-        ↗
-      </span>
+      {arrow}
     </a>
   )
 }
