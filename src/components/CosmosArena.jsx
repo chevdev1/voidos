@@ -1,49 +1,67 @@
-import { motion } from 'framer-motion'
+import { useEffect, useRef } from 'react'
 import { useLenis } from '../lib/SmoothScroll'
 
-const EASE_OUT = [0.23, 1, 0.32, 1]
+function enterFullMap() {
+  if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+  else window.__voidCosmosPendingEnter = true
+}
 
 /**
- * Full-bleed map arena — the live cosmos panel relocates here when the
- * user hits "View full map". Mindless-style deep zoom / multi-claim lives here.
+ * Mindless-style full-viewport void map. Galaxy auto-drops in when this
+ * section is on screen (and via MAP / View full map).
  */
 export function CosmosArena() {
   const lenisRef = useLenis()
+  const sectionRef = useRef(null)
+
+  useEffect(() => {
+    const el = sectionRef.current
+    if (!el || typeof IntersectionObserver === 'undefined') {
+      enterFullMap()
+      return
+    }
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.15) enterFullMap()
+      },
+      { threshold: [0.15, 0.3, 0.5], rootMargin: '80px 0px' },
+    )
+    io.observe(el)
+
+    if (location.hash === '#map') enterFullMap()
+
+    return () => io.disconnect()
+  }, [])
 
   function backToHero() {
     window.__voidCosmos?.exitArena?.()
-    lenisRef?.current?.scrollTo('#top', { offset: 0, duration: 1.2 })
+    lenisRef?.current?.scrollTo('#top', { offset: 0, duration: 1.15 })
   }
 
   return (
-    <section id="map" className="cosmos-arena">
-      <div className="arena-chrome">
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.4 }}
-          transition={{ duration: 0.55, ease: EASE_OUT }}
-          className="arena-copy"
-        >
-          <p className="arena-eyebrow">SECTOR MAP · FULL FEED</p>
-          <h2>
-            Enter the <em>void</em>
-          </h2>
-          <p className="arena-lead">
-            Grains come in micro → mega sizes. Shift+click to stack several, then claim the bundle in
-            one burn. Drag to orbit. Wheel to zoom. This is the deep map.
-          </p>
-          <button type="button" className="arena-back" onClick={backToHero}>
-            ← back to surface
-          </button>
-        </motion.div>
+    <section id="map" className="cosmos-arena" ref={sectionRef}>
+      <div className="arena-stage" id="arenaStage">
+        <div className="arena-placeholder" id="arenaPlaceholder">
+          <p>loading void feed…</p>
+        </div>
       </div>
 
-      <div className="arena-stage" id="arenaStage">
-        {/* cosmosFrame relocates here from #heroCosmosSlot */}
-        <div className="arena-placeholder" id="arenaPlaceholder">
-          <p>Open the full map from the hero to drop the live galaxy here.</p>
+      <div className="arena-hud">
+        <div className="arena-hud-top">
+          <div>
+            <p className="arena-eyebrow">SECTOR MAP · FULL FEED</p>
+            <h2>
+              Enter the <em>void</em>
+            </h2>
+          </div>
+          <button type="button" className="arena-back" onClick={backToHero}>
+            ← surface
+          </button>
         </div>
+        <p className="arena-lead">
+          Micro → mega grains · shift+click stack · drag orbit · wheel zoom · click a grain to claim
+        </p>
       </div>
     </section>
   )

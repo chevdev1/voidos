@@ -13,7 +13,11 @@ export function Nav() {
   const lenisRef = useLenis()
 
   function goTo(target) {
-    lenisRef?.current?.scrollTo(target, { offset: -24, duration: 1.3 })
+    if (target === '#map') {
+      if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+      else window.__voidCosmosPendingEnter = true
+    }
+    lenisRef?.current?.scrollTo(target, { offset: target === '#map' ? 0 : -24, duration: 1.3 })
   }
 
   return (

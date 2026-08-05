@@ -893,28 +893,39 @@ export function initVoidEngine() {
       const stage = document.getElementById('arenaStage');
       const placeholder = document.getElementById('arenaPlaceholder');
       const slot = document.getElementById('heroCosmosSlot');
-      if (!stage || !frame) return;
-      stage.appendChild(frame);
+      if (!stage || !frame) {
+        window.__voidCosmosPendingEnter = true;
+        return;
+      }
+      if (frame.parentElement !== stage) stage.appendChild(frame);
       if (placeholder) placeholder.hidden = true;
       if (slot) slot.classList.add('cosmos-away');
       document.body.classList.add('arena-live');
       arenaMode = true;
       frame.classList.add('in-arena');
       setMapActive(true);
-      requestAnimationFrame(() => resize());
+      // Mindless-style: settle into a deep but readable overview
+      targetScale = Math.max(scale, 1.35);
+      requestAnimationFrame(() => {
+        resize();
+        requestAnimationFrame(resize);
+      });
     }
     function exitArena() {
       const slot = document.getElementById('heroCosmosSlot');
       const placeholder = document.getElementById('arenaPlaceholder');
       if (!slot || !frame) return;
-      slot.appendChild(frame);
+      if (frame.parentElement !== slot) slot.appendChild(frame);
       slot.classList.remove('cosmos-away');
       if (placeholder) placeholder.hidden = false;
       document.body.classList.remove('arena-live');
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);
-      requestAnimationFrame(() => resize());
+      requestAnimationFrame(() => {
+        resize();
+        requestAnimationFrame(resize);
+      });
     }
     window.__voidCosmos = {
       enterArena,
@@ -926,6 +937,10 @@ export function initVoidEngine() {
         }
       },
     };
+    if (window.__voidCosmosPendingEnter) {
+      window.__voidCosmosPendingEnter = false;
+      enterArena();
+    }
     onCleanup(() => {
       if (window.__voidCosmos) delete window.__voidCosmos;
     });

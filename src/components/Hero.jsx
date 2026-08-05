@@ -24,7 +24,8 @@ export function Hero() {
   }
 
   function openFullMap() {
-    window.__voidCosmos?.enterArena?.()
+    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+    else window.__voidCosmosPendingEnter = true
     goTo('#map')
   }
 

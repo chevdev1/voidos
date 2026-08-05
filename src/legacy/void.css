@@ -113,41 +113,71 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 
 .cosmos-arena{
   position:relative;z-index:6;
+  height:100vh;height:100dvh;
   min-height:100vh;min-height:100dvh;
-  padding:88px clamp(12px,3vw,28px) 28px;
+  padding:0;margin:0;
   background:#000;
-  display:grid;
-  grid-template-columns:minmax(200px,280px) 1fr;
-  gap:16px;
-  align-items:stretch;
+  overflow:hidden;
 }
-.arena-chrome{align-self:center}
-.arena-eyebrow{color:var(--lime);font-size:11px;letter-spacing:.18em;margin-bottom:10px}
-.arena-copy h2{
-  font-family:'Syne',sans-serif;font-weight:800;
-  font-size:clamp(28px,4vw,44px);line-height:1.05;margin-bottom:12px;
-}
-.arena-copy h2 em{font-style:normal;color:var(--lime)}
-.arena-lead{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px}
-.arena-back{
-  border:1px solid rgba(255,255,255,.14);color:var(--muted);
-  padding:8px 12px;border-radius:999px;font-size:12px;background:transparent;
-}
-.arena-back:hover{border-color:var(--lime);color:var(--lime)}
 .arena-stage{
-  position:relative;min-height:min(82vh,820px);
-  border:1px solid rgba(204,255,0,.18);background:#000;
+  position:absolute;inset:0;
+  min-height:100%;
+  border:none;background:#000;
 }
 .arena-stage .hero-right,
 .arena-stage #cosmosFrame{
-  position:absolute;inset:0;height:100%;min-height:0;margin:0;
+  position:absolute;inset:0;height:100%;min-height:0;margin:0;width:100%;
   mask-image:none;-webkit-mask-image:none;
+  border:none;
+}
+.arena-stage .cosmos-bar{
+  background:linear-gradient(180deg,rgba(0,0,0,.85),transparent);
+  padding:14px 16px;
 }
 .arena-placeholder{
   position:absolute;inset:0;display:grid;place-items:center;
   color:var(--muted2);font-size:13px;padding:24px;text-align:center;
+  letter-spacing:.08em;
 }
 .arena-placeholder[hidden]{display:none}
+
+/* Mindless overlay — floats over the full-bleed void, doesn't steal the map */
+.arena-hud{
+  position:absolute;z-index:20;left:0;right:0;top:0;
+  padding:88px 20px 0;
+  pointer-events:none;
+  background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,transparent 100%);
+  max-width:560px;
+}
+.arena-hud-top{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+}
+.arena-eyebrow{color:var(--lime);font-size:10px;letter-spacing:.2em;margin-bottom:8px}
+.arena-hud h2{
+  font-family:'Syne',sans-serif;font-weight:800;
+  font-size:clamp(26px,4vw,40px);line-height:1.02;margin:0;
+  text-shadow:0 2px 24px rgba(0,0,0,.8);
+}
+.arena-hud h2 em{font-style:normal;color:var(--lime)}
+.arena-lead{
+  pointer-events:none;
+  color:rgba(180,190,160,.75);font-size:11px;line-height:1.5;
+  margin:10px 0 0;max-width:420px;
+  text-shadow:0 1px 12px rgba(0,0,0,.9);
+}
+.arena-back{
+  pointer-events:auto;
+  border:1px solid rgba(255,255,255,.18);color:var(--muted);
+  padding:8px 12px;border-radius:999px;font-size:11px;background:rgba(0,0,0,.55);
+  backdrop-filter:blur(6px);flex-shrink:0;
+}
+.arena-back:hover{border-color:var(--lime);color:var(--lime)}
+
+body.arena-live .cosmos-arena .filters,
+body.arena-live .cosmos-arena .minimap,
+body.arena-live .cosmos-arena .vc{
+  opacity:1;
+}
 
 .btn-ghost-term{
   display:block;width:100%;text-align:center;padding:10px;margin-top:8px;
@@ -183,8 +213,9 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 
 @media(max-width:960px){
   .hero-cosmos-slot{order:2;min-height:58vh;margin-right:0}
-  .cosmos-arena{grid-template-columns:1fr;padding-top:72px}
-  .arena-stage{min-height:70vh}
+  .cosmos-arena{height:100svh}
+  .arena-hud{padding-top:72px;padding-left:14px;padding-right:14px;max-width:100%}
+  .arena-lead{display:none}
 }
 .cosmos-fx{
   position:absolute;inset:0;z-index:4;pointer-events:none;
