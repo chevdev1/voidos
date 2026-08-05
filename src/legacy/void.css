@@ -100,7 +100,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
   display:grid;place-items:center;
 }
 .hero-cosmos-slot.cosmos-away::after{
-  content:"map open in full arena ↓";
+  content:"demo paused · full map open below ↓";
   color:var(--muted2);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
 }
 .hero-map-open{
@@ -135,11 +135,16 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
   padding:14px 16px;
 }
 .arena-placeholder{
-  position:absolute;inset:0;display:grid;place-items:center;
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;
   color:var(--muted2);font-size:13px;padding:24px;text-align:center;
-  letter-spacing:.08em;
+  letter-spacing:.04em;line-height:1.5;
 }
 .arena-placeholder[hidden]{display:none}
+.arena-ph-title{
+  color:var(--lime);font-size:11px;letter-spacing:.2em;margin:0;
+}
+.arena-ph-btn{pointer-events:auto;margin-top:6px}
 
 /* Mindless overlay — floats over the full-bleed void, doesn't steal the map */
 .arena-hud{

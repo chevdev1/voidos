@@ -685,21 +685,21 @@ export function initVoidEngine() {
     let mapActive = false;
     const cosmosHint = document.getElementById('cosmosHint');
     function setMapActive(on) {
-      if (arenaMode) on = true;
       mapActive = on;
       if (on) frame.dataset.mapActive = '1';
       else delete frame.dataset.mapActive;
       frame.classList.toggle('map-active', on);
       if (cosmosHint) {
         cosmosHint.textContent = arenaMode
-          ? 'ARENA · wheel zoom · shift+click stack · drag orbit'
+          ? on
+            ? 'ARENA exploring · wheel zoom · shift+click stack · leave / scroll to exit zoom'
+            : 'ARENA · click map to zoom · otherwise page scrolls · shift+click stack'
           : on
             ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
-            : 'click map to explore · shift+click stack · View full map for deep play';
+            : 'demo · click to explore · View full map for deep play';
       }
     }
     function onFramePointerLeave() {
-      if (arenaMode) return;
       setMapActive(false);
     }
     function onWindowMouseMove(e) {
@@ -903,8 +903,9 @@ export function initVoidEngine() {
       document.body.classList.add('arena-live');
       arenaMode = true;
       frame.classList.add('in-arena');
-      setMapActive(true);
-      // Mindless-style: settle into a deep but readable overview
+      // Don't trap the wheel until the user clicks the map — otherwise a
+      // full-viewport arena makes the whole site unscrollable.
+      setMapActive(false);
       targetScale = Math.max(scale, 1.35);
       requestAnimationFrame(() => {
         resize();
@@ -1019,7 +1020,9 @@ export function initVoidEngine() {
         shown++;
         const p = sectorProj(s, g0);
         mctx.fillStyle = yoursSet.has(s.id) ? '#ccff00' : rgba(s.cCol, 0.9);
-        mctx.fillRect(mw / 2 + p.x * sx, mh / 2 + p.y * sy, 1.4, 1.4);
+        mctx.beginPath();
+        mctx.arc(mw / 2 + p.x * sx, mh / 2 + p.y * sy, Math.max(0.7, (s.viz || 2) * 0.12), 0, Math.PI * 2);
+        mctx.fill();
       }
       const vw = (W / scale) * sx,
         vh = (H / scale) * sy;
@@ -1115,13 +1118,7 @@ export function initVoidEngine() {
       ctx.fillStyle = deep;
       ctx.fillRect(0, 0, W, H);
 
-      // fillRect instead of arc()+fill(): at 1-2px there's no visible
-      // difference between a filled square and a filled circle, but a rect
-      // skips path construction and circular rasterization entirely — a
-      // real, measurable win at thousands of calls/frame. Coordinates are
-      // floored to whole pixels first so the browser draws a crisp block
-      // instead of anti-aliasing a fractional-pixel edge.
-      const bgSize = 2;
+      // Distant field stars as tiny discs — squares read as "pixels", not void.
       const bgStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
       for (let bi = 0; bi < bgStars.length; bi += bgStep) {
         const s = bgStars[bi];
@@ -1129,7 +1126,9 @@ export function initVoidEngine() {
         if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
         const a = 0.15 + 0.55 * s.a;
         ctx.fillStyle = `rgba(220,230,255,${a})`;
-        ctx.fillRect((sx | 0) - 1, (sy | 0) - 1, bgSize, bgSize);
+        ctx.beginPath();
+        ctx.arc(sx, sy, Math.max(0.6, s.r * 0.55), 0, Math.PI * 2);
+        ctx.fill();
       }
 
       hover = null;
@@ -1290,25 +1289,16 @@ export function initVoidEngine() {
           if (p.dust) col = colLerp(col, [8, 10, 6], 0.72);
           const tw = 0.6 + 0.4 * Math.sin(t * p.sp * 1.3 + p.ph);
           const depthFade = clamp(0.55 + pr.persp * 0.5, 0.35, 1.2);
-          let sz = Math.max(0.4, Math.min(1.8, p.br * pr.persp * 0.85 * tw));
-          if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
+          let sz = Math.max(0.45, Math.min(2.0, p.br * pr.persp * 0.85 * tw));
+          if (p.u < 0.12) sz = Math.min(2.4, sz * 1.15);
           const a = ((p.dust ? 0.1 : 0.38) + p.br * 0.22 * tw) * depthFade;
           ctx.fillStyle = rgba(col, clamp(a, 0, 1));
-          const d = Math.max(1, (sz * 2) | 0);
-          ctx.fillRect((sx - sz) | 0, (sy - sz) | 0, d, d);
+          ctx.beginPath();
+          ctx.arc(sx, sy, sz, 0, Math.PI * 2);
+          ctx.fill();
         }
       } else {
-        // Batched fallback (medium/low): one path + one fill() per color
-        // bucket instead of one fillStyle assignment + one fillRect per
-        // star — collapses up to ~4200 draw calls into 12. Traded away to
-        // get there: no per-star depth sort (painter's-algorithm order is
-        // already the first thing dropped at 'low'; here it's dropped
-        // whenever batching is active at all), no per-star twinkle (one
-        // shared pulse per bucket instead — bands of brightness breathing
-        // together rather than each star individually), and dust points
-        // render at full bucket brightness instead of darkened. All of
-        // that is a real, visible fidelity cut — it only kicks in once
-        // the adaptive monitor has already decided this device needs it.
+        // Batched discs (medium/low): one path + one fill() per color bucket.
         for (let bi = 0; bi < g.starBucketRanges.length; bi++) {
           const [start, end] = g.starBucketRanges[bi];
           const groupTw = 0.6 + 0.4 * Math.sin(t * 0.6 + bi * 0.7);
@@ -1323,10 +1313,10 @@ export function initVoidEngine() {
             sx = L[0];
             sy = L[1];
             if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
-            let sz = Math.max(0.4, Math.min(1.8, p.br * pr.persp * 0.85 * groupTw));
-            if (p.u < 0.12) sz = Math.min(2.2, sz * 1.15);
-            const d = Math.max(1, (sz * 2) | 0);
-            ctx.rect((sx - sz) | 0, (sy - sz) | 0, d, d);
+            let sz = Math.max(0.45, Math.min(2.0, p.br * pr.persp * 0.85 * groupTw));
+            if (p.u < 0.12) sz = Math.min(2.4, sz * 1.15);
+            ctx.moveTo(sx + sz, sy);
+            ctx.arc(sx, sy, sz, 0, Math.PI * 2);
             any = true;
           }
           if (any) {
@@ -1436,7 +1426,6 @@ export function initVoidEngine() {
           sy = L[1];
           if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
           const grainR = s.viz || 2.1;
-          const grainD = Math.max(1, (grainR * 2) | 0);
           let col = s.cCol;
           if (heatMode) {
             const h = clamp(s.usd / 2.5, 0, 1);
@@ -1446,7 +1435,9 @@ export function initVoidEngine() {
           const empty = s.kind === 'empty' && !heatMode;
           const selected = selectedSet.has(s.id);
           ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
-          ctx.fillRect((sx - grainR) | 0, (sy - grainR) | 0, grainD, grainD);
+          ctx.beginPath();
+          ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
+          ctx.fill();
           if (s.tier === 'MEGA' || s.tier === 'LARGE') {
             ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.55 : 0.28);
             ctx.lineWidth = s.tier === 'MEGA' ? 1.4 : 1;
@@ -1486,16 +1477,18 @@ export function initVoidEngine() {
         const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.9 : 1;
         const constelStep = quality === 'high' ? 1 : 2;
         function spark(x, y, col, a) {
-          ctx.strokeStyle = rgba(col, a);
-          ctx.lineWidth = 0.8;
+          ctx.strokeStyle = rgba(col, a * 0.85);
+          ctx.lineWidth = 0.7;
           ctx.beginPath();
-          ctx.moveTo(x - 3.5, y);
-          ctx.lineTo(x + 3.5, y);
-          ctx.moveTo(x, y - 3.5);
-          ctx.lineTo(x, y + 3.5);
+          ctx.moveTo(x - 3.2, y);
+          ctx.lineTo(x + 3.2, y);
+          ctx.moveTo(x, y - 3.2);
+          ctx.lineTo(x, y + 3.2);
           ctx.stroke();
           ctx.fillStyle = rgba([255, 255, 230], a);
-          ctx.fillRect((x | 0) - 1, (y | 0) - 1, 2, 2);
+          ctx.beginPath();
+          ctx.arc(x, y, 1.35, 0, Math.PI * 2);
+          ctx.fill();
         }
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;

@@ -6,9 +6,14 @@ function enterFullMap() {
   else window.__voidCosmosPendingEnter = true
 }
 
+function exitFullMap() {
+  window.__voidCosmos?.exitArena?.()
+}
+
 /**
- * Mindless-style full-viewport void map. Galaxy auto-drops in when this
- * section is on screen (and via MAP / View full map).
+ * Full-bleed map arena. Galaxy stays in the hero as the demo by default —
+ * only relocates here on explicit MAP / View full map, and returns when
+ * you leave this section so page scroll stays usable.
  */
 export function CosmosArena() {
   const lenisRef = useLenis()
@@ -16,16 +21,16 @@ export function CosmosArena() {
 
   useEffect(() => {
     const el = sectionRef.current
-    if (!el || typeof IntersectionObserver === 'undefined') {
-      enterFullMap()
-      return
-    }
+    if (!el || typeof IntersectionObserver === 'undefined') return
 
+    // Only RETURN the demo to hero when the arena leaves view.
+    // Do NOT auto-steal the galaxy on scroll — that emptied the hero
+    // and trapped the wheel on a 100vh map.
     const io = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.15) enterFullMap()
+        if (!entry.isIntersecting) exitFullMap()
       },
-      { threshold: [0.15, 0.3, 0.5], rootMargin: '80px 0px' },
+      { threshold: 0.08 },
     )
     io.observe(el)
 
@@ -35,15 +40,23 @@ export function CosmosArena() {
   }, [])
 
   function backToHero() {
-    window.__voidCosmos?.exitArena?.()
+    exitFullMap()
     lenisRef?.current?.scrollTo('#top', { offset: 0, duration: 1.15 })
+  }
+
+  function openHere() {
+    enterFullMap()
   }
 
   return (
     <section id="map" className="cosmos-arena" ref={sectionRef}>
       <div className="arena-stage" id="arenaStage">
         <div className="arena-placeholder" id="arenaPlaceholder">
-          <p>loading void feed…</p>
+          <p className="arena-ph-title">FULL VOID MAP</p>
+          <p>Hero keeps the live demo. Open the deep map when you want to play.</p>
+          <button type="button" className="btn-lime arena-ph-btn" onClick={openHere}>
+            Drop galaxy here ↗
+          </button>
         </div>
       </div>
 
@@ -60,7 +73,7 @@ export function CosmosArena() {
           </button>
         </div>
         <p className="arena-lead">
-          Micro → mega grains · shift+click stack · drag orbit · wheel zoom · click a grain to claim
+          Click map to explore (wheel zooms) · otherwise page scrolls · shift+click stack · drag orbit
         </p>
       </div>
     </section>
