@@ -34,15 +34,16 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          One star sector costs <b className="text-lime">10¢</b> in $EXO equivalent. Every payment
-          is <b className="text-white">permanently burned</b> on capture — there is no treasury,
-          no team wallet collecting the proceeds. Each sector claimed forever reduces the total
-          $EXO supply.
+          Sector price scales with proximity to the galactic core —{' '}
+          <b className="text-lime">~$0.04</b> at the outer rim up to{' '}
+          <b className="text-lime">~$2.50</b> near the core, in $EXO equivalent. Closer to the
+          core means more contested, higher-gravity real estate; the rim is cheap fuel for wild
+          signals.
         </p>
-        <p className="mt-4 text-xs text-muted-2">
-          Note: the live sector map prices by proximity to the galactic core rather than a flat
-          rate (outer rim sectors run cheaper, core-adjacent sectors run dearer) — treat the
-          figure above as the baseline reference price, not a fixed quote.
+        <p className="mt-4">
+          Every payment is <b className="text-white">permanently burned</b> on capture — there is
+          no treasury, no team wallet collecting the proceeds. Each sector claimed forever reduces
+          the total $EXO supply.
         </p>
       </>
     ),
