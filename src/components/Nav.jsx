@@ -17,7 +17,16 @@ export function Nav() {
       if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
       else window.__voidCosmosPendingEnter = true
     }
-    lenisRef?.current?.scrollTo(target, { offset: target === '#map' ? 0 : -24, duration: 1.3 })
+    const lenis = lenisRef?.current
+    if (lenis?.scrollTo) {
+      lenis.scrollTo(target, { offset: target === '#map' ? 0 : -24, duration: 1.3 })
+      return
+    }
+    const el = document.querySelector(target)
+    if (el) {
+      const top = el.getBoundingClientRect().top + window.scrollY - (target === '#map' ? 0 : 24)
+      window.scrollTo({ top, behavior: 'smooth' })
+    }
   }
 
   return (

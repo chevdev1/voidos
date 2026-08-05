@@ -666,171 +666,299 @@ export function initVoidEngine() {
       });
     }
 
-    function onMouseDown(e) {
-      setMapActive(true);
-      dragging = true;
-      moved = false;
-      lx = e.clientX;
-      ly = e.clientY;
-      orbiting = e.button !== 1 && !e.shiftKey && (orbitMode || e.altKey || e.button === 2);
-      if (e.shiftKey || e.button === 1) orbiting = false;
-      canvas.classList.add('grab');
+    let pendingTouch = null
+    function onPointerDown(e) {
+      if (e.target !== canvas && !(e.target instanceof Element && canvas.contains(e.target))) {
+        // allow UI chips/buttons on the frame to work without map capture
+        if (e.target instanceof Element && e.target.closest?.('.vc, .filters, .minimap, .cosmos-bar, button')) return
+      }
+      if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return
+      if (e.pointerType === 'touch' && e.isPrimary === false) return
+
+      // On phone: don't lock the map on first contact — wait to see if the
+      // user is scrolling the page (vertical) or exploring (horizontal / hold).
+      if (e.pointerType === 'touch' && !mapActive) {
+        pendingTouch = { x: e.clientX, y: e.clientY, id: e.pointerId }
+        return
+      }
+
+      beginMapDrag(e)
+    }
+    function beginMapDrag(e) {
+      setMapActive(true)
+      dragging = true
+      moved = false
+      lx = e.clientX
+      ly = e.clientY
+      orbiting =
+        e.pointerType === 'touch'
+          ? true
+          : e.button !== 1 && !e.shiftKey && (orbitMode || e.altKey || e.button === 2)
+      if (e.shiftKey || e.button === 1) orbiting = false
+      canvas.classList.add('grab')
+      try {
+        canvas.setPointerCapture?.(e.pointerId)
+      } catch (_) {
+        /* ignore */
+      }
     }
     function onContextMenu(e) {
-      e.preventDefault();
+      e.preventDefault()
     }
     // Click-to-explore: hover alone must not trap the wheel (page scroll stays
     // usable over the big hero). After a pointer down on the map, wheel zooms
     // until the pointer leaves — or zoom-out past min scale releases to page.
-    let mapActive = false;
-    const cosmosHint = document.getElementById('cosmosHint');
+    let mapActive = false
+    const cosmosHint = document.getElementById('cosmosHint')
+    const isCoarse = matchMedia('(pointer: coarse), (hover: none)').matches
     function setMapActive(on) {
-      mapActive = on;
-      if (on) frame.dataset.mapActive = '1';
-      else delete frame.dataset.mapActive;
-      frame.classList.toggle('map-active', on);
+      mapActive = on
+      if (on) frame.dataset.mapActive = '1'
+      else delete frame.dataset.mapActive
+      frame.classList.toggle('map-active', on)
+      const exploreBtn = document.getElementById('cosmosExploreBtn')
+      if (exploreBtn) {
+        exploreBtn.classList.toggle('on', on)
+        exploreBtn.textContent = on ? 'Exploring' : 'Explore'
+      }
       if (cosmosHint) {
-        cosmosHint.textContent = arenaMode
+        cosmosHint.textContent = isCoarse
           ? on
-            ? 'ARENA exploring · wheel zoom · shift+click stack · leave / scroll to exit zoom'
-            : 'ARENA · click map to zoom · otherwise page scrolls · shift+click stack'
-          : on
-            ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
-            : 'click to explore · shift+click stack · MAP for deep play';
+            ? 'drag orbit · pinch zoom · tap grain · scroll outside map'
+            : 'tap map to explore · then drag / pinch'
+          : arenaMode
+            ? on
+              ? 'ARENA exploring · wheel zoom · shift+click stack'
+              : 'ARENA · click map to zoom · otherwise page scrolls'
+            : on
+              ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
+              : 'click to explore · shift+click stack · MAP for deep play'
       }
     }
-    function onFramePointerLeave() {
-      setMapActive(false);
+    function onFramePointerLeave(e) {
+      // Don't kill explore mode on touch (leave fires between gestures).
+      if (e.pointerType === 'touch') return
+      setMapActive(false)
     }
-    function onWindowMouseMove(e) {
+    function onPointerMove(e) {
+      if (pendingTouch && e.pointerId === pendingTouch.id) {
+        const dx = e.clientX - pendingTouch.x
+        const dy = e.clientY - pendingTouch.y
+        const adx = Math.abs(dx)
+        const ady = Math.abs(dy)
+        if (ady > 12 && ady > adx * 1.15) {
+          // Vertical scroll — abandon map capture, let the page move.
+          pendingTouch = null
+          return
+        }
+        if (adx > 10 || ady > 10) {
+          pendingTouch = null
+          beginMapDrag(e)
+        }
+        return
+      }
+
       if (inside(e)) {
-        const [sx, sy] = localXY(e);
-        const p = s2w(sx, sy);
-        mx = p[0];
-        my = p[1];
-      } else {
-        mx = null;
-        my = null;
-        tip.classList.remove('show');
+        const [sx, sy] = localXY(e)
+        const p = s2w(sx, sy)
+        mx = p[0]
+        my = p[1]
+      } else if (e.pointerType !== 'touch') {
+        mx = null
+        my = null
+        tip.classList.remove('show')
       }
-      if (!dragging) return;
-      const dx = e.clientX - lx,
-        dy = e.clientY - ly;
-      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+      if (!dragging) return
+      if (!mapActive && e.pointerType === 'touch') return
+      const dx = e.clientX - lx
+      const dy = e.clientY - ly
+      if (Math.abs(dx) + Math.abs(dy) > 3) moved = true
       if (orbiting) {
-        viewYaw += dx * 0.01;
-        viewPitch += dy * 0.01;
+        viewYaw += dx * (e.pointerType === 'touch' ? 0.014 : 0.01)
+        viewPitch += dy * (e.pointerType === 'touch' ? 0.014 : 0.01)
       } else {
-        panX += dx;
-        panY += dy;
-        targetPanX = panX;
-        targetPanY = panY;
+        panX += dx
+        panY += dy
+        targetPanX = panX
+        targetPanY = panY
       }
-      lx = e.clientX;
-      ly = e.clientY;
+      lx = e.clientX
+      ly = e.clientY
+      if (mapActive && e.cancelable && e.pointerType === 'touch') e.preventDefault()
     }
-    function onWindowMouseUp(e) {
-      if (!dragging) return;
+    function onPointerUp(e) {
+      if (pendingTouch && e.pointerId === pendingTouch.id) {
+        // Tap without scroll → enter explore + hit-test
+        pendingTouch = null
+        setMapActive(true)
+        const [sx, sy] = localXY(e)
+        const [wx, wy] = s2w(sx, sy)
+        const hit = pickSector(wx, wy)
+        if (hit) {
+          openSectorTerm(hit.s)
+          focusOn(
+            hit.wx,
+            hit.wy,
+            clamp(scale * 1.2, Math.max(scale, 2.8), Math.min(MAX_S, 8)),
+          )
+        }
+        return
+      }
+      if (!dragging) return
       if (!moved && inside(e)) {
-        const [sx, sy] = localXY(e);
-        const [wx, wy] = s2w(sx, sy);
-        const hit = pickSector(wx, wy);
+        const [sx, sy] = localXY(e)
+        const [wx, wy] = s2w(sx, sy)
+        const hit = pickSector(wx, wy)
         if (hit) {
           if (e.shiftKey) {
-            toggleSelect(hit.s);
-            openSectorTerm(hit.s);
+            toggleSelect(hit.s)
+            openSectorTerm(hit.s)
           } else {
-            openSectorTerm(hit.s);
+            openSectorTerm(hit.s)
             focusOn(
               hit.wx,
               hit.wy,
-              clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S))
-            );
+              clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S)),
+            )
           }
-        } else if (!e.shiftKey) {
-          let best = null,
-            bd = 1e9;
+        } else if (!e.shiftKey && e.pointerType !== 'touch') {
+          let best = null
+          let bd = 1e9
           for (const c of g0.constels) {
-            const p = constelWorld(c, g0);
-            const d = Math.hypot(wx - p.x, wy - p.y);
+            const p = constelWorld(c, g0)
+            const d = Math.hypot(wx - p.x, wy - p.y)
             if (d < g0.R * 0.22 && d < bd) {
-              bd = d;
-              best = { c, p };
+              bd = d
+              best = { c, p }
             }
           }
-          if (best) focusOn(best.p.x, best.p.y, clamp(Math.max(scale, 2.4), 2.2, 4.5));
-          else focusOn(0, 0, Math.max(scale, 0.65));
+          if (best) focusOn(best.p.x, best.p.y, clamp(Math.max(scale, 2.4), 2.2, 4.5))
+          else focusOn(0, 0, Math.max(scale, 0.65))
         }
       }
-      dragging = false;
-      canvas.classList.remove('grab');
+      dragging = false
+      canvas.classList.remove('grab')
+      try {
+        canvas.releasePointerCapture?.(e.pointerId)
+      } catch (_) {
+        /* ignore */
+      }
     }
+
+    // Pinch-to-zoom (touch)
+    let pinchStartDist = 0
+    let pinchStartScale = scale
+    function touchDist(t) {
+      const a = t[0]
+      const b = t[1]
+      return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+    }
+    function onTouchStart(e) {
+      if (e.touches.length === 2) {
+        setMapActive(true)
+        dragging = false
+        pinchStartDist = touchDist(e.touches)
+        pinchStartScale = scale
+        e.preventDefault()
+      }
+    }
+    function onTouchMove(e) {
+      if (e.touches.length === 2 && pinchStartDist > 0) {
+        const d = touchDist(e.touches)
+        const next = clamp(pinchStartScale * (d / pinchStartDist), MIN_S, MAX_S)
+        scale = next
+        targetScale = next
+        e.preventDefault()
+      } else if (mapActive && e.touches.length === 1) {
+        e.preventDefault()
+      }
+    }
+    function onTouchEnd(e) {
+      if (e.touches.length < 2) pinchStartDist = 0
+    }
+
     function onWheel(e) {
       const over =
-        inside(e) || (e.target instanceof Element && e.target.closest?.('#cosmosFrame'));
-      if (!over) return;
+        inside(e) || (e.target instanceof Element && e.target.closest?.('#cosmosFrame'))
+      if (!over) return
 
-      // Ctrl/⌘+wheel always zooms (trackpad pinch often sets ctrlKey).
-      const forceZoom = e.ctrlKey || e.metaKey;
-      if (!mapActive && !forceZoom) return; // page scroll — do not preventDefault
+      const forceZoom = e.ctrlKey || e.metaKey
+      if (!mapActive && !forceZoom) return
 
-      // Fully zoomed out + scroll down → release explore mode, let page continue.
       if (mapActive && !forceZoom && e.deltaY > 0 && scale <= MIN_S + 0.001) {
-        setMapActive(false);
-        return;
+        setMapActive(false)
+        return
       }
 
-      e.preventDefault();
-      e.stopPropagation();
-      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
-      if (!mapActive) setMapActive(true);
+      e.preventDefault()
+      e.stopPropagation()
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation()
+      if (!mapActive) setMapActive(true)
 
-      const [sx, sy] = localXY(e);
-      const before = s2w(sx, sy);
-      const zin = scale < 1 ? 1.14 : scale < 3 ? 1.18 : scale < 7 ? 1.22 : 1.28;
-      const zout = scale < 1 ? 0.88 : scale < 3 ? 0.87 : 0.84;
-      const next = clamp(scale * (e.deltaY < 0 ? zin : zout), MIN_S, MAX_S);
-      scale = next;
-      targetScale = next;
-      const after = s2w(sx, sy);
-      panX += (after[0] - before[0]) * scale;
-      panY += (after[1] - before[1]) * scale;
-      targetPanX = panX;
-      targetPanY = panY;
+      const [sx, sy] = localXY(e)
+      const before = s2w(sx, sy)
+      const zin = scale < 1 ? 1.14 : scale < 3 ? 1.18 : scale < 7 ? 1.22 : 1.28
+      const zout = scale < 1 ? 0.88 : scale < 3 ? 0.87 : 0.84
+      const next = clamp(scale * (e.deltaY < 0 ? zin : zout), MIN_S, MAX_S)
+      scale = next
+      targetScale = next
+      const after = s2w(sx, sy)
+      panX += (after[0] - before[0]) * scale
+      panY += (after[1] - before[1]) * scale
+      targetPanX = panX
+      targetPanY = panY
     }
 
     function onWindowWheelCapture(e) {
-      onWheel(e);
+      onWheel(e)
     }
 
-    canvas.addEventListener('mousedown', onMouseDown);
-    canvas.addEventListener('contextmenu', onContextMenu);
-    frame.addEventListener('pointerleave', onFramePointerLeave);
-    window.addEventListener('mousemove', onWindowMouseMove);
-    window.addEventListener('mouseup', onWindowMouseUp);
-    frame.addEventListener('wheel', onWheel, { passive: false, capture: true });
-    window.addEventListener('wheel', onWindowWheelCapture, { passive: false, capture: true });
+    canvas.addEventListener('pointerdown', onPointerDown)
+    canvas.addEventListener('contextmenu', onContextMenu)
+    frame.addEventListener('pointerleave', onFramePointerLeave)
+    window.addEventListener('pointermove', onPointerMove, { passive: false })
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerUp)
+    frame.addEventListener('touchstart', onTouchStart, { passive: false })
+    frame.addEventListener('touchmove', onTouchMove, { passive: false })
+    frame.addEventListener('touchend', onTouchEnd)
+    frame.addEventListener('wheel', onWheel, { passive: false, capture: true })
+    window.addEventListener('wheel', onWindowWheelCapture, { passive: false, capture: true })
     onCleanup(() => {
-      canvas.removeEventListener('mousedown', onMouseDown);
-      canvas.removeEventListener('contextmenu', onContextMenu);
-      frame.removeEventListener('pointerleave', onFramePointerLeave);
-      window.removeEventListener('mousemove', onWindowMouseMove);
-      window.removeEventListener('mouseup', onWindowMouseUp);
-      frame.removeEventListener('wheel', onWheel, { capture: true });
-      window.removeEventListener('wheel', onWindowWheelCapture, { capture: true });
-      delete frame.dataset.mapActive;
-    });
+      canvas.removeEventListener('pointerdown', onPointerDown)
+      canvas.removeEventListener('contextmenu', onContextMenu)
+      frame.removeEventListener('pointerleave', onFramePointerLeave)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
+      frame.removeEventListener('touchstart', onTouchStart)
+      frame.removeEventListener('touchmove', onTouchMove)
+      frame.removeEventListener('touchend', onTouchEnd)
+      frame.removeEventListener('wheel', onWheel, { capture: true })
+      window.removeEventListener('wheel', onWindowWheelCapture, { capture: true })
+      delete frame.dataset.mapActive
+    })
 
     document.getElementById('zoomIn').onclick = () => {
+      setMapActive(true);
       targetScale = clamp(scale * 1.35, MIN_S, MAX_S);
       targetPanX = panX * (targetScale / scale);
       targetPanY = panY * (targetScale / scale);
     };
     document.getElementById('zoomOut').onclick = () => {
+      setMapActive(true);
       targetScale = clamp(scale / 1.35, MIN_S, MAX_S);
       targetPanX = panX * (targetScale / scale);
       targetPanY = panY * (targetScale / scale);
     };
+    const exploreBtn = document.getElementById('cosmosExploreBtn');
+    if (exploreBtn) {
+      exploreBtn.onclick = () => {
+        setMapActive(!mapActive);
+        exploreBtn.classList.toggle('on', mapActive);
+        exploreBtn.textContent = mapActive ? 'Exploring' : 'Explore';
+      };
+    }
     document.getElementById('homeBtn').onclick = () => {
       targetScale = 1.05;
       targetPanX = 0;

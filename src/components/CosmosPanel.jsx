@@ -11,6 +11,9 @@ export function CosmosPanel() {
       <div className="cosmos-bar">
         <b>◎ COSMOS</b>
         <span id="cosmosHint">click map to explore · shift+click stack · wheel zooms while exploring</span>
+        <button type="button" className="cosmos-explore" id="cosmosExploreBtn">
+          Explore
+        </button>
       </div>
       <canvas id="cosmos" />
       <div className="cosmos-fx" aria-hidden="true" />
