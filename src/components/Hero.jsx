@@ -108,6 +108,8 @@ export function Hero() {
         transition={{ duration: 0.9, delay: 0.25 }}
         className="hero-right"
         id="cosmosFrame"
+        data-lenis-prevent
+        data-lenis-prevent-wheel
       >
         <div className="cosmos-bar">
           <b>◎ COSMOS</b>

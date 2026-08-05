@@ -385,15 +385,43 @@ export function initVoidEngine() {
      * Hand-rolled equivalent of drei's <PerformanceMonitor>: an exponential
      * moving average of frame time drives three quality tiers with
      * hysteresis (slow to downgrade on a blip, slower to upgrade back) so
-     * it doesn't flap. 'high' matches the original engine exactly; 'medium'
-     * and 'low' progressively shed the most expensive, least-noticeable
-     * work — see the gates on nebulae/comets/spiral ribbons below.
+     * it doesn't flap. Weak / mobile devices start below 'high' so the first
+     * seconds aren't a hitchy full-quality burst waiting for 90 bad samples.
      */
-    let quality = 'high'; // 'high' | 'medium' | 'low'
+    function detectStartQuality() {
+      try {
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
+        const saveData = navigator.connection && navigator.connection.saveData;
+        if (saveData) return 'low';
+        const mem = navigator.deviceMemory; // Chrome-ish; undefined elsewhere
+        if (mem != null && mem <= 4) return 'low';
+        const cores = navigator.hardwareConcurrency || 8;
+        const coarse = matchMedia('(pointer: coarse)').matches;
+        if (cores <= 4 || coarse || (mem != null && mem <= 6)) return 'medium';
+      } catch (_) {
+        /* ignore */
+      }
+      return 'high';
+    }
+    let quality = detectStartQuality(); // 'high' | 'medium' | 'low'
     let frameMs = 16.7;
     let goodStreak = 0,
       badStreak = 0;
     let lastSampleT = performance.now();
+    const hudEl = frame.querySelector('.cosmos-hud');
+    let lastTipId = null;
+    let lastHudHidden = null;
+    function applyQualityClass() {
+      frame.classList.remove('q-high', 'q-medium', 'q-low');
+      frame.classList.add('q-' + quality);
+    }
+    applyQualityClass();
+    function setQuality(next) {
+      if (next === quality) return;
+      quality = next;
+      applyQualityClass();
+      resize();
+    }
     function sampleFrameTime(now) {
       const dt = now - lastSampleT;
       lastSampleT = now;
@@ -410,14 +438,13 @@ export function initVoidEngine() {
         badStreak = 0;
         goodStreak = 0;
       }
-      if (badStreak > 90 && quality !== 'low') {
-        quality = quality === 'high' ? 'medium' : 'low';
+      // Downgrade faster (~0.75s at 60Hz) so mid PCs don't cook before adapting
+      if (badStreak > 45 && quality !== 'low') {
+        setQuality(quality === 'high' ? 'medium' : 'low');
         badStreak = 0;
-        resize(); // DPR/render-scale depend on quality — reapply immediately, don't wait for a container resize
       } else if (goodStreak > 240 && quality !== 'high') {
-        quality = quality === 'low' ? 'medium' : 'high';
+        setQuality(quality === 'low' ? 'medium' : 'high');
         goodStreak = 0;
-        resize();
       }
     }
 
@@ -534,7 +561,10 @@ export function initVoidEngine() {
     function focusOn(wx, wy, want) {
       targetScale = clamp(want, MIN_S, MAX_S);
       targetPanX = -wx * targetScale;
-      targetPanY = -wy * targetScale;
+      // w2s subtracts pitchLift(scale) — without the same lift here the
+      // focused point lands above screen center and the view "jumps up".
+      const lift = Math.sin(viewPitch) * g0.R * targetScale * 0.22;
+      targetPanY = -wy * targetScale + lift;
     }
 
     function onMouseDown(e) {
@@ -619,7 +649,10 @@ export function initVoidEngine() {
       canvas.classList.remove('grab');
     }
     function onWheel(e) {
+      // Own the gesture: zoom map, never page-scroll.
       e.preventDefault();
+      e.stopPropagation();
+      if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
       const [sx, sy] = localXY(e);
       const before = s2w(sx, sy);
       const zin = scale < 1 ? 1.14 : scale < 3 ? 1.18 : scale < 7 ? 1.22 : 1.28;
@@ -634,17 +667,26 @@ export function initVoidEngine() {
       targetPanY = panY;
     }
 
+    function onWindowWheelCapture(e) {
+      // Belt-and-suspenders: even if an overlay / Lenis wins the target,
+      // any wheel whose path hits the cosmos still zooms.
+      if (!inside(e) && !(e.target instanceof Element && e.target.closest?.('#cosmosFrame'))) return;
+      onWheel(e);
+    }
+
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('contextmenu', onContextMenu);
     window.addEventListener('mousemove', onWindowMouseMove);
     window.addEventListener('mouseup', onWindowMouseUp);
-    canvas.addEventListener('wheel', onWheel, { passive: false });
+    frame.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    window.addEventListener('wheel', onWindowWheelCapture, { passive: false, capture: true });
     onCleanup(() => {
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('contextmenu', onContextMenu);
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
-      canvas.removeEventListener('wheel', onWheel);
+      frame.removeEventListener('wheel', onWheel, { capture: true });
+      window.removeEventListener('wheel', onWindowWheelCapture, { capture: true });
     });
 
     document.getElementById('zoomIn').onclick = () => {
@@ -660,9 +702,9 @@ export function initVoidEngine() {
     document.getElementById('homeBtn').onclick = () => {
       targetScale = 1.05;
       targetPanX = 0;
-      targetPanY = 0;
       viewYaw = 0.22;
       viewPitch = 0.82;
+      targetPanY = Math.sin(viewPitch) * g0.R * targetScale * 0.22;
     };
     document.getElementById('orbitBtn').onclick = function () {
       orbitMode = !orbitMode;
@@ -794,17 +836,27 @@ export function initVoidEngine() {
     // from the observer callback on re-entry — zero main-thread cost while
     // scrolled away, not just "less work."
     let inView = true;
+    let pageVisible = !document.hidden;
     let rafId = null;
+    function kickDraw() {
+      if (alive && inView && pageVisible && rafId == null) rafId = requestAnimationFrame(draw);
+    }
     const visibilityObserver = new IntersectionObserver(
       ([entry]) => {
         const wasInView = inView;
         inView = entry.isIntersecting;
-        if (inView && !wasInView) rafId = requestAnimationFrame(draw);
+        if (inView && !wasInView) kickDraw();
       },
       { rootMargin: '200px 0px' } // start/stop slightly early — avoids a pop-in the instant it crosses the edge
     );
     visibilityObserver.observe(frame);
     onCleanup(() => visibilityObserver.disconnect());
+    function onPageVisibility() {
+      pageVisible = !document.hidden;
+      if (pageVisible) kickDraw();
+    }
+    document.addEventListener('visibilitychange', onPageVisibility);
+    onCleanup(() => document.removeEventListener('visibilitychange', onPageVisibility));
     // Reused every frame instead of a fresh `[]` — the array itself no
     // longer costs an allocation; entries are still short-lived per-frame
     // objects, which V8's generational GC handles cheaply, so this targets
@@ -814,9 +866,10 @@ export function initVoidEngine() {
     function draw(now) {
       // No requestAnimationFrame(draw) on either of these early returns —
       // that's what actually stops the chain. alive=false (unmount) is
-      // permanent; !inView is temporary and gets restarted by the
-      // IntersectionObserver callback above once it re-enters view.
-      if (!alive || !inView) return;
+      // permanent; !inView / !pageVisible are temporary and get restarted
+      // by IO / visibilitychange once work should resume.
+      rafId = null;
+      if (!alive || !inView || !pageVisible) return;
       sampleFrameTime(now);
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
@@ -848,7 +901,9 @@ export function initVoidEngine() {
       // floored to whole pixels first so the browser draws a crisp block
       // instead of anti-aliasing a fractional-pixel edge.
       const bgSize = 2;
-      for (const s of bgStars) {
+      const bgStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      for (let bi = 0; bi < bgStars.length; bi += bgStep) {
+        const s = bgStars[bi];
         const [sx, sy] = w2s(s.x + panX * 0.06, s.y + panY * 0.06);
         if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
         const a = 0.15 + 0.55 * s.a;
@@ -858,8 +913,11 @@ export function initVoidEngine() {
 
       hover = null;
       let bestH = 0;
+      // Hit-test stride mirrors sector draw stride so hover cost tracks quality.
+      const hoverStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
       if (mx != null) {
-        for (const s of g.sectors) {
+        for (let si = 0; si < g.sectors.length; si += hoverStep) {
+          const s = g.sectors[si];
           if (!sectorVisible(s)) continue;
           const p = sectorProj(s, g);
           const d = Math.hypot(p.x - mx, p.y - my);
@@ -871,19 +929,24 @@ export function initVoidEngine() {
             hover = { s, wx: p.x, wy: p.y };
           }
         }
-        for (const c of g.constels) {
-          const p = constelWorld(c, g);
-          c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+        if (quality !== 'low') {
+          for (const c of g.constels) {
+            const p = constelWorld(c, g);
+            c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+          }
         }
       } else {
         for (const s of g.sectors) s.hover *= 0.85;
         for (const c of g.constels) c.hover *= 0.9;
       }
 
-      const hud = document.querySelector('.cosmos-hud');
-      if (hud) {
-        hud.style.opacity = scale > 3.2 ? '0' : '1';
-        hud.style.transition = 'opacity .35s';
+      if (hudEl) {
+        const hide = scale > 3.2;
+        if (hide !== lastHudHidden) {
+          lastHudHidden = hide;
+          hudEl.style.opacity = hide ? '0' : '1';
+          hudEl.style.transition = 'opacity .35s';
+        }
       }
 
       // Base LOD already thins the star field at low zoom; the quality
@@ -950,14 +1013,7 @@ export function initVoidEngine() {
         }
       }
 
-      // Nebulae are skipped outright under sustained load, and — even at
-      // full quality — no longer call createRadialGradient() per nebula
-      // per frame (that was up to 68 fresh gradient objects, 60x/sec).
-      // Each nebula's gradient is built once, at unit radius with its
-      // alpha *shape* baked in (1 → 0.4 → 0); the actual per-frame radius
-      // and pulse are applied afterwards via ctx.scale + ctx.globalAlpha,
-      // which is a mathematically identical result to rebuilding the
-      // gradient every frame since alpha multiplication commutes.
+      // Nebulae: full on high, still on medium (cached gradients), skip on low.
       if (quality !== 'low') {
         const breath = 0.85 + 0.15 * Math.sin(t * 0.7);
         for (const n of g.nebulae) {
@@ -1148,7 +1204,12 @@ export function initVoidEngine() {
       {
         const grainR = 2.1;
         const grainD = Math.max(1, (grainR * 2) | 0); // constant size — compute once, not per sector
-        for (const s of g.sectors) {
+        // ~2800 sectors was the biggest ungated cost; stride under load keeps
+        // the lime disk readable without ~3k fillRect/frame on weak GPUs.
+        const sectorStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+        const drawLabels = quality === 'high' && scale > 6;
+        for (let si = 0; si < g.sectors.length; si += sectorStep) {
+          const s = g.sectors[si];
           if (!sectorVisible(s)) continue;
           const p = sectorProj(s, g);
           let [sx, sy] = w2s(p.x, p.y);
@@ -1173,7 +1234,7 @@ export function initVoidEngine() {
             ctx.arc(sx, sy, grainR + 2.5, 0, Math.PI * 2);
             ctx.stroke();
           }
-          if (scale > 6 && (s.hover > 0.25 || scale > 10)) {
+          if (drawLabels && (s.hover > 0.25 || scale > 10)) {
             ctx.fillStyle = rgba(col, 0.8);
             ctx.font = '9px IBM Plex Mono';
             ctx.textAlign = 'center';
@@ -1183,8 +1244,11 @@ export function initVoidEngine() {
         }
       }
 
-      {
+      // Constellation figure strokes are multi-path + sort-heavy — skip on
+      // 'low', every-other on 'medium'. Labels still draw below with a step.
+      if (quality !== 'low') {
         const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.9 : 1;
+        const constelStep = quality === 'high' ? 1 : 2;
         function spark(x, y, col, a) {
           ctx.strokeStyle = rgba(col, a);
           ctx.lineWidth = 0.8;
@@ -1209,7 +1273,8 @@ export function initVoidEngine() {
           if (close) ctx.closePath();
           ctx.stroke();
         }
-        for (const c of g.constels) {
+        for (let ci = 0; ci < g.constels.length; ci += constelStep) {
+          const c = g.constels[ci];
           const raw = [];
           for (const s of c.grains) {
             if (!sectorVisible(s)) continue;
@@ -1299,8 +1364,8 @@ export function initVoidEngine() {
         }
       }
 
-      if (scale > 0.7 && scale < 9) {
-        const step = scale < 1.3 ? 4 : scale < 2.2 ? 2 : 1;
+      if (quality !== 'low' && scale > 0.7 && scale < 9) {
+        const step = (scale < 1.3 ? 4 : scale < 2.2 ? 2 : 1) * (quality === 'medium' ? 2 : 1);
         g.constels.forEach((c, idx) => {
           if (idx % step) return;
           if (c.grains.length < 3 && scale < 2.5) return;
@@ -1316,7 +1381,7 @@ export function initVoidEngine() {
           ctx.fillText(c.name, sx + 1, sy + 1);
           ctx.fillStyle = rgba(c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (scale > 2.2 && scale < 6) {
+          if (quality === 'high' && scale > 2.2 && scale < 6) {
             ctx.fillStyle = rgba(c.col, a * 0.45);
             ctx.font = '7px IBM Plex Mono';
             ctx.fillText(c.grains.length + 'g', sx, sy + 11);
@@ -1336,16 +1401,24 @@ export function initVoidEngine() {
 
 
       if (hover && hover.s.hover > 0.2) {
-        document.getElementById('tip1').textContent = `${hover.s.cName} · #${hover.s.id}`;
-        document.getElementById('tip2').textContent = `$${hover.s.usd.toFixed(2)} · ${hover.s.ring} · ${
-          hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
-        }`;
+        const tipId = hover.s.id;
+        if (tipId !== lastTipId) {
+          lastTipId = tipId;
+          const tip1 = document.getElementById('tip1');
+          const tip2 = document.getElementById('tip2');
+          if (tip1) tip1.textContent = `${hover.s.cName} · #${hover.s.id}`;
+          if (tip2)
+            tip2.textContent = `$${hover.s.usd.toFixed(2)} · ${hover.s.ring} · ${
+              hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
+            }`;
+        }
         const [sx, sy] = w2s(hover.wx, hover.wy);
         tip.style.left = Math.min(W - 200, sx + 12) + 'px';
         tip.style.top = Math.min(H - 70, sy + 12) + 'px';
         tip.classList.add('show');
         canvas.style.cursor = 'pointer';
       } else {
+        lastTipId = null;
         tip.classList.remove('show');
         if (!dragging) canvas.style.cursor = orbitMode ? 'grab' : 'grab';
       }
@@ -1355,6 +1428,7 @@ export function initVoidEngine() {
     onCleanup(() => {
       alive = false;
       if (rafId != null) cancelAnimationFrame(rafId);
+      rafId = null;
     });
 
     let burned = 7218018;

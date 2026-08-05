@@ -12,8 +12,27 @@ import { initVoidEngine } from '../legacy/voidEngine'
 
 export default function LandingPage() {
   useEffect(() => {
-    const destroy = initVoidEngine()
-    return destroy
+    // Let the first paint + fonts settle before the heavy galaxy build
+    // (sector packing can hitch the main thread for a beat on mid PCs).
+    let destroy = null
+    let cancelled = false
+    const start = () => {
+      if (cancelled) return
+      destroy = initVoidEngine()
+    }
+    let idleId = null
+    let timeoutId = null
+    if (typeof requestIdleCallback !== 'undefined') {
+      idleId = requestIdleCallback(start, { timeout: 400 })
+    } else {
+      timeoutId = setTimeout(start, 50)
+    }
+    return () => {
+      cancelled = true
+      if (idleId != null && typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(idleId)
+      if (timeoutId != null) clearTimeout(timeoutId)
+      destroy?.()
+    }
   }, [])
 
   return (

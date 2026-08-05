@@ -21,12 +21,15 @@ const item = {
 }
 
 function CardShell({ className = '', tag, title, children, float = 0 }) {
+  const reduceMotion =
+    typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
   return (
     <motion.div
       variants={item}
       whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-      className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-black/50 p-6 backdrop-blur-sm sm:p-7 ${className}`}
+      className={`group relative overflow-hidden rounded-2xl border border-white/10 bg-black/55 p-6 sm:p-7 ${className}`}
     >
       {/* HUD corner brackets */}
       <span className="pointer-events-none absolute left-3 top-3 h-3 w-3 border-l border-t border-lime/0 transition-colors duration-300 group-hover:border-lime/60" />
@@ -35,7 +38,7 @@ function CardShell({ className = '', tag, title, children, float = 0 }) {
       <span className="pointer-events-none absolute bottom-3 right-3 h-3 w-3 border-b border-r border-lime/0 transition-colors duration-300 group-hover:border-lime/60" />
 
       <motion.div
-        animate={{ y: [0, -6, 0] }}
+        animate={reduceMotion ? undefined : { y: [0, -6, 0] }}
         transition={{ duration: 5 + float, repeat: Infinity, ease: 'easeInOut', delay: float * 0.6 }}
         className="relative flex h-full flex-col"
       >
