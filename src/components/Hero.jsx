@@ -90,6 +90,18 @@ export function Hero() {
           >
             What is this?
           </MagneticButton>
+
+          <button
+            type="button"
+            className="btn-ghost"
+            onClick={() => {
+              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+              else window.__voidCosmosPendingEnter = true
+              goTo('#map')
+            }}
+          >
+            Open full map
+          </button>
         </motion.div>
 
         <motion.p
