@@ -141,6 +141,10 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 }
 .cosmos-bar b{color:var(--lime);letter-spacing:.08em}
 .cosmos-bar span{color:var(--muted2)}
+.hero-right.map-active{
+  outline:1px solid rgba(204,255,0,.28);
+  outline-offset:-1px;
+}
 .hero-right canvas{width:100%;height:100%;display:block;cursor:grab;touch-action:none}
 .hero-right canvas.grab{cursor:grabbing}
 

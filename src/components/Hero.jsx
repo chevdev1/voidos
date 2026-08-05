@@ -108,12 +108,10 @@ export function Hero() {
         transition={{ duration: 0.9, delay: 0.25 }}
         className="hero-right"
         id="cosmosFrame"
-        data-lenis-prevent
-        data-lenis-prevent-wheel
       >
         <div className="cosmos-bar">
           <b>◎ COSMOS</b>
-          <span>drag orbit 360° · shift+drag wander · scroll zoom</span>
+          <span id="cosmosHint">click map to explore · then wheel zooms · leave to scroll page</span>
         </div>
         <canvas id="cosmos" />
         <div className="cosmos-fx" aria-hidden="true" />

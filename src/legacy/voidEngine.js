@@ -568,6 +568,7 @@ export function initVoidEngine() {
     }
 
     function onMouseDown(e) {
+      setMapActive(true);
       dragging = true;
       moved = false;
       lx = e.clientX;
@@ -578,6 +579,25 @@ export function initVoidEngine() {
     }
     function onContextMenu(e) {
       e.preventDefault();
+    }
+    // Click-to-explore: hover alone must not trap the wheel (page scroll stays
+    // usable over the big hero). After a pointer down on the map, wheel zooms
+    // until the pointer leaves — or zoom-out past min scale releases to page.
+    let mapActive = false;
+    const cosmosHint = document.getElementById('cosmosHint');
+    function setMapActive(on) {
+      mapActive = on;
+      if (on) frame.dataset.mapActive = '1';
+      else delete frame.dataset.mapActive;
+      frame.classList.toggle('map-active', on);
+      if (cosmosHint) {
+        cosmosHint.textContent = on
+          ? 'exploring · wheel zoom · drag orbit · leave map to scroll page'
+          : 'click map to explore · then wheel zooms · leave to scroll page';
+      }
+    }
+    function onFramePointerLeave() {
+      setMapActive(false);
     }
     function onWindowMouseMove(e) {
       if (inside(e)) {
@@ -649,10 +669,25 @@ export function initVoidEngine() {
       canvas.classList.remove('grab');
     }
     function onWheel(e) {
-      // Own the gesture: zoom map, never page-scroll.
+      const over =
+        inside(e) || (e.target instanceof Element && e.target.closest?.('#cosmosFrame'));
+      if (!over) return;
+
+      // Ctrl/⌘+wheel always zooms (trackpad pinch often sets ctrlKey).
+      const forceZoom = e.ctrlKey || e.metaKey;
+      if (!mapActive && !forceZoom) return; // page scroll — do not preventDefault
+
+      // Fully zoomed out + scroll down → release explore mode, let page continue.
+      if (mapActive && !forceZoom && e.deltaY > 0 && scale <= MIN_S + 0.001) {
+        setMapActive(false);
+        return;
+      }
+
       e.preventDefault();
       e.stopPropagation();
       if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+      if (!mapActive) setMapActive(true);
+
       const [sx, sy] = localXY(e);
       const before = s2w(sx, sy);
       const zin = scale < 1 ? 1.14 : scale < 3 ? 1.18 : scale < 7 ? 1.22 : 1.28;
@@ -668,14 +703,12 @@ export function initVoidEngine() {
     }
 
     function onWindowWheelCapture(e) {
-      // Belt-and-suspenders: even if an overlay / Lenis wins the target,
-      // any wheel whose path hits the cosmos still zooms.
-      if (!inside(e) && !(e.target instanceof Element && e.target.closest?.('#cosmosFrame'))) return;
       onWheel(e);
     }
 
     canvas.addEventListener('mousedown', onMouseDown);
     canvas.addEventListener('contextmenu', onContextMenu);
+    frame.addEventListener('pointerleave', onFramePointerLeave);
     window.addEventListener('mousemove', onWindowMouseMove);
     window.addEventListener('mouseup', onWindowMouseUp);
     frame.addEventListener('wheel', onWheel, { passive: false, capture: true });
@@ -683,10 +716,12 @@ export function initVoidEngine() {
     onCleanup(() => {
       canvas.removeEventListener('mousedown', onMouseDown);
       canvas.removeEventListener('contextmenu', onContextMenu);
+      frame.removeEventListener('pointerleave', onFramePointerLeave);
       window.removeEventListener('mousemove', onWindowMouseMove);
       window.removeEventListener('mouseup', onWindowMouseUp);
       frame.removeEventListener('wheel', onWheel, { capture: true });
       window.removeEventListener('wheel', onWindowWheelCapture, { capture: true });
+      delete frame.dataset.mapActive;
     });
 
     document.getElementById('zoomIn').onclick = () => {

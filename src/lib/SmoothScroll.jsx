@@ -4,16 +4,18 @@ import { frame, cancelFrame } from 'framer-motion'
 
 const LenisContext = createContext(null)
 
-function eventOverCosmos(event) {
+/** True only while the galaxy is in "explore" mode (clicked), not on mere hover. */
+function eventOverActiveCosmos(event) {
   const path = typeof event.composedPath === 'function' ? event.composedPath() : []
   for (const node of path) {
     if (!(node instanceof HTMLElement)) continue
-    if (node.id === 'cosmosFrame' || node.id === 'cosmos') return true
-    if (node.hasAttribute?.('data-lenis-prevent-wheel')) return true
+    if (node.id === 'cosmosFrame' && node.dataset.mapActive === '1') return true
   }
-  // Fallback when composedPath is thin (some browsers / extensions)
   const el = event.target
-  if (el instanceof Element && el.closest?.('#cosmosFrame')) return true
+  if (el instanceof Element) {
+    const frame = el.closest?.('#cosmosFrame')
+    if (frame?.dataset?.mapActive === '1') return true
+  }
   return false
 }
 
@@ -32,15 +34,13 @@ export function SmoothScrollProvider({ children }) {
       easing: (t) => 1 - Math.pow(1 - t, 3),
       smoothWheel: true,
       touchMultiplier: 1.1,
-      // When true, Lenis skips — but does NOT preventDefault. Pair with
-      // virtualScroll below so the page can't natively scroll over the map.
+      // Only steal the wheel while the map is actively exploring — hover alone
+      // must not block page scroll (hero is huge on most screens).
       prevent: (node) =>
-        !!node.closest?.('#cosmosFrame') || node.hasAttribute?.('data-lenis-prevent-wheel'),
+        node.id === 'cosmosFrame' && node.dataset?.mapActive === '1',
       virtualScroll: (data) => {
-        if (!eventOverCosmos(data.event)) return
-        // Block both Lenis smoothing AND native document scroll.
+        if (!eventOverActiveCosmos(data.event)) return
         if (data.event.cancelable) data.event.preventDefault()
-        data.event.stopPropagation?.()
         return false
       },
     })
@@ -52,32 +52,8 @@ export function SmoothScrollProvider({ children }) {
 
     frame.update(update, true)
 
-    // Hard lock: while the pointer is over the galaxy, Lenis is stopped so
-    // its own path also preventDefault's every wheel (see Lenis isStopped).
-    function onEnter() {
-      lenis.stop()
-    }
-    function onLeave() {
-      lenis.start()
-    }
-    function bindFrame() {
-      const el = document.getElementById('cosmosFrame')
-      if (!el) return null
-      el.addEventListener('pointerenter', onEnter)
-      el.addEventListener('pointerleave', onLeave)
-      return el
-    }
-    let frameEl = bindFrame()
-    const obs = new MutationObserver(() => {
-      if (!frameEl) frameEl = bindFrame()
-    })
-    obs.observe(document.body, { childList: true, subtree: true })
-
     return () => {
       cancelFrame(update)
-      obs.disconnect()
-      frameEl?.removeEventListener('pointerenter', onEnter)
-      frameEl?.removeEventListener('pointerleave', onLeave)
       lenis.destroy()
       lenisRef.current = null
     }
