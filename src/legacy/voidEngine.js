@@ -24,8 +24,6 @@ export function initVoidEngine() {
 
   document.getElementById('termX').onclick = () =>
     document.getElementById('term').classList.remove('open');
-  document.getElementById('termBuy').onclick = () =>
-    alert('wallet preview — claim burns $EXO.');
 
   function openTerm(d) {
     document.getElementById('termTitle').textContent = d.title;
@@ -39,6 +37,7 @@ export function initVoidEngine() {
     document.getElementById('tGrav').textContent = d.grav;
     document.getElementById('tNote').textContent = d.note;
     document.getElementById('term').classList.add('open');
+    if (typeof window.__voidSyncTermButtons === 'function') window.__voidSyncTermButtons();
   }
 
   /** Weighted grain mass — most mid/micro, rare megas you can actually see. */
@@ -108,9 +107,12 @@ export function initVoidEngine() {
     const filters = { empty: true, claimed: true, fed: true, core: true, heat: false, yours: true };
     const yoursSet = new Set();
     const selectedSet = new Set();
+    const selectedConstels = new Set(); // multi-select whole constellations
     let lastTermSector = null;
+    let lastTermConstel = null;
     let arenaMode = false;
     let heatMode = false;
+    let panelMode = null; // 'standings' | 'what' | 'personality' | null
 
     /* ONE mega-galaxy — fills the frame */
     const GAL = {
@@ -594,6 +596,40 @@ export function initVoidEngine() {
       targetPanY = -wy * targetScale + lift;
     }
 
+    function constelOwned(c) {
+      return c.grains.length > 0 && c.grains.every((s) => yoursSet.has(s.id));
+    }
+
+    function syncTermButtons() {
+      const addBtn = document.getElementById('termAdd');
+      const addConstelBtn = document.getElementById('termAddConstel');
+      const buyBtn = document.getElementById('termBuy');
+      // Purchase unit = constellation only
+      if (addBtn) addBtn.hidden = true;
+      if (addConstelBtn) {
+        addConstelBtn.hidden = !lastTermConstel;
+        if (lastTermConstel) {
+          const owned = constelOwned(lastTermConstel);
+          const inStack = selectedConstels.has(lastTermConstel.id);
+          addConstelBtn.textContent = owned
+            ? '✓ already yours'
+            : inStack
+              ? '✓ in stack — tap again to remove'
+              : '+ add constellation to stack';
+          addConstelBtn.disabled = owned;
+        }
+      }
+      if (buyBtn) {
+        buyBtn.textContent = lastTermConstel
+          ? constelOwned(lastTermConstel)
+            ? 'already claimed'
+            : 'connect · claim constellation'
+          : 'connect · claim';
+        buyBtn.disabled = !lastTermConstel || constelOwned(lastTermConstel);
+      }
+    }
+    window.__voidSyncTermButtons = syncTermButtons;
+
     function refreshCartDock() {
       const dock = document.getElementById('cartDock');
       const list = document.getElementById('cartList');
@@ -601,38 +637,62 @@ export function initVoidEngine() {
       const massEl = document.getElementById('cartMass');
       const burnEl = document.getElementById('cartBurn');
       if (!dock || !list) return;
-      const items = [...selectedSet]
-        .map((id) => g0.sectors.find((s) => s.id === id))
-        .filter(Boolean);
-      if (!items.length) {
+
+      // Stack = constellations only (any leftover grain picks dropped)
+      selectedSet.clear();
+      const items = [];
+      let mass = 0,
+        burn = 0;
+      for (const cid of selectedConstels) {
+        const c = g0.constels.find((x) => x.id === cid);
+        if (!c || constelOwned(c)) continue;
+        for (const s of c.grains) {
+          items.push(s);
+          mass += s.size;
+          burn += s.usd;
+        }
+      }
+
+      if (!selectedConstels.size) {
         dock.hidden = true;
         list.innerHTML = '';
+        syncTermButtons();
         return;
       }
       dock.hidden = false;
-      let mass = 0,
-        burn = 0;
-      list.innerHTML = items
-        .map((s) => {
-          mass += s.size;
-          burn += s.usd;
-          return `<button type="button" class="cart-chip" data-id="${s.id}" title="remove">#${s.id} · ${s.tier} · ${s.size}c</button>`;
+      list.innerHTML = [...selectedConstels]
+        .map((cid) => {
+          const c = g0.constels.find((x) => x.id === cid);
+          if (!c) return '';
+          const cm = c.grains.reduce((a, s) => a + s.size, 0);
+          const cb = c.grains.reduce((a, s) => a + s.usd, 0);
+          return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${c.name} · ${c.grains.length}g · $${cb.toFixed(2)}</button>`;
         })
         .join('');
-      if (title) title.textContent = `STACK · ${items.length}`;
+      if (title) title.textContent = `STACK · ${selectedConstels.size} constellations`;
       if (massEl) massEl.textContent = fmt(mass);
       if (burnEl) burnEl.textContent = '$' + burn.toFixed(2);
-      list.querySelectorAll('.cart-chip').forEach((btn) => {
+      list.querySelectorAll('.cart-chip[data-cid]').forEach((btn) => {
         btn.onclick = () => {
-          selectedSet.delete(+btn.dataset.id);
+          selectedConstels.delete(btn.dataset.cid);
           refreshCartDock();
         };
       });
+      syncTermButtons();
     }
 
-    function toggleSelect(s) {
-      if (selectedSet.has(s.id)) selectedSet.delete(s.id);
-      else selectedSet.add(s.id);
+    function addConstelToStack(c) {
+      if (!c || constelOwned(c)) return false;
+      if (selectedConstels.has(c.id)) return false;
+      selectedConstels.add(c.id);
+      refreshCartDock();
+      return true;
+    }
+
+    function toggleConstel(c) {
+      if (!c || constelOwned(c)) return;
+      if (selectedConstels.has(c.id)) selectedConstels.delete(c.id);
+      else selectedConstels.add(c.id);
       refreshCartDock();
     }
 
@@ -642,27 +702,98 @@ export function initVoidEngine() {
         selectedSet.delete(s.id);
         if (s.kind === 'empty') s.kind = 'claimed';
       }
-      document.getElementById('yoursCnt').textContent = String(yoursSet.size);
+      for (const cid of [...selectedConstels]) {
+        const c = g0.constels.find((x) => x.id === cid);
+        if (!c) continue;
+        const allYours = c.grains.every((s) => yoursSet.has(s.id));
+        if (allYours) selectedConstels.delete(cid);
+      }
+      const yc = document.getElementById('yoursCnt');
+      if (yc) yc.textContent = String(yoursSet.size);
+      refreshCounts();
       refreshCartDock();
     }
 
-    function openSectorTerm(s) {
-      lastTermSector = s;
+    function stackGrainList() {
+      const grainIds = new Set();
+      for (const cid of selectedConstels) {
+        const c = g0.constels.find((x) => x.id === cid);
+        if (!c || constelOwned(c)) continue;
+        for (const s of c.grains) grainIds.add(s.id);
+      }
+      return [...grainIds].map((id) => g0.sectors.find((s) => s.id === id)).filter(Boolean);
+    }
+
+    function refreshCounts() {
+      let empty = 0,
+        claimed = 0,
+        fed = 0;
+      for (const s of g0.sectors) {
+        if (s.kind === 'empty') empty++;
+        else if (s.kind === 'fed') fed++;
+        else claimed++;
+      }
+      const set = (id, v) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = String(v);
+      };
+      set('cntEmpty', empty);
+      set('cntClaimed', claimed);
+      set('cntFed', fed);
+      set('yoursCnt', yoursSet.size);
+      const meta = document.getElementById('mindMetaLine');
+      const burnEl = document.getElementById('mindMetaBurn');
+      const cells = g0.sectors.reduce((a, s) => a + s.size, 0);
+      const soldPct = ((claimed + fed + yoursSet.size) / Math.max(1, g0.sectors.length)) * 100;
+      if (meta) {
+        meta.textContent = `${fmt(cells)} cells · ${g0.constels.length} lots · ${claimed + fed} claimed · ${soldPct.toFixed(1)}% of mind sold`;
+      }
+      if (burnEl) {
+        const burned = document.getElementById('burned');
+        burnEl.textContent = `${burned ? burned.textContent : '0'} $EXO burned`;
+      }
+    }
+
+    function pickConstel(wx, wy) {
+      // Prefer constellation that owns the nearest grain, else nearest center
+      const grain = pickSector(wx, wy);
+      if (grain) {
+        const c = g0.constels.find((x) => x.id === grain.s.constel);
+        if (c) return { c, p: constelWorld(c, g0) };
+      }
+      let best = null,
+        bd = 1e9;
+      const hitR = g0.R * (scale < 2 ? 0.22 : scale < 5 ? 0.16 : 0.11);
+      for (const c of g0.constels) {
+        const p = constelWorld(c, g0);
+        const d = Math.hypot(wx - p.x, wy - p.y);
+        if (d < hitR && d < bd) {
+          bd = d;
+          best = { c, p };
+        }
+      }
+      return best;
+    }
+
+    function openConstelTerm(c) {
+      lastTermConstel = c;
+      lastTermSector = c.grains[0] || null;
+      const mass = c.grains.reduce((a, s) => a + s.size, 0);
+      const burn = c.grains.reduce((a, s) => a + s.usd, 0);
+      const yours = c.grains.filter((s) => yoursSet.has(s.id)).length;
+      const owned = yours === c.grains.length && c.grains.length > 0;
       openTerm({
-        title: 'GRAIN #' + s.id,
-        sub: s.cName + ' · ' + s.ring + ' · ' + s.tier,
-        status: yoursSet.has(s.id) ? 'yours' : s.kind === 'empty' ? 'unclaimed' : s.kind,
-        ring: s.ring,
-        tier: s.tier + ' · viz ' + s.viz.toFixed(1),
-        price: '$' + s.usd.toFixed(2) + ' · burn $EXO',
-        size: fmt(s.size) + ' cells',
-        grav: s.grav + ' core proximity',
-        note:
-          s.tier === 'MEGA'
-            ? 'MEGA grain — rare mass. Price stacks size on core pull.'
-            : s.tier === 'MICRO'
-              ? 'MICRO grain — cheap fuel for wild signals.'
-              : s.cName + ' · ' + (s.usd > 1.2 ? 'Core pull: expensive.' : 'Arm / rim balance.'),
+        title: 'CONSTEL · ' + c.name,
+        sub: c.id + ' · ' + c.grains.length + ' stars linked',
+        status: owned ? 'yours' : yours ? 'partial' : 'unclaimed',
+        ring: 'constellation lot',
+        tier: c.grains.length + ' stars · one claim',
+        price: '$' + burn.toFixed(2) + ' · full burn',
+        size: fmt(mass) + ' cells',
+        grav: yours + '/' + c.grains.length + ' owned',
+        note: owned
+          ? 'This constellation is already yours.'
+          : 'Click another constellation to stack more. Claim stack buys every selected lot at once.',
       });
     }
 
@@ -670,7 +801,11 @@ export function initVoidEngine() {
     function onPointerDown(e) {
       if (e.target !== canvas && !(e.target instanceof Element && canvas.contains(e.target))) {
         // allow UI chips/buttons on the frame to work without map capture
-        if (e.target instanceof Element && e.target.closest?.('.vc, .filters, .minimap, .cosmos-bar, button')) return
+        if (
+          e.target instanceof Element &&
+          e.target.closest?.('.vc, .filters, .minimap, .cosmos-bar, .mind-bar, .mind-meta, button')
+        )
+          return
       }
       if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 1 && e.button !== 2) return
       if (e.pointerType === 'touch' && e.isPrimary === false) return
@@ -723,15 +858,15 @@ export function initVoidEngine() {
       }
       if (cosmosHint) {
         if (arenaMode) {
-          cosmosHint.textContent = 'FULL MAP · drag / pinch · tap grain · claim & stack'
+          cosmosHint.textContent = 'FULL MAP · tap constellations · stack many · claim all'
         } else if (isCoarse) {
           cosmosHint.textContent = on
-            ? 'drag orbit · pinch zoom · tap grain · scroll outside map'
+            ? 'drag orbit · pinch zoom · tap constellation · scroll outside'
             : 'tap map to explore · then drag / pinch'
         } else {
           cosmosHint.textContent = on
-            ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
-            : 'click to explore · shift+click stack · Open full map'
+            ? 'exploring · tap constellations to stack · leave to scroll'
+            : 'click to explore · Open full map'
         }
       }
     }
@@ -786,55 +921,31 @@ export function initVoidEngine() {
       ly = e.clientY
       if (mapActive && e.cancelable && e.pointerType === 'touch') e.preventDefault()
     }
+    function handleMapTap(wx, wy, e) {
+      // Buy unit = constellation. Click star OR cluster → that constellation.
+      const chit = pickConstel(wx, wy);
+      if (chit) {
+        toggleConstel(chit.c); // multi-select: add / remove, as many as you want
+        openConstelTerm(chit.c);
+        focusOn(chit.p.x, chit.p.y, clamp(Math.max(scale, 2.0), 1.8, 4.5));
+        return;
+      }
+      if (e.pointerType !== 'touch') focusOn(0, 0, Math.max(scale, 0.65));
+    }
     function onPointerUp(e) {
       if (pendingTouch && e.pointerId === pendingTouch.id) {
-        // Tap without scroll → enter explore + hit-test
         pendingTouch = null
         setMapActive(true)
         const [sx, sy] = localXY(e)
         const [wx, wy] = s2w(sx, sy)
-        const hit = pickSector(wx, wy)
-        if (hit) {
-          openSectorTerm(hit.s)
-          focusOn(
-            hit.wx,
-            hit.wy,
-            clamp(scale * 1.2, Math.max(scale, 2.8), Math.min(MAX_S, 8)),
-          )
-        }
+        handleMapTap(wx, wy, e)
         return
       }
       if (!dragging) return
       if (!moved && inside(e)) {
         const [sx, sy] = localXY(e)
         const [wx, wy] = s2w(sx, sy)
-        const hit = pickSector(wx, wy)
-        if (hit) {
-          if (e.shiftKey) {
-            toggleSelect(hit.s)
-            openSectorTerm(hit.s)
-          } else {
-            openSectorTerm(hit.s)
-            focusOn(
-              hit.wx,
-              hit.wy,
-              clamp(scale * 1.25, Math.max(scale, 3.2), Math.min(MAX_S, scale < 5 ? 7 : scale < 9 ? 11 : MAX_S)),
-            )
-          }
-        } else if (!e.shiftKey && e.pointerType !== 'touch') {
-          let best = null
-          let bd = 1e9
-          for (const c of g0.constels) {
-            const p = constelWorld(c, g0)
-            const d = Math.hypot(wx - p.x, wy - p.y)
-            if (d < g0.R * 0.22 && d < bd) {
-              bd = d
-              best = { c, p }
-            }
-          }
-          if (best) focusOn(best.p.x, best.p.y, clamp(Math.max(scale, 2.4), 2.2, 4.5))
-          else focusOn(0, 0, Math.max(scale, 0.65))
-        }
+        handleMapTap(wx, wy, e)
       }
       dragging = false
       canvas.classList.remove('grab')
@@ -976,43 +1087,61 @@ export function initVoidEngine() {
     };
 
     const termAdd = document.getElementById('termAdd');
-    if (termAdd) {
-      termAdd.onclick = () => {
-        if (!lastTermSector) return;
-        selectedSet.add(lastTermSector.id);
-        refreshCartDock();
+    if (termAdd) termAdd.hidden = true;
+    const termAddConstel = document.getElementById('termAddConstel');
+    if (termAddConstel) {
+      termAddConstel.onclick = () => {
+        if (!lastTermConstel) return;
+        toggleConstel(lastTermConstel);
+        openConstelTerm(lastTermConstel);
       };
     }
     document.getElementById('termBuy').onclick = () => {
-      if (!lastTermSector) return;
-      claimSectors([lastTermSector]);
-      alert('preview claim — #' + lastTermSector.id + ' · ' + lastTermSector.tier + ' · burns $EXO');
+      if (!lastTermConstel || constelOwned(lastTermConstel)) return;
+      const items = lastTermConstel.grains.slice();
+      const name = lastTermConstel.name;
+      claimSectors(items);
+      selectedConstels.delete(lastTermConstel.id);
+      refreshCartDock();
+      openConstelTerm(lastTermConstel);
+      alert('preview claim — constellation ' + name + ' · ' + items.length + ' stars · burns $EXO');
     };
     const cartClear = document.getElementById('cartClear');
     if (cartClear) {
       cartClear.onclick = () => {
         selectedSet.clear();
+        selectedConstels.clear();
         refreshCartDock();
       };
     }
     const cartClaim = document.getElementById('cartClaim');
     if (cartClaim) {
       cartClaim.onclick = () => {
-        const items = [...selectedSet]
-          .map((id) => g0.sectors.find((s) => s.id === id))
+        const nConst = selectedConstels.size;
+        if (!nConst) return;
+        const names = [...selectedConstels]
+          .map((cid) => g0.constels.find((x) => x.id === cid)?.name)
           .filter(Boolean);
+        const items = stackGrainList();
         if (!items.length) return;
         const mass = items.reduce((a, s) => a + s.size, 0);
         const burn = items.reduce((a, s) => a + s.usd, 0);
         claimSectors(items);
+        selectedConstels.clear();
+        refreshCartDock();
         alert(
-          'preview stack claim — ' +
-            items.length +
-            ' grains · ' +
+          'preview claim — ' +
+            nConst +
+            ' constellation' +
+            (nConst > 1 ? 's' : '') +
+            ' · ' +
+            names.slice(0, 6).join(', ') +
+            (names.length > 6 ? '…' : '') +
+            ' · ' +
             fmt(mass) +
             ' cells · $' +
             burn.toFixed(2) +
-            ' $EXO'
+            ' $EXO',
         );
       };
     }
@@ -1088,18 +1217,21 @@ export function initVoidEngine() {
       if (window.__voidCosmos) delete window.__voidCosmos;
     });
     document.getElementById('searchBtn').onclick = () => {
-      const q = prompt('find GRAIN # or constellation');
+      const q = prompt('find constellation name or star #');
       if (!q) return;
       const id = parseInt(q, 10);
       if (!isNaN(id)) {
         const found = g0.sectors.find((x) => x.id === id);
         if (!found) {
-          alert('grain #' + q + ' not found');
+          alert('star #' + q + ' not found');
           return;
         }
-        const p = sectorProj(found, g0);
-        focusOn(p.x, p.y, 11);
-        openSectorTerm(found);
+        const c = g0.constels.find((x) => x.id === found.constel);
+        if (c) {
+          toggleConstel(c);
+          openConstelTerm(c);
+          focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
+        }
         return;
       }
       const cq = q.trim().toUpperCase();
@@ -1108,8 +1240,86 @@ export function initVoidEngine() {
         alert('constellation not found');
         return;
       }
+      toggleConstel(c);
+      openConstelTerm(c);
       focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
     };
+
+    function setFilterChip(f, on) {
+      filters[f] = on;
+      const chip = document.querySelector(`#filters .fchip[data-f="${f}"]`);
+      if (chip) {
+        chip.classList.toggle('on', on);
+        chip.classList.toggle('off', !on);
+      }
+      const leg = document.querySelector(`#mindLegend .mind-leg[data-f="${f}"]`);
+      if (leg) leg.classList.toggle('off', !on);
+    }
+
+    function wireMindBar() {
+      const legend = document.getElementById('mindLegend');
+      if (legend) {
+        legend.addEventListener('click', (e) => {
+          const leg = e.target.closest('.mind-leg');
+          if (!leg) return;
+          const f = leg.dataset.f;
+          if (!f || !(f in filters)) return;
+          setFilterChip(f, !filters[f]);
+        });
+      }
+      const actions = document.getElementById('mindActions');
+      if (actions) {
+        actions.addEventListener('click', (e) => {
+          const btn = e.target.closest('.mind-btn');
+          if (!btn) return;
+          const act = btn.dataset.act;
+          if (act === 'heat') {
+            heatMode = !heatMode;
+            filters.heat = heatMode;
+            btn.classList.toggle('on', heatMode);
+            setFilterChip('heat', heatMode);
+            return;
+          }
+          if (act === 'market') {
+            exitArena();
+            document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
+            return;
+          }
+          // toggle info panels via terminal drawer
+          const panels = {
+            standings:
+              'Standings — top claimed constellations by mass. Connect wallet for live ranks.',
+            what: 'What I am — ExoMind is a living map of claimable mind. Burn $EXO to own grains & constellations.',
+            personality:
+              'Personality — each constellation carries a signal tone. Claim ones that match your feed.',
+          };
+          if (panels[act]) {
+            const was = panelMode === act;
+            panelMode = was ? null : act;
+            actions.querySelectorAll('.mind-btn').forEach((b) => {
+              if (b.dataset.act !== 'heat') b.classList.toggle('on', b.dataset.act === panelMode);
+            });
+            if (!was) {
+              openTerm({
+                title: act.toUpperCase(),
+                sub: 'mind panel',
+                status: 'signal',
+                ring: '—',
+                tier: '—',
+                price: '—',
+                size: '—',
+                grav: '—',
+                note: panels[act],
+              });
+            } else {
+              document.getElementById('term')?.classList.remove('open');
+            }
+          }
+        });
+      }
+    }
+    wireMindBar();
+    refreshCounts();
 
     document.getElementById('filters').addEventListener('click', (e) => {
       const chip = e.target.closest('.fchip');
@@ -1120,13 +1330,14 @@ export function initVoidEngine() {
         filters.heat = heatMode;
         chip.classList.toggle('on', heatMode);
         chip.classList.toggle('off', !heatMode);
+        document.getElementById('actHeat')?.classList.toggle('on', heatMode);
         return;
       }
-      filters[f] = !filters[f];
-      chip.classList.toggle('on', filters[f]);
-      chip.classList.toggle('off', !filters[f]);
+      setFilterChip(f, !filters[f]);
     });
 
+    const countsIntervalId = setInterval(refreshCounts, 2200);
+    onCleanup(() => clearInterval(countsIntervalId));
     const mini = document.getElementById('mini');
     const mctx = mini.getContext('2d');
     const WORLD = 2200;
@@ -1183,7 +1394,7 @@ export function initVoidEngine() {
         if (!sectorVisible(s)) continue;
         const p = sectorProj(s, g0);
         const d = Math.hypot(p.x - wx, p.y - wy);
-        const hitR = Math.max((s.viz || 2) * 1.35, 3.2) / Math.max(scale, 0.35);
+        const hitR = Math.max((s.viz || 2) * 2.4, 5) / Math.max(scale * 0.85, 0.4);
         if (d < hitR && d < bd) {
           bd = d;
           best = { s, wx: p.x, wy: p.y, g: g0 };
@@ -1575,7 +1786,8 @@ export function initVoidEngine() {
           }
           if (yoursSet.has(s.id)) col = [180, 255, 120];
           const empty = s.kind === 'empty' && !heatMode;
-          const selected = selectedSet.has(s.id);
+          const inConstelSel = selectedConstels.has(s.constel);
+          const selected = selectedSet.has(s.id) || inConstelSel;
           ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
           ctx.beginPath();
           ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
@@ -1588,10 +1800,12 @@ export function initVoidEngine() {
             ctx.stroke();
           }
           if (selected) {
-            ctx.strokeStyle = 'rgba(204,255,0,.95)';
-            ctx.lineWidth = 1.6;
+            ctx.strokeStyle = inConstelSel && !selectedSet.has(s.id)
+              ? 'rgba(204,255,0,.7)'
+              : 'rgba(204,255,0,.95)';
+            ctx.lineWidth = inConstelSel ? 2 : 1.6;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 4, 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + (inConstelSel ? 5 : 4), 0, Math.PI * 2);
             ctx.stroke();
           } else if (s.hover > 0.2) {
             ctx.strokeStyle = rgba(col, 0.75);
@@ -1615,6 +1829,28 @@ export function initVoidEngine() {
 
       // Constellation figure strokes are multi-path + sort-heavy — skip on
       // 'low', every-other on 'medium'. Labels still draw below with a step.
+      // Always draw a lime outline for selected constellations even on 'low'.
+      if (quality === 'low' && selectedConstels.size) {
+        for (const c of g.constels) {
+          if (!selectedConstels.has(c.id)) continue;
+          const pts = [];
+          for (const s of c.grains) {
+            if (!sectorVisible(s)) continue;
+            const p = sectorProj(s, g);
+            const [sx, sy] = w2s(p.x, p.y);
+            if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
+            pts.push({ sx, sy });
+          }
+          if (pts.length < 2) continue;
+          ctx.strokeStyle = 'rgba(204,255,0,.85)';
+          ctx.lineWidth = 1.6;
+          ctx.beginPath();
+          ctx.moveTo(pts[0].sx, pts[0].sy);
+          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
+          ctx.closePath();
+          ctx.stroke();
+        }
+      }
       if (quality !== 'low') {
         const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.9 : 1;
         const constelStep = quality === 'high' ? 1 : 2;
@@ -1644,8 +1880,10 @@ export function initVoidEngine() {
           if (close) ctx.closePath();
           ctx.stroke();
         }
-        for (let ci = 0; ci < g.constels.length; ci += constelStep) {
+        for (let ci = 0; ci < g.constels.length; ci++) {
           const c = g.constels[ci];
+          const pickedEarly = selectedConstels.has(c.id);
+          if (!pickedEarly && ci % constelStep) continue;
           const raw = [];
           for (const s of c.grains) {
             if (!sectorVisible(s)) continue;
@@ -1669,9 +1907,14 @@ export function initVoidEngine() {
           stars.forEach((p) => {
             p.ang = Math.atan2(p.sy - cy, p.sx - cx);
           });
-          const hot = c.hover > 0.2 || stars.some((p) => p.s.hover > 0.2);
+          const hot =
+            c.hover > 0.2 ||
+            selectedConstels.has(c.id) ||
+            stars.some((p) => p.s.hover > 0.2);
+          const picked = selectedConstels.has(c.id);
           const pulse = 0.82 + 0.18 * Math.sin(t * 1.8 + c.a0 * 3);
-          const aMain = (hot ? 0.9 : 0.55 * vis) * pulse;
+          const aMain = ((picked ? 1 : hot ? 0.9 : 0.55 * vis) * pulse);
+          const strokeCol = picked ? LIME : c.col;
           const fig = c.figure | 0;
           let path = stars.slice().sort((a, b) => a.ang - b.ang);
           let close = true;
@@ -1687,8 +1930,8 @@ export function initVoidEngine() {
             const hub = stars[0];
             path = [];
             for (let i = 1; i < stars.length; i++) {
-              strokePath([hub, stars[i]], false, c.col, aMain * 0.85, hot ? 1.35 : 1.05);
-              strokePath([hub, stars[i]], false, c.col, aMain * 0.2, 3.5);
+              strokePath([hub, stars[i]], false, strokeCol, aMain * 0.85, picked ? 1.8 : hot ? 1.35 : 1.05);
+              strokePath([hub, stars[i]], false, strokeCol, aMain * 0.25, picked ? 5.5 : 3.5);
             }
             path = [hub];
             close = false;
@@ -1703,10 +1946,10 @@ export function initVoidEngine() {
               if (p.sx > E.sx) E = p;
               if (p.sx < Wp.sx) Wp = p;
             }
-            strokePath([N, S], false, c.col, aMain * 0.25, 3.2);
-            strokePath([E, Wp], false, c.col, aMain * 0.25, 3.2);
-            strokePath([N, S], false, c.col, aMain, 1.15);
-            strokePath([E, Wp], false, c.col, aMain, 1.15);
+            strokePath([N, S], false, strokeCol, aMain * 0.25, picked ? 4.2 : 3.2);
+            strokePath([E, Wp], false, strokeCol, aMain * 0.25, picked ? 4.2 : 3.2);
+            strokePath([N, S], false, strokeCol, aMain, picked ? 1.6 : 1.15);
+            strokePath([E, Wp], false, strokeCol, aMain, picked ? 1.6 : 1.15);
             path = [N, E, S, Wp];
             close = true;
           } else if (fig === 5) {
@@ -1716,21 +1959,39 @@ export function initVoidEngine() {
               const tip2 = path[path.length - 1],
                 a = path[path.length - 2],
                 b = path[Math.max(0, path.length - 3)];
-              strokePath([a, tip2, b], false, c.col, aMain * 0.25, 3);
-              strokePath([a, tip2, b], false, c.col, aMain, 1.2);
+              strokePath([a, tip2, b], false, strokeCol, aMain * 0.25, picked ? 4 : 3);
+              strokePath([a, tip2, b], false, strokeCol, aMain, picked ? 1.6 : 1.2);
             }
           }
           if (fig !== 3 && fig !== 4) {
-            strokePath(path, close, c.col, aMain * 0.22, 3.8);
-            strokePath(path, close, c.col, aMain, hot ? 1.35 : 1.1);
+            strokePath(path, close, strokeCol, aMain * 0.22, picked ? 5.2 : 3.8);
+            strokePath(path, close, strokeCol, aMain, picked ? 1.85 : hot ? 1.35 : 1.1);
             if (path.length >= 4 && fig === 0) {
-              strokePath([path[0], path[(path.length / 2) | 0]], false, c.col, aMain * 0.45, 0.9);
+              strokePath([path[0], path[(path.length / 2) | 0]], false, strokeCol, aMain * 0.45, picked ? 1.2 : 0.9);
             }
           } else if (fig === 4) {
-            strokePath(path, true, c.col, aMain * 0.35, 0.85);
+            strokePath(path, true, strokeCol, aMain * 0.35, picked ? 1.2 : 0.85);
+          }
+          if (picked) {
+            // soft halo around constellation center so each selection reads separate
+            let hx = 0,
+              hy = 0;
+            for (const p of stars) {
+              hx += p.sx;
+              hy += p.sy;
+            }
+            hx /= stars.length;
+            hy /= stars.length;
+            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, 48);
+            halo.addColorStop(0, 'rgba(204,255,0,.22)');
+            halo.addColorStop(1, 'rgba(204,255,0,0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(hx, hy, 48, 0, Math.PI * 2);
+            ctx.fill();
           }
           for (const p of stars) {
-            spark(p.sx, p.sy, c.col, (hot ? 0.95 : 0.65) * vis * pulse);
+            spark(p.sx, p.sy, strokeCol, (picked ? 1 : hot ? 0.95 : 0.65) * vis * pulse);
           }
         }
       }
@@ -1738,24 +1999,29 @@ export function initVoidEngine() {
       if (quality !== 'low' && scale > 0.7 && scale < 9) {
         const step = (scale < 1.3 ? 4 : scale < 2.2 ? 2 : 1) * (quality === 'medium' ? 2 : 1);
         g.constels.forEach((c, idx) => {
-          if (idx % step) return;
-          if (c.grains.length < 3 && scale < 2.5) return;
+          const picked = selectedConstels.has(c.id);
+          if (!picked && idx % step) return;
+          if (c.grains.length < 3 && scale < 2.5 && !picked) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
           if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
           const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
-          const a = clamp(0.3 + c.hover * 0.6 + (scale > 1.4 && scale < 5 ? 0.4 : 0) * pulse, 0, 0.92);
+          const a = clamp(
+            0.3 + c.hover * 0.6 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.4 : 0) * pulse,
+            0,
+            0.98,
+          );
           const fs = scale < 1.4 ? 7 : scale < 2.8 ? 10 : 9;
           ctx.font = `600 ${fs}px IBM Plex Mono`;
           ctx.textAlign = 'center';
           ctx.fillStyle = `rgba(0,0,0,${a * 0.5})`;
           ctx.fillText(c.name, sx + 1, sy + 1);
-          ctx.fillStyle = rgba(c.col, a);
+          ctx.fillStyle = rgba(picked ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (quality === 'high' && scale > 2.2 && scale < 6) {
-            ctx.fillStyle = rgba(c.col, a * 0.45);
+          if (picked || (quality === 'high' && scale > 2.2 && scale < 6)) {
+            ctx.fillStyle = rgba(picked ? LIME : c.col, a * (picked ? 0.85 : 0.45));
             ctx.font = '7px IBM Plex Mono';
-            ctx.fillText(c.grains.length + 'g', sx, sy + 11);
+            ctx.fillText((picked ? '● ' : '') + c.grains.length + 'g', sx, sy + 11);
           }
         });
       }
@@ -1806,6 +2072,8 @@ export function initVoidEngine() {
     const burnedIntervalId = setInterval(() => {
       burned += ri(10, 200);
       document.getElementById('burned').textContent = fmt(burned);
+      const burnEl = document.getElementById('mindMetaBurn');
+      if (burnEl) burnEl.textContent = `${fmt(burned)} $EXO burned`;
     }, 2600);
     onCleanup(() => clearInterval(burnedIntervalId));
   })();

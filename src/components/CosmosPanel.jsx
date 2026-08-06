@@ -59,31 +59,56 @@ export function CosmosPanel() {
           ⟳
         </button>
       </div>
-      <div className="filters" id="filters">
-        <span className="fchip on" data-f="empty">
-          <i className="box" />
-          empty
-        </span>
-        <span className="fchip on" data-f="claimed">
-          <i className="box" />
-          claimed
-        </span>
-        <span className="fchip on" data-f="fed">
-          <i className="box" />
-          fed
-        </span>
-        <span className="fchip on" data-f="core">
-          <i className="box" />
-          core
-        </span>
-        <span className="fchip" data-f="heat">
-          <i className="box" />
-          heat
-        </span>
-        <span className="fchip on" data-f="yours">
-          <i className="box" />
-          yours <b id="yoursCnt">0</b>
-        </span>
+      <div className="mind-bar" id="mindBar">
+        <div className="mind-legend" id="mindLegend">
+          <span className="mind-leg" data-f="empty">
+            <i className="box empty" />
+            unclaimed <b id="cntEmpty">0</b>
+          </span>
+          <span className="mind-leg" data-f="claimed">
+            <i className="box claimed" />
+            claimed <b id="cntClaimed">0</b>
+          </span>
+          <span className="mind-leg" data-f="fed">
+            <i className="box fed" />
+            trained <b id="cntFed">0</b>
+          </span>
+          <span className="mind-leg" data-f="yours">
+            <i className="box yours" />
+            yours <b id="yoursCnt">0</b>
+          </span>
+        </div>
+        <div className="mind-sep" aria-hidden="true" />
+        <div className="mind-actions" id="mindActions">
+          <button type="button" className="mind-btn" data-act="heat" id="actHeat">
+            <span className="ico">⚡</span> heat
+          </button>
+          <button type="button" className="mind-btn" data-act="standings" id="actStandings">
+            <span className="ico">☆</span> standings
+          </button>
+          <button type="button" className="mind-btn" data-act="market" id="actMarket">
+            <span className="ico">⛓</span> market
+          </button>
+          <button type="button" className="mind-btn" data-act="what" id="actWhat">
+            <span className="ico">💬</span> what i am
+          </button>
+          <button type="button" className="mind-btn" data-act="personality" id="actPersonality">
+            <span className="ico">▣</span> personality
+          </button>
+        </div>
+      </div>
+      <div className="mind-meta" id="mindMeta">
+        <span id="mindMetaLine">0 cells · 0 lots · 0 claimed · 0% of mind sold</span>
+        <span id="mindMetaBurn">0 $EXO burned</span>
+      </div>
+      <div className="filters" id="filters" hidden aria-hidden="true">
+        {/* kept for engine wiring / legacy chips — UI is mind-bar */}
+        <span className="fchip on" data-f="empty" />
+        <span className="fchip on" data-f="claimed" />
+        <span className="fchip on" data-f="fed" />
+        <span className="fchip on" data-f="core" />
+        <span className="fchip" data-f="heat" />
+        <span className="fchip on" data-f="yours" />
       </div>
       <div className="minimap">
         <canvas id="mini" width="240" height="170" />

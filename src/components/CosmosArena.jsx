@@ -61,8 +61,8 @@ export function CosmosArena() {
           </button>
         </div>
         <p className="arena-lead">
-          Drag orbit · wheel / pinch zoom · tap grain to claim · shift+click stack · filters &amp;
-          minimap live
+          Tap constellations to buy — stack as many as you want · each glows alone · claim all at
+          once
         </p>
       </div>
     </div>

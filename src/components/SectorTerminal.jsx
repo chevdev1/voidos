@@ -1,7 +1,7 @@
 import '../legacy/void.css'
 
 /**
- * Drawer + multi-grain stack dock. Content filled by voidEngine via ids.
+ * Drawer + multi-constellation stack dock. Content filled by voidEngine via ids.
  */
 export function SectorTerminal() {
   return (
@@ -10,7 +10,7 @@ export function SectorTerminal() {
         <button className="x" id="termX" type="button">
           ✕
         </button>
-        <h3 id="termTitle">SECTOR #000</h3>
+        <h3 id="termTitle">CONSTEL · —</h3>
         <div className="sub" id="termSub">
           —
         </div>
@@ -19,11 +19,11 @@ export function SectorTerminal() {
           <span id="tStatus">—</span>
         </div>
         <div className="trow">
-          <span className="k">orbit ring</span>
+          <span className="k">lot type</span>
           <span id="tRing">—</span>
         </div>
         <div className="trow">
-          <span className="k">size tier</span>
+          <span className="k">stars linked</span>
           <span id="tTier">—</span>
         </div>
         <div className="trow">
@@ -37,23 +37,26 @@ export function SectorTerminal() {
           <span id="tSize">—</span>
         </div>
         <div className="trow">
-          <span className="k">gravity</span>
+          <span className="k">owned</span>
           <span id="tGrav">—</span>
         </div>
         <div className="note" id="tNote">
-          Closer to core → higher burn. Bigger grains → more cells. Shift+click stacks several.
+          Tap constellations to stack several. Claim stack buys every selected lot at once.
         </div>
-        <button className="btn-ghost-term" id="termAdd" type="button">
-          + add to stack
+        <button className="btn-ghost-term" id="termAdd" type="button" hidden>
+          + add grain
+        </button>
+        <button className="btn-ghost-term" id="termAddConstel" type="button">
+          + add constellation to stack
         </button>
         <button className="btn-lime" id="termBuy" type="button">
-          connect · claim this
+          connect · claim constellation
         </button>
       </aside>
 
       <div className="cart-dock" id="cartDock" hidden>
         <div className="cart-head">
-          <b id="cartTitle">STACK · 0</b>
+          <b id="cartTitle">STACK · 0 constellations</b>
           <button type="button" id="cartClear" className="cart-clear">
             clear
           </button>
@@ -68,7 +71,7 @@ export function SectorTerminal() {
           </span>
         </div>
         <button type="button" className="btn-lime cart-claim" id="cartClaim">
-          claim stack
+          claim all constellations
         </button>
       </div>
     </>
