@@ -722,22 +722,22 @@ export function initVoidEngine() {
         exploreBtn.textContent = on ? 'Exploring' : 'Explore'
       }
       if (cosmosHint) {
-        cosmosHint.textContent = isCoarse
-          ? on
+        if (arenaMode) {
+          cosmosHint.textContent = 'FULL MAP · drag / pinch · tap grain · claim & stack'
+        } else if (isCoarse) {
+          cosmosHint.textContent = on
             ? 'drag orbit · pinch zoom · tap grain · scroll outside map'
             : 'tap map to explore · then drag / pinch'
-          : arenaMode
-            ? on
-              ? 'ARENA exploring · wheel zoom · shift+click stack'
-              : 'ARENA · click map to zoom · otherwise page scrolls'
-            : on
-              ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
-              : 'click to explore · shift+click stack · MAP for deep play'
+        } else {
+          cosmosHint.textContent = on
+            ? 'exploring · wheel zoom · shift+click stack · leave to scroll'
+            : 'click to explore · shift+click stack · Open full map'
+        }
       }
     }
     function onFramePointerLeave(e) {
-      // Don't kill explore mode on touch (leave fires between gestures).
-      if (e.pointerType === 'touch') return
+      // Don't kill explore mode on touch, or while the fullscreen map popup is open.
+      if (e.pointerType === 'touch' || arenaMode) return
       setMapActive(false)
     }
     function onPointerMove(e) {
@@ -1018,6 +1018,7 @@ export function initVoidEngine() {
     }
 
     function enterArena() {
+      const pop = document.getElementById('map');
       const stage = document.getElementById('arenaStage');
       const placeholder = document.getElementById('arenaPlaceholder');
       const slot = document.getElementById('heroCosmosSlot');
@@ -1028,29 +1029,40 @@ export function initVoidEngine() {
       if (frame.parentElement !== stage) stage.appendChild(frame);
       if (placeholder) placeholder.hidden = true;
       if (slot) slot.classList.add('cosmos-away');
+      if (pop) {
+        pop.hidden = false;
+        pop.classList.add('open');
+      }
       document.body.classList.add('arena-live');
       arenaMode = true;
       frame.classList.add('in-arena');
-      // Don't trap the wheel until the user clicks the map — otherwise a
-      // full-viewport arena makes the whole site unscrollable.
-      setMapActive(false);
-      targetScale = Math.max(scale, 1.35);
+      // Popup is a dedicated play surface — capture gestures immediately.
+      setMapActive(true);
+      targetScale = Math.max(scale, 1.45);
       requestAnimationFrame(() => {
         resize();
         requestAnimationFrame(resize);
       });
     }
     function exitArena() {
+      const pop = document.getElementById('map');
       const slot = document.getElementById('heroCosmosSlot');
       const placeholder = document.getElementById('arenaPlaceholder');
       if (!slot || !frame) return;
       if (frame.parentElement !== slot) slot.appendChild(frame);
       slot.classList.remove('cosmos-away');
       if (placeholder) placeholder.hidden = false;
+      if (pop) {
+        pop.classList.remove('open');
+        pop.hidden = true;
+      }
       document.body.classList.remove('arena-live');
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);
+      if (location.hash === '#map') {
+        history.replaceState(null, '', location.pathname + location.search);
+      }
       requestAnimationFrame(() => {
         resize();
         requestAnimationFrame(resize);
@@ -1059,6 +1071,8 @@ export function initVoidEngine() {
     window.__voidCosmos = {
       enterArena,
       exitArena,
+      openMap: enterArena,
+      closeMap: exitArena,
       relocateTo(parent) {
         if (parent && frame) {
           parent.appendChild(frame);

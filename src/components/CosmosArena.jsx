@@ -1,81 +1,70 @@
-import { useEffect, useRef } from 'react'
-import { useLenis } from '../lib/SmoothScroll'
+import { useEffect } from 'react'
 
-function enterFullMap() {
+function openMapPop() {
   if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
   else window.__voidCosmosPendingEnter = true
 }
 
-function exitFullMap() {
+function closeMapPop() {
   window.__voidCosmos?.exitArena?.()
 }
 
 /**
- * Full-bleed map arena. Galaxy stays in the hero as the demo by default —
- * only relocates here on explicit MAP / View full map, and returns when
- * you leave this section so page scroll stays usable.
+ * Full-map popup — same live cosmos engine relocates here with filters,
+ * orbit, zoom, claim terminal + stack cart. Hero keeps the demo underneath.
  */
 export function CosmosArena() {
-  const lenisRef = useLenis()
-  const sectionRef = useRef(null)
-
   useEffect(() => {
-    const el = sectionRef.current
-    if (!el || typeof IntersectionObserver === 'undefined') return
+    function onKey(e) {
+      if (e.key === 'Escape') closeMapPop()
+    }
+    window.addEventListener('keydown', onKey)
 
-    // Only RETURN the demo to hero when the arena leaves view.
-    // Do NOT auto-steal the galaxy on scroll — that emptied the hero
-    // and trapped the wheel on a 100vh map.
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) exitFullMap()
-      },
-      { threshold: 0.08 },
-    )
-    io.observe(el)
+    // Expose React-side open for buttons that fire before engine mounts
+    window.__openFullMap = openMapPop
+    window.__closeFullMap = closeMapPop
 
-    if (location.hash === '#map') enterFullMap()
+    if (location.hash === '#map') openMapPop()
 
-    return () => io.disconnect()
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      delete window.__openFullMap
+      delete window.__closeFullMap
+    }
   }, [])
 
-  function backToHero() {
-    exitFullMap()
-    lenisRef?.current?.scrollTo('#top', { offset: 0, duration: 1.15 })
-  }
-
-  function openHere() {
-    enterFullMap()
-  }
-
   return (
-    <section id="map" className="cosmos-arena" ref={sectionRef}>
+    <div
+      id="map"
+      className="cosmos-map-pop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Full void map"
+      hidden
+    >
       <div className="arena-stage" id="arenaStage">
         <div className="arena-placeholder" id="arenaPlaceholder">
-          <p className="arena-ph-title">FULL VOID MAP</p>
-          <p>Hero keeps the live demo. Open the deep map when you want to play.</p>
-          <button type="button" className="btn-lime arena-ph-btn" onClick={openHere}>
-            Drop galaxy here ↗
-          </button>
+          <p className="arena-ph-title">LOADING VOID…</p>
         </div>
       </div>
 
       <div className="arena-hud">
         <div className="arena-hud-top">
           <div>
-            <p className="arena-eyebrow">SECTOR MAP · FULL FEED</p>
+            <p className="arena-eyebrow">FULL MAP · POP</p>
             <h2>
               Enter the <em>void</em>
             </h2>
           </div>
-          <button type="button" className="arena-back" onClick={backToHero}>
-            ← surface
+          <button type="button" className="arena-back" id="mapPopClose" onClick={closeMapPop}>
+            ✕ close
           </button>
         </div>
         <p className="arena-lead">
-          Click map to explore (wheel zooms) · otherwise page scrolls · shift+click stack · drag orbit
+          Drag orbit · wheel / pinch zoom · tap grain to claim · shift+click stack · filters &amp;
+          minimap live
         </p>
       </div>
-    </section>
+    </div>
   )
 }

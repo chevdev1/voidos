@@ -105,13 +105,20 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 }
 .hero-map-open{display:none}
 
-.cosmos-arena{
-  position:relative;z-index:6;
-  height:100vh;height:100dvh;
-  min-height:100vh;min-height:100dvh;
-  padding:0;margin:0;
+.cosmos-map-pop{
+  position:fixed;inset:0;z-index:80;
   background:#000;
+  display:none;
   overflow:hidden;
+}
+.cosmos-map-pop.open,
+.cosmos-map-pop:not([hidden]){
+  display:block;
+}
+.cosmos-map-pop[hidden]{display:none !important}
+body.arena-live{
+  overflow:hidden !important;
+  touch-action:none;
 }
 .arena-stage{
   position:absolute;inset:0;
@@ -127,6 +134,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .arena-stage .cosmos-bar{
   background:linear-gradient(180deg,rgba(0,0,0,.85),transparent);
   padding:14px 16px;
+  padding-top:max(14px, env(safe-area-inset-top));
 }
 .arena-placeholder{
   position:absolute;inset:0;display:flex;flex-direction:column;
@@ -138,12 +146,11 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .arena-ph-title{
   color:var(--lime);font-size:11px;letter-spacing:.2em;margin:0;
 }
-.arena-ph-btn{pointer-events:auto;margin-top:6px}
 
-/* Mindless overlay — floats over the full-bleed void, doesn't steal the map */
 .arena-hud{
   position:absolute;z-index:20;left:0;right:0;top:0;
-  padding:88px 20px 0;
+  padding:18px 16px 0;
+  padding-top:max(18px, env(safe-area-inset-top));
   pointer-events:none;
   background:linear-gradient(180deg,rgba(0,0,0,.55) 0%,transparent 100%);
   max-width:560px;
@@ -154,7 +161,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .arena-eyebrow{color:var(--lime);font-size:10px;letter-spacing:.2em;margin-bottom:8px}
 .arena-hud h2{
   font-family:'Syne',sans-serif;font-weight:800;
-  font-size:clamp(26px,4vw,40px);line-height:1.02;margin:0;
+  font-size:clamp(22px,4vw,36px);line-height:1.02;margin:0;
   text-shadow:0 2px 24px rgba(0,0,0,.8);
 }
 .arena-hud h2 em{font-style:normal;color:var(--lime)}
@@ -167,16 +174,17 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .arena-back{
   pointer-events:auto;
   border:1px solid rgba(255,255,255,.18);color:var(--muted);
-  padding:8px 12px;border-radius:999px;font-size:11px;background:rgba(0,0,0,.55);
+  padding:8px 12px;border-radius:999px;font-size:11px;background:rgba(0,0,0,.65);
   backdrop-filter:blur(6px);flex-shrink:0;
 }
 .arena-back:hover{border-color:var(--lime);color:var(--lime)}
 
-body.arena-live .cosmos-arena .filters,
-body.arena-live .cosmos-arena .minimap,
-body.arena-live .cosmos-arena .vc{
+body.arena-live .cosmos-map-pop .filters,
+body.arena-live .cosmos-map-pop .minimap,
+body.arena-live .cosmos-map-pop .vc{
   opacity:1;
 }
+/* Claim drawer + stack stay above the map popup */
 
 .btn-ghost-term{
   display:block;width:100%;text-align:center;padding:10px;margin-top:8px;
@@ -187,7 +195,7 @@ body.arena-live .cosmos-arena .vc{
 
 .cart-dock{
   position:fixed;left:50%;bottom:18px;transform:translateX(-50%);
-  z-index:95;width:min(520px,calc(100vw - 24px));
+  z-index:105;width:min(520px,calc(100vw - 24px));
   background:rgba(4,6,0,.94);border:1px solid rgba(204,255,0,.35);
   border-radius:14px;padding:12px 14px;
   box-shadow:0 12px 40px rgba(0,0,0,.55);
@@ -212,8 +220,7 @@ body.arena-live .cosmos-arena .vc{
 
 @media(max-width:960px){
   .hero-cosmos-slot{order:2;min-height:58vh;margin-right:0}
-  .cosmos-arena{height:100svh}
-  .arena-hud{padding-top:72px;padding-left:14px;padding-right:14px;max-width:100%}
+  .arena-hud{padding-top:max(14px, env(safe-area-inset-top));padding-left:14px;padding-right:14px;max-width:100%}
   .arena-lead{display:none}
 }
 .cosmos-fx{
@@ -398,7 +405,7 @@ body.arena-live .cosmos-arena .vc{
 .chart-box{height:240px}.chart-box canvas{width:100%;height:100%;display:block}
 
 .term{
-  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:90;
+  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:100;
   background:rgba(4,6,0,.96);border-left:1px solid rgba(204,255,0,.3);
   transform:translateX(105%);transition:transform .3s;padding:20px;overflow:auto;
 }

@@ -39,7 +39,6 @@ export default function LandingPage() {
       <Nav />
 
       <Hero />
-      <CosmosArena />
 
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
@@ -54,6 +53,7 @@ export default function LandingPage() {
         <Footer />
       </div>
 
+      <CosmosArena />
       <SectorTerminal />
     </SmoothScrollProvider>
   )

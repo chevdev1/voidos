@@ -15,16 +15,18 @@ export function Nav() {
   function goTo(target) {
     if (target === '#map') {
       if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+      else if (window.__openFullMap) window.__openFullMap()
       else window.__voidCosmosPendingEnter = true
+      return
     }
     const lenis = lenisRef?.current
     if (lenis?.scrollTo) {
-      lenis.scrollTo(target, { offset: target === '#map' ? 0 : -24, duration: 1.3 })
+      lenis.scrollTo(target, { offset: -24, duration: 1.3 })
       return
     }
     const el = document.querySelector(target)
     if (el) {
-      const top = el.getBoundingClientRect().top + window.scrollY - (target === '#map' ? 0 : 24)
+      const top = el.getBoundingClientRect().top + window.scrollY - 24
       window.scrollTo({ top, behavior: 'smooth' })
     }
   }

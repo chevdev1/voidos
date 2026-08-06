@@ -96,8 +96,8 @@ export function Hero() {
             className="btn-ghost"
             onClick={() => {
               if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+              else if (window.__openFullMap) window.__openFullMap()
               else window.__voidCosmosPendingEnter = true
-              goTo('#map')
             }}
           >
             Open full map
