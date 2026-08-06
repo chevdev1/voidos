@@ -504,8 +504,10 @@ export function initVoidEngine() {
       if (!W || !H || !g0) return 0.85;
       // Fit full disk into the frame with margin — smaller screens → smaller scale
       const span = g0.R * 2.1;
-      const pad = arenaMode ? 0.86 : 0.74;
-      return clamp(Math.min((W * pad) / span, (H * pad) / span), MIN_S, arenaMode ? 1.25 : 1.0);
+      // Full map: fill the viewport. Hero demo: stay compact.
+      const pad = arenaMode ? 0.92 : 0.74;
+      const cap = arenaMode ? 2.4 : 1.0;
+      return clamp(Math.min((W * pad) / span, (H * pad) / span), MIN_S, cap);
     }
 
     function applyHomeView(snap) {
