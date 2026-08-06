@@ -84,13 +84,14 @@ export function initVoidEngine() {
       H = 0,
       DPR = 1;
     let scale = 1.05;
-    const MIN_S = 0.35,
+    const MIN_S = 0.22,
       MAX_S = 18;
     let panX = 0,
       panY = 0,
       targetScale = scale,
       targetPanX = 0,
       targetPanY = 0;
+    let atHomeView = true; // auto-fit galaxy to frame while at home zoom
     let dragging = false,
       moved = false,
       lx = 0,
@@ -499,6 +500,28 @@ export function initVoidEngine() {
       if (quality === 'medium') return 0.85;
       return 0.7;
     }
+    function fitHomeScale() {
+      if (!W || !H || !g0) return 0.85;
+      // Fit full disk into the frame with margin — smaller screens → smaller scale
+      const span = g0.R * 2.1;
+      const pad = arenaMode ? 0.86 : 0.74;
+      return clamp(Math.min((W * pad) / span, (H * pad) / span), MIN_S, arenaMode ? 1.25 : 1.0);
+    }
+
+    function applyHomeView(snap) {
+      const hs = fitHomeScale();
+      targetScale = hs;
+      if (snap) scale = hs;
+      targetPanX = 0;
+      panX = snap ? 0 : panX;
+      viewYaw = 0.22;
+      viewPitch = 0.82;
+      const lift = Math.sin(viewPitch) * g0.R * hs * 0.22;
+      targetPanY = lift;
+      if (snap) panY = lift;
+      atHomeView = true;
+    }
+
     function resize() {
       const r = frame.getBoundingClientRect();
       W = r.width;
@@ -510,6 +533,8 @@ export function initVoidEngine() {
       canvas.style.width = W + 'px';
       canvas.style.height = H + 'px';
       ctx.setTransform(DPR * renderScale, 0, 0, DPR * renderScale, 0, 0);
+      // Keep the whole galaxy readable on phone / short viewports
+      if (atHomeView && !dragging) applyHomeView(true);
     }
     const cosmosResizeObserver = new ResizeObserver(resize);
     cosmosResizeObserver.observe(frame);
@@ -526,12 +551,21 @@ export function initVoidEngine() {
       return 'GRAIN · x' + scale.toFixed(1);
     }
 
+    let mapFilter = null; // null=all | 'empty'|'claimed'|'fed'|'yours' (exclusive like mindless)
+
     function sectorVisible(s) {
-      if (yoursSet.has(s.id)) return filters.yours;
-      if (s.kind === 'empty') return filters.empty;
-      if (s.kind === 'claimed') return filters.claimed;
-      if (s.kind === 'fed') return filters.fed;
+      if (!mapFilter) return true;
+      const mine = yoursSet.has(s.id);
+      if (mapFilter === 'yours') return mine;
+      if (mapFilter === 'empty') return !mine && s.kind === 'empty';
+      if (mapFilter === 'fed') return !mine && s.kind === 'fed';
+      if (mapFilter === 'claimed') return !mine && (s.kind === 'claimed' || s.kind === 'fed');
       return true;
+    }
+
+    function constelVisible(c) {
+      if (!mapFilter) return true;
+      return c.grains.some((s) => sectorVisible(s));
     }
 
     // yaw/pitch are identical for every point/sector/nebula/constellation
@@ -588,6 +622,7 @@ export function initVoidEngine() {
       return projectLocal(lx, ly, 0, g);
     }
     function focusOn(wx, wy, want) {
+      atHomeView = false;
       targetScale = clamp(want, MIN_S, MAX_S);
       targetPanX = -wx * targetScale;
       // w2s subtracts pitchLift(scale) — without the same lift here the
@@ -803,7 +838,9 @@ export function initVoidEngine() {
         // allow UI chips/buttons on the frame to work without map capture
         if (
           e.target instanceof Element &&
-          e.target.closest?.('.vc, .filters, .minimap, .cosmos-bar, .mind-bar, .mind-meta, button')
+          e.target.closest?.(
+            '.vc, .filters, .minimap, .cosmos-bar, .mind-bar, .mind-meta, .mind-panel, button',
+          )
         )
           return
       }
@@ -967,6 +1004,7 @@ export function initVoidEngine() {
     function onTouchStart(e) {
       if (e.touches.length === 2) {
         setMapActive(true)
+        atHomeView = false
         dragging = false
         pinchStartDist = touchDist(e.touches)
         pinchStartScale = scale
@@ -1005,6 +1043,7 @@ export function initVoidEngine() {
       e.stopPropagation()
       if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation()
       if (!mapActive) setMapActive(true)
+      atHomeView = false
 
       const [sx, sy] = localXY(e)
       const before = s2w(sx, sy)
@@ -1052,15 +1091,18 @@ export function initVoidEngine() {
 
     document.getElementById('zoomIn').onclick = () => {
       setMapActive(true);
+      atHomeView = false;
       targetScale = clamp(scale * 1.35, MIN_S, MAX_S);
       targetPanX = panX * (targetScale / scale);
       targetPanY = panY * (targetScale / scale);
     };
     document.getElementById('zoomOut').onclick = () => {
       setMapActive(true);
+      atHomeView = false;
       targetScale = clamp(scale / 1.35, MIN_S, MAX_S);
       targetPanX = panX * (targetScale / scale);
       targetPanY = panY * (targetScale / scale);
+      if (targetScale <= fitHomeScale() * 1.08) applyHomeView(false);
     };
     const exploreBtn = document.getElementById('cosmosExploreBtn');
     if (exploreBtn) {
@@ -1071,11 +1113,7 @@ export function initVoidEngine() {
       };
     }
     document.getElementById('homeBtn').onclick = () => {
-      targetScale = 1.05;
-      targetPanX = 0;
-      viewYaw = 0.22;
-      viewPitch = 0.82;
-      targetPanY = Math.sin(viewPitch) * g0.R * targetScale * 0.22;
+      applyHomeView(false);
     };
     document.getElementById('orbitBtn').onclick = function () {
       orbitMode = !orbitMode;
@@ -1167,9 +1205,10 @@ export function initVoidEngine() {
       frame.classList.add('in-arena');
       // Popup is a dedicated play surface — capture gestures immediately.
       setMapActive(true);
-      targetScale = Math.max(scale, 1.45);
+      atHomeView = true;
       requestAnimationFrame(() => {
         resize();
+        applyHomeView(true);
         requestAnimationFrame(resize);
       });
     }
@@ -1189,11 +1228,13 @@ export function initVoidEngine() {
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);
+      atHomeView = true;
       if (location.hash === '#map') {
         history.replaceState(null, '', location.pathname + location.search);
       }
       requestAnimationFrame(() => {
         resize();
+        applyHomeView(true);
         requestAnimationFrame(resize);
       });
     }
@@ -1245,15 +1286,128 @@ export function initVoidEngine() {
       focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
     };
 
-    function setFilterChip(f, on) {
-      filters[f] = on;
-      const chip = document.querySelector(`#filters .fchip[data-f="${f}"]`);
-      if (chip) {
-        chip.classList.toggle('on', on);
-        chip.classList.toggle('off', !on);
+    function syncLegendActive() {
+      document.querySelectorAll('#mindLegend .mind-leg').forEach((leg) => {
+        const f = leg.dataset.f;
+        const on = mapFilter === f;
+        leg.classList.toggle('on', on);
+        leg.classList.toggle('off', mapFilter != null && !on);
+      });
+    }
+
+    function setMapFilter(f) {
+      // Exclusive like mindless: click same again → show all
+      mapFilter = mapFilter === f ? null : f;
+      filters.empty = !mapFilter || mapFilter === 'empty';
+      filters.claimed = !mapFilter || mapFilter === 'claimed';
+      filters.fed = !mapFilter || mapFilter === 'fed';
+      filters.yours = !mapFilter || mapFilter === 'yours';
+      syncLegendActive();
+    }
+
+    function openMindPanel(act) {
+      const panel = document.getElementById('mindPanel');
+      const title = document.getElementById('mindPanelTitle');
+      const body = document.getElementById('mindPanelBody');
+      if (!panel || !title || !body) return;
+
+      if (act === 'standings') {
+        title.textContent = 'who taught me the most';
+        const ranked = g0.constels
+          .map((c) => {
+            const mass = c.grains.reduce((a, s) => a + s.size, 0);
+            const trained = c.grains.filter((s) => s.kind === 'fed').length;
+            const impact = trained * 3 + mass * 0.002 + (selectedConstels.has(c.id) ? 5 : 0);
+            return { c, mass, trained, impact };
+          })
+          .sort((a, b) => b.impact - a.impact)
+          .slice(0, 10);
+        body.innerHTML =
+          '<p class="mp-cap">top ten by training impact — paid in stock when live</p>' +
+          ranked
+            .map(
+              (r, i) =>
+                `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>#${i + 1}</b> <span>${r.c.name}</span> <em>${r.trained} trained · ${fmt(r.mass)}c</em></button>`,
+            )
+            .join('');
+        body.querySelectorAll('.mp-row[data-cid]').forEach((btn) => {
+          btn.onclick = () => {
+            const c = g0.constels.find((x) => x.id === btn.dataset.cid);
+            if (!c) return;
+            toggleConstel(c);
+            openConstelTerm(c);
+            focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
+            panel.hidden = true;
+          };
+        });
+      } else if (act === 'market') {
+        title.textContent = 'lots for sale';
+        const lots = g0.constels
+          .filter((c) => !constelOwned(c))
+          .map((c) => {
+            const burn = c.grains.reduce((a, s) => a + s.usd, 0);
+            const mass = c.grains.reduce((a, s) => a + s.size, 0);
+            return { c, burn, mass };
+          })
+          .sort((a, b) => a.burn - b.burn)
+          .slice(0, 12);
+        body.innerHTML =
+          '<p class="mp-cap">buy a constellation lot — takes the whole linked figure</p>' +
+          lots
+            .map(
+              (r) =>
+                `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>✧ ${r.c.name}</b> <span>${r.c.grains.length}★</span> <em>$${r.burn.toFixed(2)} · ${fmt(r.mass)}c</em></button>`,
+            )
+            .join('');
+        body.querySelectorAll('.mp-row[data-cid]').forEach((btn) => {
+          btn.onclick = () => {
+            const c = g0.constels.find((x) => x.id === btn.dataset.cid);
+            if (!c) return;
+            addConstelToStack(c);
+            openConstelTerm(c);
+            focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
+            panel.hidden = true;
+          };
+        });
+      } else if (act === 'what') {
+        title.textContent = 'what you have turned me into';
+        const trained = g0.sectors.filter((s) => s.kind === 'fed').length;
+        const claimed = g0.sectors.filter((s) => s.kind !== 'empty').length;
+        const yours = yoursSet.size;
+        body.innerHTML = `
+          <p class="mp-cap">compiled personality — weighted by claimed &amp; trained lots</p>
+          <div class="mp-stat"><span>claimed signal</span><b>${claimed}</b></div>
+          <div class="mp-stat"><span>trained patches</span><b>${trained}</b></div>
+          <div class="mp-stat"><span>yours</span><b>${yours}</b></div>
+          <div class="mp-stat"><span>stack now</span><b>${selectedConstels.size} constellations</b></div>
+          <p class="mp-note">ExoMind drifts toward whatever its owners feed it. Burn $EXO to claim a lot, then train that patch.</p>`;
+      } else if (act === 'personality') {
+        title.textContent = 'what the personality is made of';
+        const total = g0.sectors.length || 1;
+        const basePct = 28;
+        const soldPct = ((g0.sectors.filter((s) => s.kind !== 'empty').length / total) * (100 - basePct)).toFixed(1);
+        body.innerHTML = `
+          <p class="mp-cap">one mind · 500 lots · cells across the void</p>
+          <div class="mp-stat"><span>base (unsellable)</span><b>${basePct}%</b></div>
+          <div class="mp-stat"><span>sold / claimed slice</span><b>${soldPct}%</b></div>
+          <div class="mp-stat"><span>constellation lots</span><b>${g0.constels.length}</b></div>
+          <p class="mp-note">28% reserved forever — the only room you can't buy. The rest is claimable constellation lots. Each lot is a linked figure of stars (lines), not a single point.</p>`;
       }
-      const leg = document.querySelector(`#mindLegend .mind-leg[data-f="${f}"]`);
-      if (leg) leg.classList.toggle('off', !on);
+
+      panel.hidden = false;
+      panelMode = act;
+      document.querySelectorAll('#mindActions .mind-btn').forEach((b) => {
+        if (b.dataset.act !== 'heat') b.classList.toggle('on', b.dataset.act === act);
+      });
+    }
+
+    function closeMindPanel() {
+      const panel = document.getElementById('mindPanel');
+      if (panel) panel.hidden = true;
+      panelMode = null;
+      document.querySelectorAll('#mindActions .mind-btn').forEach((b) => {
+        if (b.dataset.act !== 'heat') b.classList.remove('on');
+      });
     }
 
     function wireMindBar() {
@@ -1263,8 +1417,8 @@ export function initVoidEngine() {
           const leg = e.target.closest('.mind-leg');
           if (!leg) return;
           const f = leg.dataset.f;
-          if (!f || !(f in filters)) return;
-          setFilterChip(f, !filters[f]);
+          if (!f) return;
+          setMapFilter(f);
         });
       }
       const actions = document.getElementById('mindActions');
@@ -1277,46 +1431,20 @@ export function initVoidEngine() {
             heatMode = !heatMode;
             filters.heat = heatMode;
             btn.classList.toggle('on', heatMode);
-            setFilterChip('heat', heatMode);
             return;
           }
-          if (act === 'market') {
-            exitArena();
-            document.getElementById('market')?.scrollIntoView({ behavior: 'smooth' });
+          if (panelMode === act) {
+            closeMindPanel();
             return;
           }
-          // toggle info panels via terminal drawer
-          const panels = {
-            standings:
-              'Standings — top claimed constellations by mass. Connect wallet for live ranks.',
-            what: 'What I am — ExoMind is a living map of claimable mind. Burn $EXO to own grains & constellations.',
-            personality:
-              'Personality — each constellation carries a signal tone. Claim ones that match your feed.',
-          };
-          if (panels[act]) {
-            const was = panelMode === act;
-            panelMode = was ? null : act;
-            actions.querySelectorAll('.mind-btn').forEach((b) => {
-              if (b.dataset.act !== 'heat') b.classList.toggle('on', b.dataset.act === panelMode);
-            });
-            if (!was) {
-              openTerm({
-                title: act.toUpperCase(),
-                sub: 'mind panel',
-                status: 'signal',
-                ring: '—',
-                tier: '—',
-                price: '—',
-                size: '—',
-                grav: '—',
-                note: panels[act],
-              });
-            } else {
-              document.getElementById('term')?.classList.remove('open');
-            }
-          }
+          openMindPanel(act);
         });
       }
+      document.getElementById('mindPanelX')?.addEventListener('click', closeMindPanel);
+      document.getElementById('mindPanel')?.addEventListener('click', (e) => {
+        if (e.target.id === 'mindPanel') closeMindPanel();
+      });
+      syncLegendActive();
     }
     wireMindBar();
     refreshCounts();
@@ -1329,11 +1457,10 @@ export function initVoidEngine() {
         heatMode = !heatMode;
         filters.heat = heatMode;
         chip.classList.toggle('on', heatMode);
-        chip.classList.toggle('off', !heatMode);
         document.getElementById('actHeat')?.classList.toggle('on', heatMode);
         return;
       }
-      setFilterChip(f, !filters[f]);
+      if (f === 'empty' || f === 'claimed' || f === 'fed' || f === 'yours') setMapFilter(f);
     });
 
     const countsIntervalId = setInterval(refreshCounts, 2200);
@@ -1781,8 +1908,15 @@ export function initVoidEngine() {
           const grainR = s.viz || 2.1;
           let col = s.cCol;
           if (heatMode) {
-            const h = clamp(s.usd / 2.5, 0, 1);
-            col = [255, Math.floor(255 * (1 - h * 0.55)), Math.floor(40 + h * 40)];
+            // Colour by "taught" signal — fed lots hot, claimed warm, empty cold
+            const taught =
+              s.kind === 'fed' ? 1 : s.kind === 'claimed' ? 0.45 : yoursSet.has(s.id) ? 0.7 : 0.08;
+            const h = clamp(taught * 0.75 + s.usd / 4, 0, 1);
+            col = [
+              Math.floor(40 + h * 215),
+              Math.floor(30 + h * 40),
+              Math.floor(60 + h * 195),
+            ];
           }
           if (yoursSet.has(s.id)) col = [180, 255, 120];
           const empty = s.kind === 'empty' && !heatMode;
@@ -1827,47 +1961,13 @@ export function initVoidEngine() {
         }
       }
 
-      // Constellation figure strokes are multi-path + sort-heavy — skip on
-      // 'low', every-other on 'medium'. Labels still draw below with a step.
-      // Always draw a lime outline for selected constellations even on 'low'.
-      if (quality === 'low' && selectedConstels.size) {
-        for (const c of g.constels) {
-          if (!selectedConstels.has(c.id)) continue;
-          const pts = [];
-          for (const s of c.grains) {
-            if (!sectorVisible(s)) continue;
-            const p = sectorProj(s, g);
-            const [sx, sy] = w2s(p.x, p.y);
-            if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
-            pts.push({ sx, sy });
-          }
-          if (pts.length < 2) continue;
-          ctx.strokeStyle = 'rgba(204,255,0,.85)';
-          ctx.lineWidth = 1.6;
-          ctx.beginPath();
-          ctx.moveTo(pts[0].sx, pts[0].sy);
-          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
-          ctx.closePath();
-          ctx.stroke();
-        }
-      }
-      if (quality !== 'low') {
-        const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.9 : 1;
-        const constelStep = quality === 'high' ? 1 : 2;
-        function spark(x, y, col, a) {
-          ctx.strokeStyle = rgba(col, a * 0.85);
-          ctx.lineWidth = 0.7;
-          ctx.beginPath();
-          ctx.moveTo(x - 3.2, y);
-          ctx.lineTo(x + 3.2, y);
-          ctx.moveTo(x, y - 3.2);
-          ctx.lineTo(x, y + 3.2);
-          ctx.stroke();
-          ctx.fillStyle = rgba([255, 255, 230], a);
-          ctx.beginPath();
-          ctx.arc(x, y, 1.35, 0, Math.PI * 2);
-          ctx.fill();
-        }
+      // Constellation = connected LINE figures (stripes), not just dots.
+      // Always draw — even on low quality — or the map reads as only points.
+      {
+        const vis = scale < 1.1 ? 0.7 : scale < 3 ? 0.95 : 1;
+        const maxStars = quality === 'low' ? 5 : quality === 'medium' ? 6 : 8;
+        const constelStep = quality === 'low' ? 2 : 1;
+
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
           ctx.strokeStyle = rgba(col, a);
@@ -1880,100 +1980,110 @@ export function initVoidEngine() {
           if (close) ctx.closePath();
           ctx.stroke();
         }
+
+        // Minimal spanning tree so every constellation reads as connected stripes
+        function mstEdges(pts) {
+          const n = pts.length;
+          if (n < 2) return [];
+          const used = new Array(n).fill(false);
+          used[0] = true;
+          const edges = [];
+          for (let k = 1; k < n; k++) {
+            let bi = -1,
+              bj = -1,
+              bd = 1e15;
+            for (let i = 0; i < n; i++) {
+              if (!used[i]) continue;
+              for (let j = 0; j < n; j++) {
+                if (used[j]) continue;
+                const d =
+                  (pts[i].sx - pts[j].sx) * (pts[i].sx - pts[j].sx) +
+                  (pts[i].sy - pts[j].sy) * (pts[i].sy - pts[j].sy);
+                if (d < bd) {
+                  bd = d;
+                  bi = i;
+                  bj = j;
+                }
+              }
+            }
+            if (bj < 0) break;
+            used[bj] = true;
+            edges.push([pts[bi], pts[bj]]);
+          }
+          return edges;
+        }
+
+        function spark(x, y, col, a) {
+          ctx.strokeStyle = rgba(col, a * 0.9);
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.moveTo(x - 3.5, y);
+          ctx.lineTo(x + 3.5, y);
+          ctx.moveTo(x, y - 3.5);
+          ctx.lineTo(x, y + 3.5);
+          ctx.stroke();
+          ctx.fillStyle = rgba([255, 255, 240], a);
+          ctx.beginPath();
+          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
         for (let ci = 0; ci < g.constels.length; ci++) {
           const c = g.constels[ci];
-          const pickedEarly = selectedConstels.has(c.id);
-          if (!pickedEarly && ci % constelStep) continue;
+          const picked = selectedConstels.has(c.id);
+          if (!picked && ci % constelStep) continue;
+          if (!constelVisible(c) && !picked) continue;
+
           const raw = [];
           for (const s of c.grains) {
-            if (!sectorVisible(s)) continue;
+            if (!sectorVisible(s) && !picked) continue;
             const p = sectorProj(s, g);
             const [sx, sy] = w2s(p.x, p.y);
-            if (sx < -50 || sy < -50 || sx > W + 50 || sy > H + 50) continue;
-            raw.push({ s, sx, sy, wx: p.x, wy: p.y, br: s.usd + (s.kind === 'fed' ? 1.2 : 0) + s.hover });
+            if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
+            raw.push({
+              s,
+              sx,
+              sy,
+              br: s.usd + (s.kind === 'fed' ? 1.2 : 0) + s.hover + (s.tier === 'MEGA' ? 2 : 0),
+            });
           }
-          if (raw.length < 3) continue;
+          if (raw.length < 2) continue;
           raw.sort((a, b) => b.br - a.br);
-          const n = Math.min(raw.length, c.figure === 3 ? 6 : 7);
-          let stars = raw.slice(0, n);
-          let cx = 0,
-            cy = 0;
-          stars.forEach((p) => {
-            cx += p.sx;
-            cy += p.sy;
-          });
-          cx /= stars.length;
-          cy /= stars.length;
-          stars.forEach((p) => {
-            p.ang = Math.atan2(p.sy - cy, p.sx - cx);
-          });
-          const hot =
-            c.hover > 0.2 ||
-            selectedConstels.has(c.id) ||
-            stars.some((p) => p.s.hover > 0.2);
-          const picked = selectedConstels.has(c.id);
-          const pulse = 0.82 + 0.18 * Math.sin(t * 1.8 + c.a0 * 3);
-          const aMain = ((picked ? 1 : hot ? 0.9 : 0.55 * vis) * pulse);
+          const stars = raw.slice(0, Math.min(raw.length, maxStars));
+
+          const hot = picked || c.hover > 0.15 || stars.some((p) => p.s.hover > 0.2);
+          const pulse = 0.85 + 0.15 * Math.sin(t * 1.6 + c.a0 * 3);
+          // Bright enough that lines read as constellation stripes, not noise
+          const aMain = (picked ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
           const strokeCol = picked ? LIME : c.col;
-          const fig = c.figure | 0;
-          let path = stars.slice().sort((a, b) => a.ang - b.ang);
-          let close = true;
-          if (fig === 1) {
-            const hub = stars[0];
-            const ordered = stars.slice(1).sort((a, b) => a.ang - b.ang);
-            path = [hub, ...ordered];
-            close = true;
-          } else if (fig === 2) {
-            path = stars.slice().sort((a, b) => a.sx - b.sx || a.sy - b.sy);
-            close = false;
-          } else if (fig === 3) {
-            const hub = stars[0];
-            path = [];
-            for (let i = 1; i < stars.length; i++) {
-              strokePath([hub, stars[i]], false, strokeCol, aMain * 0.85, picked ? 1.8 : hot ? 1.35 : 1.05);
-              strokePath([hub, stars[i]], false, strokeCol, aMain * 0.25, picked ? 5.5 : 3.5);
-            }
-            path = [hub];
-            close = false;
-          } else if (fig === 4) {
-            let N = stars[0],
-              S = stars[0],
-              E = stars[0],
-              Wp = stars[0];
+          const glowCol = picked ? LIME : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
+
+          const edges = mstEdges(stars);
+          for (const [a, b] of edges) {
+            strokePath([a, b], false, glowCol, aMain * 0.22, picked ? 5.5 : 3.6);
+            strokePath([a, b], false, strokeCol, aMain, picked ? 2.1 : hot ? 1.55 : 1.25);
+          }
+
+          // Extra figure outline when zoomed into constellation scale
+          if (stars.length >= 3 && (picked || scale > 1.6)) {
+            let cx = 0,
+              cy = 0;
             for (const p of stars) {
-              if (p.sy < N.sy) N = p;
-              if (p.sy > S.sy) S = p;
-              if (p.sx > E.sx) E = p;
-              if (p.sx < Wp.sx) Wp = p;
+              cx += p.sx;
+              cy += p.sy;
             }
-            strokePath([N, S], false, strokeCol, aMain * 0.25, picked ? 4.2 : 3.2);
-            strokePath([E, Wp], false, strokeCol, aMain * 0.25, picked ? 4.2 : 3.2);
-            strokePath([N, S], false, strokeCol, aMain, picked ? 1.6 : 1.15);
-            strokePath([E, Wp], false, strokeCol, aMain, picked ? 1.6 : 1.15);
-            path = [N, E, S, Wp];
-            close = true;
-          } else if (fig === 5) {
-            path = stars.slice().sort((a, b) => a.ang - b.ang);
-            close = false;
-            if (path.length >= 4) {
-              const tip2 = path[path.length - 1],
-                a = path[path.length - 2],
-                b = path[Math.max(0, path.length - 3)];
-              strokePath([a, tip2, b], false, strokeCol, aMain * 0.25, picked ? 4 : 3);
-              strokePath([a, tip2, b], false, strokeCol, aMain, picked ? 1.6 : 1.2);
-            }
+            cx /= stars.length;
+            cy /= stars.length;
+            const ring = stars
+              .map((p) => {
+                p.ang = Math.atan2(p.sy - cy, p.sx - cx);
+                return p;
+              })
+              .sort((a, b) => a.ang - b.ang);
+            strokePath(ring, true, strokeCol, aMain * 0.35, picked ? 1.2 : 0.7);
           }
-          if (fig !== 3 && fig !== 4) {
-            strokePath(path, close, strokeCol, aMain * 0.22, picked ? 5.2 : 3.8);
-            strokePath(path, close, strokeCol, aMain, picked ? 1.85 : hot ? 1.35 : 1.1);
-            if (path.length >= 4 && fig === 0) {
-              strokePath([path[0], path[(path.length / 2) | 0]], false, strokeCol, aMain * 0.45, picked ? 1.2 : 0.9);
-            }
-          } else if (fig === 4) {
-            strokePath(path, true, strokeCol, aMain * 0.35, picked ? 1.2 : 0.85);
-          }
+
           if (picked) {
-            // soft halo around constellation center so each selection reads separate
             let hx = 0,
               hy = 0;
             for (const p of stars) {
@@ -1982,46 +2092,48 @@ export function initVoidEngine() {
             }
             hx /= stars.length;
             hy /= stars.length;
-            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, 48);
-            halo.addColorStop(0, 'rgba(204,255,0,.22)');
+            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, 56);
+            halo.addColorStop(0, 'rgba(204,255,0,.28)');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(hx, hy, 48, 0, Math.PI * 2);
+            ctx.arc(hx, hy, 56, 0, Math.PI * 2);
             ctx.fill();
           }
+
           for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked ? 1 : hot ? 0.95 : 0.65) * vis * pulse);
+            spark(p.sx, p.sy, strokeCol, (picked ? 1 : hot ? 0.95 : 0.7) * vis * pulse);
           }
         }
       }
 
-      if (quality !== 'low' && scale > 0.7 && scale < 9) {
-        const step = (scale < 1.3 ? 4 : scale < 2.2 ? 2 : 1) * (quality === 'medium' ? 2 : 1);
+      if (scale > 0.7 && scale < 9) {
+        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
           if (!picked && idx % step) return;
-          if (c.grains.length < 3 && scale < 2.5 && !picked) return;
+          if (!constelVisible(c) && !picked) return;
+          if (c.grains.length < 2 && !picked) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
           if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
           const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
           const a = clamp(
-            0.3 + c.hover * 0.6 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.4 : 0) * pulse,
+            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
             0,
             0.98,
           );
-          const fs = scale < 1.4 ? 7 : scale < 2.8 ? 10 : 9;
+          const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
           ctx.font = `600 ${fs}px IBM Plex Mono`;
           ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(0,0,0,${a * 0.5})`;
+          ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
           ctx.fillText(c.name, sx + 1, sy + 1);
           ctx.fillStyle = rgba(picked ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (picked || (quality === 'high' && scale > 2.2 && scale < 6)) {
-            ctx.fillStyle = rgba(picked ? LIME : c.col, a * (picked ? 0.85 : 0.45));
+          if (picked || scale > 2) {
+            ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
             ctx.font = '7px IBM Plex Mono';
-            ctx.fillText((picked ? '● ' : '') + c.grains.length + 'g', sx, sy + 11);
+            ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);
           }
         });
       }

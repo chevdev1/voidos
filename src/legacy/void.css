@@ -74,12 +74,14 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 
 .hero-cosmos-slot{
   position:relative;z-index:8;
-  min-height:min(88vh,760px);
+  min-height:min(72vh,640px);
+  max-height:min(78vh,720px);
   margin-right:clamp(-8px,-2vw,-24px);
 }
 .hero-right{
   position:relative;z-index:8;
-  height:auto;min-height:min(88vh,760px);
+  height:auto;min-height:min(72vh,640px);
+  max-height:min(78vh,720px);
   border:none;
   border-radius:0;
   overflow:hidden;background:#000;
@@ -89,7 +91,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
   -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 4%,#000 100%);
 }
 .hero-cosmos-slot .hero-right{
-  height:100%;min-height:min(88vh,760px);margin-right:0;
+  height:100%;min-height:inherit;max-height:inherit;margin-right:0;
 }
 .hero-cosmos-slot.cosmos-away{
   min-height:220px;
@@ -227,7 +229,7 @@ body.arena-live .cart-dock{bottom:78px}
 .cart-claim{display:block;width:100%;text-align:center;padding:10px}
 
 @media(max-width:960px){
-  .hero-cosmos-slot{order:2;min-height:58vh;margin-right:0}
+  .hero-cosmos-slot{order:2;margin-right:0}
   .arena-hud{padding-top:max(14px, env(safe-area-inset-top));padding-left:14px;padding-right:14px;max-width:100%}
   .arena-lead{display:none}
 }
@@ -369,26 +371,26 @@ body.arena-live .cart-dock{bottom:78px}
 .minimap .cap{color:var(--muted2);font-size:9px;margin-top:4px;letter-spacing:.04em}
 
 .mind-bar{
-  display:none;
+  display:flex;
   position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
-  z-index:8;pointer-events:auto;
+  z-index:12;pointer-events:auto;
   align-items:center;gap:10px;
   max-width:calc(100% - 20px);
   padding:8px 10px;
-  background:rgba(0,0,0,.82);
-  border:1px solid rgba(255,255,255,.16);
+  background:rgba(0,0,0,.88);
+  border:1px solid rgba(255,255,255,.18);
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   font-size:10px;letter-spacing:.02em;
   overflow-x:auto;
 }
-.hero-right.in-arena .mind-bar{display:flex}
 .mind-legend{
   display:flex;align-items:center;gap:10px;flex-shrink:0;
   color:var(--muted);
 }
 .mind-leg{
   display:inline-flex;align-items:center;gap:5px;white-space:nowrap;cursor:pointer;
+  padding:3px 6px;border:1px solid transparent;
 }
 .mind-leg b{color:var(--text);font-weight:600}
 .mind-leg .box{
@@ -399,6 +401,11 @@ body.arena-live .cart-dock{bottom:78px}
 .mind-leg .box.fed{background:#fff;box-shadow:0 0 6px rgba(204,255,0,.5)}
 .mind-leg .box.yours{background:transparent;border-color:var(--lime)}
 .mind-leg.off{opacity:.35}
+.mind-leg.on{
+  border-color:rgba(255,255,255,.22);
+  background:rgba(255,255,255,.08);
+  color:var(--text);
+}
 .mind-sep{
   width:1px;height:18px;background:rgba(255,255,255,.18);flex-shrink:0;
 }
@@ -417,14 +424,55 @@ body.arena-live .cart-dock{bottom:78px}
   background:rgba(204,255,0,.06);
 }
 .mind-meta{
-  display:none;
-  position:absolute;left:12px;bottom:58px;z-index:7;pointer-events:none;
+  display:flex;
+  position:absolute;left:12px;bottom:58px;z-index:11;pointer-events:none;
   flex-direction:column;gap:2px;
   font-size:9px;color:var(--muted2);letter-spacing:.03em;
   text-shadow:0 1px 8px #000;
 }
-.hero-right.in-arena .mind-meta{display:flex}
 .mind-meta b{color:var(--lime)}
+.mind-panel{
+  position:absolute;inset:0;z-index:30;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.55);
+  pointer-events:auto;
+}
+.mind-panel[hidden]{display:none !important}
+.mind-panel-card{
+  width:min(420px,calc(100% - 28px));
+  max-height:min(70vh,520px);
+  overflow:auto;
+  background:rgba(4,6,0,.96);
+  border:1px solid rgba(255,255,255,.18);
+  padding:14px 16px;
+}
+.mind-panel-top{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;gap:12px;
+}
+.mind-panel-title{
+  color:var(--lime);font-size:12px;letter-spacing:.06em;text-transform:lowercase;
+}
+.mind-panel-x{background:transparent;border:none;color:var(--muted);font-size:14px;cursor:pointer}
+.mind-panel-x:hover{color:var(--lime)}
+.mp-cap{color:var(--muted2);font-size:11px;margin:0 0 12px;line-height:1.45}
+.mp-note{color:var(--muted);font-size:11px;margin:12px 0 0;line-height:1.5}
+.mp-stat{
+  display:flex;justify-content:space-between;gap:12px;
+  padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08);
+  font-size:11px;color:var(--muted);
+}
+.mp-stat b{color:var(--lime);font-weight:600}
+.mp-row{
+  display:flex;align-items:baseline;gap:8px;width:100%;
+  text-align:left;padding:8px 6px;
+  border:none;border-bottom:1px solid rgba(255,255,255,.08);
+  background:transparent;color:var(--text);font-size:11px;cursor:pointer;
+}
+.mp-row:hover{background:rgba(204,255,0,.06)}
+.mp-row b{color:var(--lime);flex-shrink:0}
+.mp-row span{flex:1}
+.mp-row em{color:var(--muted2);font-style:normal;font-size:10px}
 @media(max-width:960px){
   .mind-bar{
     left:8px;right:8px;bottom:8px;transform:none;
@@ -434,6 +482,8 @@ body.arena-live .cart-dock{bottom:78px}
   .minimap{display:none}
   .filters{display:none !important}
 }
+.hero-right:not(.in-arena) .mind-bar{bottom:10px}
+.hero-right:not(.in-arena) .mind-meta{bottom:52px;opacity:.85}
 .fchip{
   display:inline-flex;align-items:center;gap:5px;
   padding:5px 9px;border-radius:7px;font-size:10px;
@@ -501,8 +551,17 @@ body.arena-live .cart-dock{bottom:78px}
 @media(max-width:960px){
   .hero{grid-template-columns:1fr;padding-top:72px;gap:12px;padding-bottom:16px}
   .hero-left{order:1}
-  .hero-cosmos-slot{order:2;min-height:52vh;margin-right:0}
-  .hero-right{min-height:52vh;height:auto;mask-image:none;-webkit-mask-image:none;margin-right:0}
+  .hero-cosmos-slot{
+    order:2;margin-right:0;
+    min-height:min(42vh,360px);
+    max-height:min(46vh,400px);
+  }
+  .hero-right{
+    min-height:min(42vh,360px);
+    max-height:min(46vh,400px);
+    height:auto;
+    mask-image:none;-webkit-mask-image:none;margin-right:0;
+  }
   .hero h1{font-size:clamp(36px,12vw,56px)}
   .cta{gap:8px}
   .btn-lime,.btn-ghost{padding:10px 12px;font-size:12px}
@@ -521,5 +580,12 @@ body.arena-live .cart-dock{bottom:78px}
 }
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr}
-  .hero-cosmos-slot,.hero-right{min-height:48vh}
+  .hero-cosmos-slot,.hero-right{
+    min-height:min(36vh,300px);
+    max-height:min(40vh,320px);
+  }
+  .hero{min-height:auto;padding-bottom:12px}
+  .mind-bar{font-size:9px;padding:6px 8px;gap:6px}
+  .mind-btn{padding:4px 7px}
+  .mind-meta{display:none}
 }

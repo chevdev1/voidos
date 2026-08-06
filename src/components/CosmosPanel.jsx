@@ -101,6 +101,19 @@ export function CosmosPanel() {
         <span id="mindMetaLine">0 cells · 0 lots · 0 claimed · 0% of mind sold</span>
         <span id="mindMetaBurn">0 $EXO burned</span>
       </div>
+      <div className="mind-panel" id="mindPanel" hidden>
+        <div className="mind-panel-card" role="dialog" aria-modal="true">
+          <div className="mind-panel-top">
+            <span className="mind-panel-title" id="mindPanelTitle">
+              —
+            </span>
+            <button type="button" className="mind-panel-x" id="mindPanelX" aria-label="close">
+              ✕
+            </button>
+          </div>
+          <div className="mind-panel-body" id="mindPanelBody" />
+        </div>
+      </div>
       <div className="filters" id="filters" hidden aria-hidden="true">
         {/* kept for engine wiring / legacy chips — UI is mind-bar */}
         <span className="fchip on" data-f="empty" />
