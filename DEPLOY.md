@@ -12,7 +12,7 @@
 2. Framework preset: **Vite** · Build: `npm run build` · Output: `dist`
 3. Environment variables:
    - `GEMINI_API_KEY` — [Google AI Studio](https://aistudio.google.com/apikey) (optional)
-   - `GEMINI_MODEL` — default `gemini-2.0-flash`
+   - `GEMINI_MODEL` — default `gemini-flash-latest`
 4. Deploy
 
 `vercel.json` rewrites non-API routes to `index.html` (BrowserRouter /docs works on refresh).

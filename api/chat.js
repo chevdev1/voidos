@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     try {
       const live = await callGemini({
         apiKey: process.env.GEMINI_API_KEY || '',
-        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-flash-latest',
         system,
         history,
         userMessage: message,

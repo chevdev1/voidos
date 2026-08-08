@@ -267,7 +267,7 @@ function extractFunctionCalls(parts = []) {
 }
 
 async function geminiOnce({ apiKey, model, system, contents, tools }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent?key=${encodeURIComponent(apiKey)}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-flash-latest'}:generateContent?key=${encodeURIComponent(apiKey)}`
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents,
