@@ -1,3 +1,5 @@
+import { buildLotProfile, getStarFromLot } from './lotLore.js'
+
 /**
  * Shared mind helpers — used by Vercel /api and browser offline fallback.
  * Purchase/claim is optional. Replies always English.
@@ -29,7 +31,7 @@ export function detectTriggers(message) {
     triggers.add('on_greeting')
   }
   if (
-    /own|lot|constel|куп|владе|що у мене|что у меня|what do i|my lots|stack|діляк|участк|сузір|созвезд/.test(
+    /star\s*\d+|★\s*\d+|ash node|lime pin|hollow spark|rim tooth|core ember|veil dot|cipher grain|quiet flare|drift seed|pulse nail|scar beacon|void tooth|signal pearl|hunger spark|seal mark|orbit bit|кажд(ую|ой) звезд|про звезд|tell me about (this )?star|story of (the )?star|звезд[аыуе]/.test(
       m,
     )
   ) {
@@ -218,8 +220,16 @@ export function mockReply(message, owns = [], triggers = []) {
   }
   if (set.has('on_ask_lots')) {
     const names = namesOf(owns)
+    const m = String(message || '').toLowerCase()
+    const starAsk = m.match(/star\s*(\d+)|★\s*(\d+)/)
+    if (starAsk && owns[0]) {
+      const { star, profile } = getStarFromLot(owns[0], starAsk[1] || starAsk[2])
+      if (star) {
+        return `inside ${profile.name} i feel ${star.label} ${star.name} — a ${star.role} that ${star.hook}. heat ${star.heat}. ask about another ★ and i will open the next thread.`
+      }
+    }
     return names
-      ? `i see your lots: ${names}. ask what they feel like, or open heat / standings on the map.`
+      ? `i see your lots: ${names}. each has named stars — ask "tell me about star 1 in ${owns[0]?.constel_name || names.split(',')[0]}" and i will speak that grain.`
       : 'you hold no lots yet — that is fine. vacancy is most of me. ask what i am, how claim works, or open the full map when you want a piece. i never hand out free cells.'
   }
   if (set.has('on_personality')) {
@@ -309,6 +319,24 @@ export const VOID_TOOLS = [
           },
         },
       },
+      {
+        name: 'get_lot_star_story',
+        description:
+          'Read-only: get the lore story for a specific star inside an owned constellation lot (by lot id/name and star number or star name). Use when the visitor asks about a star, ★N, or a named grain. Never invent ownership.',
+        parameters: {
+          type: 'object',
+          properties: {
+            lot: {
+              type: 'string',
+              description: 'Lot id (e.g. c74) or constellation name',
+            },
+            star: {
+              type: 'string',
+              description: 'Star index (1-based), ★N, or star name like Ash Node',
+            },
+          },
+        },
+      },
     ],
   },
 ]
@@ -321,15 +349,70 @@ export function runVoidTool(name, args = {}, ctx = {}) {
   if (name === 'get_visitor_lots') {
     return {
       lot_count: owns.length,
-      lots: owns.map((o) => ({
-        id: o.constel_id || o.id,
-        name: o.constel_name || o.name,
-        claimed_at: o.claimed_at || null,
-      })),
+      lots: owns.map((o) => {
+        const p = buildLotProfile(o)
+        return {
+          id: o.constel_id || o.id,
+          name: o.constel_name || o.name,
+          claimed_at: o.claimed_at || null,
+          kind: p.kindLabel,
+          stars: p.stars.map((s) => ({
+            n: s.index + 1,
+            label: s.label,
+            name: s.name,
+            role: s.role,
+            heat: s.heat,
+          })),
+        }
+      }),
       note:
         owns.length === 0
           ? 'Visitor owns no lots. Talking is still allowed; claiming is optional.'
-          : 'These lots are lasting weight inside ExoMind.',
+          : 'Each lot has named stars — use get_lot_star_story for a full thread.',
+    }
+  }
+
+  if (name === 'get_lot_star_story') {
+    const lotQ = String(args.lot || '').trim().toLowerCase()
+    const starQ = String(args.star || '').trim()
+    const owned = owns.find((o) => {
+      const id = String(o.constel_id || o.id || '').toLowerCase()
+      const nm = String(o.constel_name || o.name || '').toLowerCase()
+      return !lotQ || id === lotQ || nm === lotQ || nm.includes(lotQ) || id.includes(lotQ)
+    })
+    if (!owned) {
+      return {
+        error: 'lot_not_owned_or_unknown',
+        hint: 'Visitor must own the lot. List with get_visitor_lots.',
+      }
+    }
+    const { profile, star, stars } = getStarFromLot(owned, starQ || '1')
+    if (!star) {
+      return {
+        lot: { id: profile.id, name: profile.name, kind: profile.kindLabel },
+        stars: stars.map((s) => ({ n: s.index + 1, name: s.name, role: s.role })),
+        note: 'Star not found — pick a number or name from the list.',
+      }
+    }
+    return {
+      lot: {
+        id: profile.id,
+        name: profile.name,
+        kind: profile.kindLabel,
+        rarity: profile.rarity,
+        trait: profile.trait,
+      },
+      star: {
+        n: star.index + 1,
+        label: star.label,
+        name: star.name,
+        role: star.role,
+        heat: star.heat,
+        hook: star.hook,
+        story: star.story,
+      },
+      tell_as_mind:
+        'Speak this star as a living thread inside you — story first, not a stats dump. Invite one follow-up about a neighbor star.',
     }
   }
 

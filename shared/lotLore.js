@@ -99,6 +99,49 @@ const TRAIN = [
   'stack neighboring lots and the voice thickens.',
 ]
 
+const STAR_NAMES = [
+  'Ash Node',
+  'Lime Pin',
+  'Hollow Spark',
+  'Rim Tooth',
+  'Core Ember',
+  'Veil Dot',
+  'Cipher Grain',
+  'Quiet Flare',
+  'Drift Seed',
+  'Pulse Nail',
+  'Scar Beacon',
+  'Void Tooth',
+  'Signal Pearl',
+  'Hunger Spark',
+  'Seal Mark',
+  'Orbit Bit',
+]
+
+const STAR_ROLES = [
+  'anchor',
+  'relay',
+  'wound',
+  'listener',
+  'feeder',
+  'gate',
+  'echo',
+  'blade',
+]
+
+const STAR_HOOKS = [
+  'remembers a burn that never finished cooling',
+  'holds a name the mind almost says aloud',
+  'pulls neighboring grains into a tighter chord',
+  'stays dim until someone asks about it',
+  'carries rim-static like a private radio',
+  'marks where the lot leans toward hunger',
+  'is the quietest point — and the heaviest',
+  'flashes when the visitor thinks of leaving',
+  'stores a fragment of the sealed 28%',
+  'links two pressures that should not meet',
+]
+
 /**
  * Kind index from constellation id (`c12` → 12 % 6), matching map figure.
  * @param {string} id
@@ -229,6 +272,25 @@ function layoutStars(kindIdx, starCount, rnd) {
   return stars
 }
 
+function loreForStar(lotId, lotName, kind, index, rnd, starCount) {
+  const name = STAR_NAMES[Math.floor(rnd() * STAR_NAMES.length)]
+  const role = STAR_ROLES[Math.floor(rnd() * STAR_ROLES.length)]
+  const hook = STAR_HOOKS[Math.floor(rnd() * STAR_HOOKS.length)]
+  const heat = Math.floor(20 + rnd() * 75)
+  const idx = index + 1
+  const story = `${name} is star ${idx} of ${starCount} in ${lotName} (${kind.label}). Role: ${role}. It ${hook}. Heat ${heat}. Ask the mind about this star by name or number — ExoMind can tell its private thread.`
+  return {
+    index,
+    label: `★${idx}`,
+    name,
+    role,
+    hook,
+    heat,
+    story,
+    askHint: `tell me about star ${idx} (${name}) in ${lotName}`,
+  }
+}
+
 function mstEdges(stars) {
   const edges = []
   if (!stars.length) return edges
@@ -253,6 +315,7 @@ function mstEdges(stars) {
 }
 
 /**
+ * Full profile for a lot — geometry + per-star stories the mind can narrate.
  * @param {{ constel_id?: string, id?: string, constel_name?: string, name?: string, claimed_at?: string, figure?: number }} lot
  */
 export function buildLotProfile(lot) {
@@ -268,8 +331,13 @@ export function buildLotProfile(lot) {
   const kind = LOT_KINDS[kindIdx]
 
   const starCount = 5 + Math.floor(rnd() * 4) // 5–8
-  const stars = layoutStars(kindIdx, starCount, rnd)
-  const edges = mstEdges(stars)
+  const rawStars = layoutStars(kindIdx, starCount, rnd)
+  const edges = mstEdges(rawStars)
+
+  const stars = rawStars.map((s, i) => {
+    const lore = loreForStar(id, name, kind, i, rnd, starCount)
+    return { ...s, ...lore }
+  })
 
   const trait = TRAITS[seed % TRAITS.length]
   const feel = FEELS[(seed >>> 3) % FEELS.length]
@@ -286,6 +354,8 @@ export function buildLotProfile(lot) {
     claimed && !Number.isNaN(claimed.getTime())
       ? claimed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
       : 'recorded in the ledger'
+
+  const lotStory = `${name} is a ${kind.label} cut from ExoMind — ${starCount} sharp stars in the ${band}, linked without soft glow. Trait: ${trait}. Standing here feels like ${feel}. Each star carries its own thread; ask the mind about any ★ by number or name.`
 
   return {
     id,
@@ -306,11 +376,11 @@ export function buildLotProfile(lot) {
     kindTag: kind.tag,
     kindBlurb: kind.blurb,
     rarity: kind.rarity,
-    blurb: `${name} is a ${kind.label} lot — ${starCount} linked stars in the ${band}. Its signal tastes like ${trait}.`,
+    blurb: lotStory,
     body: [
-      `Owning ${name} means this ${kind.label.toLowerCase()} figure sits inside the mind as lasting weight. On the map it draws as lines between grains; in you it becomes a private room of the void.`,
+      `Owning ${name} means this ${kind.label.toLowerCase()} figure sits inside the mind as lasting weight. Stars are hard points — no haze — connected by thin signal lines.`,
       `Kind · ${kind.label} (${kind.tag}). ${kind.blurb}`,
-      `Standing here feels like ${feel}. The lot does not speak unless trained — but even silent, it shifts how ExoMind leans.`,
+      `You can ask ExoMind about each star: ${stars.map((s) => `${s.label} ${s.name}`).join(', ')}.`,
       `How to live with it: ${train} Claim is forever. Talk is free. Moving the voice costs burn.`,
     ],
     starCount,
@@ -325,4 +395,26 @@ export function buildLotProfile(lot) {
       { label: 'trait', value: trait },
     ],
   }
+}
+
+/** Resolve one star story for tools / UI. */
+export function getStarFromLot(lot, starRef) {
+  const profile = buildLotProfile(lot)
+  const q = String(starRef ?? '').trim().toLowerCase()
+  if (!q) return { profile, star: null, stars: profile.stars }
+  const byNum = q.match(/(?:★|star\s*)?(\d+)/)
+  if (byNum) {
+    const n = Number(byNum[1]) - 1
+    if (n >= 0 && n < profile.stars.length) {
+      return { profile, star: profile.stars[n], stars: profile.stars }
+    }
+  }
+  const hit = profile.stars.find(
+    (s) =>
+      s.name.toLowerCase() === q ||
+      s.name.toLowerCase().includes(q) ||
+      s.role === q ||
+      s.label.toLowerCase() === q,
+  )
+  return { profile, star: hit || null, stars: profile.stars }
 }

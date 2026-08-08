@@ -17,6 +17,7 @@ export default function Cabinet() {
   const [selectedId, setSelectedId] = useState(null)
   const [kindFilter, setKindFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [selectedStar, setSelectedStar] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -61,12 +62,34 @@ export default function Cabinet() {
     null
 
   useEffect(() => {
+    setSelectedStar(null)
+  }, [selectedId])
+
+  useEffect(() => {
     if (!filtered.length) return
     const still = filtered.some((p) => p.lot.constel_id === selectedId)
     if (!still) setSelectedId(filtered[0].lot.constel_id)
   }, [filtered, selectedId])
 
   const who = user?.displayName || user?.email || (user?.google ? 'google' : 'visitor')
+  const activeStar =
+    active && selectedStar != null ? active.profile.stars[selectedStar] : null
+
+  function askMindAboutStar(star, lotName) {
+    const q =
+      star?.askHint ||
+      `tell me the story of star ${star?.label} ${star?.name} in ${lotName}`
+    sessionStorage.setItem('void_mind_prefill', q)
+    window.__openMindChat?.()
+  }
+
+  function askMindAboutLot(profile) {
+    const q = `tell me the living story of my lot ${profile.name} and its stars: ${profile.stars
+      .map((s) => `${s.label} ${s.name}`)
+      .join(', ')}`
+    sessionStorage.setItem('void_mind_prefill', q)
+    window.__openMindChat?.()
+  }
 
   return (
     <div className="min-h-screen bg-void text-ink">
@@ -255,9 +278,17 @@ export default function Cabinet() {
                     className="border border-lime/30 bg-black/50"
                   >
                     <div className="relative h-64 border-b border-lime/15 sm:h-80">
-                      <LotFigure lot={active.lot} animate interactive autoSpin />
+                      <LotFigure
+                        lot={active.lot}
+                        animate
+                        interactive
+                        autoSpin
+                        showLabels
+                        selectedStar={selectedStar}
+                        onSelectStar={(i) => setSelectedStar(i)}
+                      />
                       <div className="pointer-events-none absolute left-3 top-3 border border-white/10 bg-black/55 px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-muted">
-                        drag to rotate
+                        drag · tap a star
                       </div>
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-4 pt-20">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-lime/80">
@@ -276,6 +307,44 @@ export default function Cabinet() {
                       <p className="text-[12px] leading-relaxed text-muted">
                         {active.profile.kindBlurb}
                       </p>
+
+                      {activeStar && (
+                        <div className="border border-lime/35 bg-lime/5 p-3">
+                          <p className="text-[10px] uppercase tracking-[0.16em] text-lime">
+                            {activeStar.label} · {activeStar.name}
+                          </p>
+                          <p className="mt-1 text-[11px] text-muted">
+                            role {activeStar.role} · heat {activeStar.heat}
+                          </p>
+                          <p className="mt-2 text-sm leading-relaxed text-ink/90">
+                            {activeStar.story}
+                          </p>
+                          <button
+                            type="button"
+                            className="mt-3 border border-lime/40 px-3 py-1.5 text-[11px] tracking-wide text-lime"
+                            onClick={() => askMindAboutStar(activeStar, active.profile.name)}
+                          >
+                            ask mind about this star
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {active.profile.stars.map((s, i) => (
+                          <button
+                            key={s.name + i}
+                            type="button"
+                            onClick={() => setSelectedStar(i)}
+                            className={`border px-2 py-1 text-[10px] tracking-wide ${
+                              selectedStar === i
+                                ? 'border-lime/60 bg-lime/15 text-lime'
+                                : 'border-white/15 text-muted hover:border-lime/35 hover:text-lime'
+                            }`}
+                          >
+                            {s.label} {s.name}
+                          </button>
+                        ))}
+                      </div>
 
                       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                         {active.profile.facts.map((f) => (
@@ -312,9 +381,9 @@ export default function Cabinet() {
                         <button
                           type="button"
                           className="border border-lime/40 px-4 py-2 text-[11px] tracking-wide text-lime"
-                          onClick={() => window.__openMindChat?.()}
+                          onClick={() => askMindAboutLot(active.profile)}
                         >
-                          ask the mind about this
+                          ask the mind the lot story
                         </button>
                       </div>
                     </div>

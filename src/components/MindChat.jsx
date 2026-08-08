@@ -44,6 +44,15 @@ export function MindChat() {
       if (Array.isArray(data.history) && data.history.length) {
         setMessages(data.history)
       }
+      try {
+        const pre = sessionStorage.getItem('void_mind_prefill')
+        if (pre) {
+          sessionStorage.removeItem('void_mind_prefill')
+          setInput(pre)
+        }
+      } catch {
+        /* ignore */
+      }
     })()
     return () => {
       cancelled = true
@@ -134,7 +143,7 @@ export function MindChat() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="ask the void anything…"
+            placeholder="ask about a star, a lot, the void…"
             disabled={busy}
             autoComplete="off"
           />
