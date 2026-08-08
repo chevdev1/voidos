@@ -9,6 +9,7 @@ import { FAQSection } from '../components/FAQSection'
 import { BackgroundBeams } from '../components/BackgroundBeams'
 import { Footer } from '../components/Footer'
 import { SectorTerminal } from '../components/SectorTerminal'
+import { MindChat } from '../components/MindChat'
 import { initVoidEngine } from '../legacy/voidEngine'
 
 export default function LandingPage() {
@@ -55,6 +56,7 @@ export default function LandingPage() {
 
       <CosmosArena />
       <SectorTerminal />
+      <MindChat />
     </SmoothScrollProvider>
   )
 }

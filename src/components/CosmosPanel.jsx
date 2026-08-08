@@ -95,6 +95,9 @@ export function CosmosPanel() {
           <button type="button" className="mind-btn" data-act="personality" id="actPersonality">
             <span className="ico">▣</span> personality
           </button>
+          <button type="button" className="mind-btn" data-act="ask" id="actAsk">
+            <span className="ico">◉</span> ask me
+          </button>
         </div>
       </div>
       <div className="mind-meta" id="mindMeta">

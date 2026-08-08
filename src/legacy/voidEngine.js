@@ -11,6 +11,8 @@
  * because it's invoked from an effect in App.jsx, after the full tree has
  * committed to the DOM.
  */
+import { mindClaimSync } from '../lib/mindClient.js'
+
 export function initVoidEngine() {
   'use strict';
   const disposers = [];
@@ -733,11 +735,32 @@ export function initVoidEngine() {
       refreshCartDock();
     }
 
+    function syncClaimedLots(lots) {
+      if (!lots?.length) return
+      mindClaimSync(lots).catch(() => {})
+    }
+
+    function toast(msg) {
+      const el = document.getElementById('voidToast') || (() => {
+        const n = document.createElement('div')
+        n.id = 'voidToast'
+        n.className = 'void-toast'
+        document.body.appendChild(n)
+        return n
+      })()
+      el.textContent = msg
+      el.classList.add('show')
+      clearTimeout(el._t)
+      el._t = setTimeout(() => el.classList.remove('show'), 2800)
+    }
+
     function claimSectors(list) {
+      const touched = new Set();
       for (const s of list) {
         yoursSet.add(s.id);
         selectedSet.delete(s.id);
         if (s.kind === 'empty') s.kind = 'claimed';
+        if (s.constel) touched.add(s.constel);
       }
       for (const cid of [...selectedConstels]) {
         const c = g0.constels.find((x) => x.id === cid);
@@ -749,6 +772,12 @@ export function initVoidEngine() {
       if (yc) yc.textContent = String(yoursSet.size);
       refreshCounts();
       refreshCartDock();
+
+      const lots = [...touched]
+        .map((cid) => g0.constels.find((x) => x.id === cid))
+        .filter((c) => c && constelOwned(c))
+        .map((c) => ({ id: c.id, name: c.name }));
+      syncClaimedLots(lots);
     }
 
     function stackGrainList() {
@@ -1144,7 +1173,7 @@ export function initVoidEngine() {
       selectedConstels.delete(lastTermConstel.id);
       refreshCartDock();
       openConstelTerm(lastTermConstel);
-      alert('preview claim — constellation ' + name + ' · ' + items.length + ' stars · burns $EXO');
+      toast('claimed · ' + name + ' · ' + items.length + '★ · burns $EXO');
     };
     const cartClear = document.getElementById('cartClear');
     if (cartClear) {
@@ -1169,19 +1198,16 @@ export function initVoidEngine() {
         claimSectors(items);
         selectedConstels.clear();
         refreshCartDock();
-        alert(
-          'preview claim — ' +
+        toast(
+          'claimed · ' +
             nConst +
-            ' constellation' +
+            ' lot' +
             (nConst > 1 ? 's' : '') +
             ' · ' +
-            names.slice(0, 6).join(', ') +
-            (names.length > 6 ? '…' : '') +
-            ' · ' +
-            fmt(mass) +
-            ' cells · $' +
-            burn.toFixed(2) +
-            ' $EXO',
+            names.slice(0, 4).join(', ') +
+            (names.length > 4 ? '…' : '') +
+            ' · $' +
+            burn.toFixed(2),
         );
       };
     }
@@ -1266,7 +1292,7 @@ export function initVoidEngine() {
       if (!isNaN(id)) {
         const found = g0.sectors.find((x) => x.id === id);
         if (!found) {
-          alert('star #' + q + ' not found');
+          toast('star #' + q + ' not found');
           return;
         }
         const c = g0.constels.find((x) => x.id === found.constel);
@@ -1280,7 +1306,7 @@ export function initVoidEngine() {
       const cq = q.trim().toUpperCase();
       const c = g0.constels.find((x) => x.name.includes(cq) || x.id.includes(q.toLowerCase()));
       if (!c) {
-        alert('constellation not found');
+        toast('constellation not found');
         return;
       }
       toggleConstel(c);
@@ -1433,6 +1459,11 @@ export function initVoidEngine() {
             heatMode = !heatMode;
             filters.heat = heatMode;
             btn.classList.toggle('on', heatMode);
+            return;
+          }
+          if (act === 'ask') {
+            closeMindPanel();
+            window.__openMindChat?.();
             return;
           }
           if (panelMode === act) {

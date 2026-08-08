@@ -24,3 +24,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Mind server
+server/node_modules
+server/data/*.db
+server/data/*.db-*
+server/.env
+

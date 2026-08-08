@@ -1,16 +1,39 @@
-# React + Vite
+# ExoMind / VOID.OS
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+Interactive void map + constellation claims + ExoMind chat.
 
-Currently, two official plugins are available:
+## Quick start
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+```bash
+npm install
+npm run dev
+```
 
-## React Compiler
+Open the site → **Open full map** → stack constellations → **ask me**.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Production
 
-## Expanding the Oxlint configuration
+See **[DEPLOY.md](DEPLOY.md)** — Vercel one-click, Gemini key optional, SPA rewrites included.
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+npm run build
+```
+
+## Mind AI
+
+| Mode | When |
+|------|------|
+| Vercel `/api/chat` | Deployed site + optional `GEMINI_API_KEY` |
+| Local SQLite server | `npm run mind` (port 8787) for DIY DB editing |
+| Offline local | Automatic fallback in the browser if API is down |
+
+Prompts live in [`shared/mind-prompts.json`](shared/mind-prompts.json).
+
+## Scripts
+
+| Script | What |
+|--------|------|
+| `npm run dev` | Vite frontend |
+| `npm run build` | Production bundle |
+| `npm run mind` | Local SQLite mind API |
+| `npm run mind:seed` | Reseed prompts into `server/data/void.db` |
