@@ -39,24 +39,28 @@ export function getDb() {
 export async function migrate() {
   const db = getDb()
   if (_migrated) return db
-  const statements = SCHEMA.split(';')
+
+  // Strip full-line SQL comments, then split statements.
+  // (Previously a leading `--` comment caused the entire first CREATE to be skipped.)
+  const cleaned = SCHEMA.replace(/^\s*--.*$/gm, '')
+  const statements = cleaned
+    .split(';')
     .map((s) => s.trim())
-    .filter((s) => s && !s.startsWith('--'))
+    .filter(Boolean)
+
   for (const sql of statements) {
-    await db.execute(sql)
+    try {
+      await db.execute(sql)
+    } catch (err) {
+      console.error('[voidDb] migrate statement failed:', sql.slice(0, 80), err?.message || err)
+      throw err
+    }
   }
+
   // Soft-migrate columns if older DB lacks them
-  try {
-    await db.execute('ALTER TABLE users ADD COLUMN display_name TEXT')
-  } catch {
-    /* exists */
-  }
-  try {
-    await db.execute('ALTER TABLE users ADD COLUMN password_hash TEXT')
-  } catch {
-    /* exists */
-  }
   for (const col of [
+    'display_name TEXT',
+    'password_hash TEXT',
     'google_sub TEXT',
     'email TEXT',
     'avatar_url TEXT',
@@ -68,6 +72,7 @@ export async function migrate() {
       /* exists */
     }
   }
+
   _migrated = true
   return db
 }
