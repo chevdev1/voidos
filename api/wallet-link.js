@@ -19,7 +19,7 @@ function verifySolanaSignature({ pubkey, message, signature }) {
     sigBytes = bs58.decode(String(signature || ''))
     pubBytes = bs58.decode(String(pubkey || ''))
   } catch {
-    // Phantom sometimes returns uint8 array as JSON — accept base64 too
+    // Some wallets return uint8 array as JSON — accept base64 too
     try {
       sigBytes = Buffer.from(String(signature), 'base64')
       pubBytes = bs58.decode(String(pubkey || ''))

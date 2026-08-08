@@ -113,7 +113,7 @@ export function AccountMenu() {
             </p>
           ) : (
             <p className="mb-2 text-[11px] text-muted">
-              Google or name+password. Then link Phantom in cabinet for balances.
+              Google or name+password. Then link Robinhood in cabinet for balances.
             </p>
           )}
 

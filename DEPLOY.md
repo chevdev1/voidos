@@ -31,13 +31,12 @@
 2. Authorized JavaScript origins: `https://ashy-gamma-42.vercel.app` and `http://localhost:5173`
 3. Put the client ID in `VITE_GOOGLE_CLIENT_ID` **and** `GOOGLE_CLIENT_ID`, then redeploy
 
-### Wallet (Phantom + Robinhood)
+### Wallet (Robinhood)
 
 1. Create a Project ID at [cloud.reown.com](https://cloud.reown.com) → set `VITE_WALLETCONNECT_PROJECT_ID` → redeploy
-2. Cabinet → **connect Robinhood** → QR → open Robinhood Wallet → Scan → approve + sign
-3. Or **Phantom** / other injected wallets on desktop
-4. Or open the site inside Robinhood Wallet **Web3 browser** and use the injected connect button
-5. SOL balance shows live; `$EXO` when `EXO_MINT` is set
+2. Cabinet → **connect Robinhood** → QR → Robinhood Wallet → Scan → approve + sign
+3. Or open the site inside Robinhood Wallet **Web3 browser** and tap connect
+4. SOL balance shows live; `$EXO` when `EXO_MINT` is set
 
 4. Deploy / Redeploy after setting env
 

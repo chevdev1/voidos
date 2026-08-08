@@ -1,40 +1,17 @@
 import bs58 from 'bs58'
 
-/** @returns {{ id: string, label: string, provider: any }[]} */
-export function listInjectedSolana() {
-  if (typeof window === 'undefined') return []
-  const out = []
-  const seen = new Set()
-
-  function add(id, label, provider) {
-    if (!provider || typeof provider.connect !== 'function') return
-    if (seen.has(provider)) return
-    seen.add(provider)
-    out.push({ id, label, provider })
+/** Robinhood in-app Web3 browser inject only (no Phantom / Solflare). */
+export function getRobinhoodInjected() {
+  if (typeof window === 'undefined') return null
+  const candidates = [
+    window.robinhood?.solana,
+    window.robinhoodWallet?.solana,
+    window.solana?.isRobinhood || window.solana?.isRobinhoodWallet ? window.solana : null,
+  ]
+  for (const p of candidates) {
+    if (p && typeof p.connect === 'function') return p
   }
-
-  const ph = window.phantom?.solana
-  if (ph?.isPhantom) add('phantom', 'Phantom', ph)
-
-  const sol = window.solana
-  if (sol?.isPhantom) add('phantom', 'Phantom', sol)
-  else if (sol?.isSolflare) add('solflare', 'Solflare', sol)
-  else if (sol && !sol.isPhantom) add('injected', detectInjectedLabel(sol), sol)
-
-  if (window.solflare?.isSolflare) add('solflare', 'Solflare', window.solflare)
-  if (window.robinhood?.solana) add('robinhood', 'Robinhood', window.robinhood.solana)
-  if (window.robinhoodWallet?.solana) {
-    add('robinhood', 'Robinhood', window.robinhoodWallet.solana)
-  }
-
-  return out
-}
-
-function detectInjectedLabel(p) {
-  if (p.isRobinhood || p.isRobinhoodWallet) return 'Robinhood'
-  if (p.isSolflare) return 'Solflare'
-  if (p.isPhantom) return 'Phantom'
-  return 'Wallet'
+  return null
 }
 
 export function hasWalletConnectProject() {
@@ -66,35 +43,26 @@ async function createWalletConnectAdapter() {
 }
 
 /**
- * Connect + sign ownership message; returns { pubkey, signature, walletLabel }
+ * Connect Robinhood (WalletConnect QR or in-app inject) + sign link message.
  */
-export async function connectAndSignLink(source, message) {
+export async function connectAndSignLink(message) {
   const encoded = new TextEncoder().encode(message)
 
-  if (source === 'walletconnect' || source === 'robinhood') {
-    const adapter = await createWalletConnectAdapter()
-    await adapter.connect()
-    const pubkey = adapter.publicKey?.toBase58?.() || adapter.publicKey?.toString?.()
-    if (!pubkey) throw new Error('no pubkey from WalletConnect')
-    const raw = await adapter.signMessage(encoded)
-    const signature = bs58.encode(raw?.signature || raw)
-    return { pubkey, signature, walletLabel: 'Robinhood / WalletConnect', adapter }
+  const injected = getRobinhoodInjected()
+  if (injected) {
+    const resp = await injected.connect()
+    const pubkey = resp?.publicKey?.toString?.() || injected.publicKey?.toString?.()
+    if (!pubkey) throw new Error('no pubkey')
+    const signed = await injected.signMessage(encoded, 'utf8')
+    const signature = bs58.encode(signed.signature || signed)
+    return { pubkey, signature, walletLabel: 'Robinhood' }
   }
 
-  const injected = listInjectedSolana()
-  const pick =
-    (typeof source === 'object' && source?.provider && source) ||
-    injected.find((w) => w.id === source) ||
-    injected[0]
-  if (!pick?.provider) {
-    throw new Error('no injected wallet — use Robinhood WalletConnect or install Phantom')
-  }
-
-  const provider = pick.provider
-  const resp = await provider.connect()
-  const pubkey = resp?.publicKey?.toString?.() || provider.publicKey?.toString?.()
-  if (!pubkey) throw new Error('no pubkey')
-  const signed = await provider.signMessage(encoded, 'utf8')
-  const signature = bs58.encode(signed.signature || signed)
-  return { pubkey, signature, walletLabel: pick.label, adapter: null }
+  const adapter = await createWalletConnectAdapter()
+  await adapter.connect()
+  const pubkey = adapter.publicKey?.toBase58?.() || adapter.publicKey?.toString?.()
+  if (!pubkey) throw new Error('no pubkey from WalletConnect')
+  const raw = await adapter.signMessage(encoded)
+  const signature = bs58.encode(raw?.signature || raw)
+  return { pubkey, signature, walletLabel: 'Robinhood' }
 }

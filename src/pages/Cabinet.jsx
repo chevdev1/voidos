@@ -121,7 +121,7 @@ export default function Cabinet() {
               : ' · no claims yet — open the map and claim (free while $EXO mint is off)'}
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
-            $EXO not live yet — claims, Google login, Phantom link and lot viewer all work in{' '}
+            $EXO not live yet — claims, Google login, Robinhood link and lot viewer all work in{' '}
             <span className="text-lime">test</span>. No real burn. When mint is set, burns become
             real.
           </p>
