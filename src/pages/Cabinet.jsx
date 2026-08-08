@@ -152,7 +152,13 @@ export default function Cabinet() {
 
         <div className="mt-8 space-y-4">
           {!user?.google && (
-            <div className="border border-white/10 bg-black/40 p-4">
+            <div className="border border-lime/35 bg-black/50 p-5">
+              <p className="mb-1 font-display text-lg font-extrabold tracking-tight">
+                enter via <span className="text-lime">google</span>
+              </p>
+              <p className="mb-4 text-[11px] text-muted">
+                register and login in one click — only Google.
+              </p>
               <GoogleSignIn
                 onDone={(data) => {
                   setUser(data.user || null)

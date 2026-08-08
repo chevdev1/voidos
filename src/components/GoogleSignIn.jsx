@@ -4,9 +4,9 @@ import { mindGoogleLogin } from '../lib/mindClient'
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 /**
- * Full Google account — sign-in / register in one click via Identity Services.
+ * Google-only auth — custom VOID.OS chrome over GIS button.
  */
-export function GoogleSignIn({ onDone, compact = false }) {
+export function GoogleSignIn({ onDone }) {
   const slot = useRef(null)
   const [err, setErr] = useState('')
   const [ready, setReady] = useState(false)
@@ -38,6 +38,7 @@ export function GoogleSignIn({ onDone, compact = false }) {
         ux_mode: 'popup',
         context: 'signin',
         itp_support: true,
+        cancel_on_tap_outside: true,
       })
       slot.current.innerHTML = ''
       window.google.accounts.id.renderButton(slot.current, {
@@ -45,15 +46,9 @@ export function GoogleSignIn({ onDone, compact = false }) {
         size: 'large',
         shape: 'rectangular',
         text: 'continue_with',
-        width: compact ? 240 : 280,
+        width: 288,
         logo_alignment: 'left',
       })
-      // One Tap prompt (non-blocking)
-      try {
-        window.google.accounts.id.prompt()
-      } catch {
-        /* ignore */
-      }
       setReady(true)
     }
 
@@ -82,29 +77,48 @@ export function GoogleSignIn({ onDone, compact = false }) {
     return () => {
       cancelled = true
     }
-  }, [onDone, compact])
+  }, [onDone])
 
   if (!CLIENT_ID) {
     return (
-      <p className="text-[10px] leading-snug text-muted">
-        Google login: set <code className="text-lime/80">VITE_GOOGLE_CLIENT_ID</code> +{' '}
-        <code className="text-lime/80">GOOGLE_CLIENT_ID</code> in Vercel env, then redeploy.
+      <p className="text-[11px] leading-relaxed text-muted">
+        Google Client ID missing in env.
       </p>
     )
   }
 
   return (
-    <div className="space-y-2">
-      <p className="text-[10px] uppercase tracking-[0.16em] text-muted">
-        full account · google
-      </p>
-      <div ref={slot} className="flex min-h-[44px] items-center justify-center" />
-      {busy && <p className="text-[10px] text-lime">signing in…</p>}
-      {!ready && !busy && <p className="text-[10px] text-muted">loading google…</p>}
+    <div className="space-y-3">
+      <div className="relative overflow-hidden border border-lime/45 bg-black">
+        {/* VOID face */}
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-between px-3"
+          aria-hidden
+        >
+          <span className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.14em] text-lime">
+            <span className="inline-flex h-5 w-5 items-center justify-center border border-lime/60 text-[10px]">
+              G
+            </span>
+            {busy ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE'}
+          </span>
+          <span className="text-[9px] uppercase tracking-[0.2em] text-muted">enter</span>
+        </div>
+
+        {/* Real GIS control — invisible but clickable on top */}
+        <div
+          ref={slot}
+          className="relative z-10 flex h-11 w-full items-center justify-center opacity-0"
+          style={{ minHeight: 44 }}
+        />
+
+        {!ready && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-black/80 text-[10px] tracking-wider text-muted">
+            loading…
+          </div>
+        )}
+      </div>
+
       {err && <p className="text-[11px] text-red-400">{err}</p>}
-      <p className="text-[10px] leading-relaxed text-muted">
-        one Google click = register + login. lots, wallet, and mind memory stay on this account.
-      </p>
     </div>
   )
 }
