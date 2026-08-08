@@ -1,5 +1,5 @@
 import prompts from '../../shared/mind-prompts.json'
-import { detectTriggers, pickPrompts, buildSystemPrompt, mockReply } from '../../shared/mindLogic.js'
+import { detectTriggers, pickPrompts, buildSystemPrompt, mockReply, safetyReply } from '../../shared/mindLogic.js'
 
 const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
@@ -96,6 +96,20 @@ function localChat(message, guestKey) {
     memories.name = name[1]
     saveMemories(memories)
   }
+  const blocked = safetyReply(message)
+  if (blocked) {
+    const next = [
+      ...history,
+      { role: 'user', content: message },
+      { role: 'assistant', content: blocked },
+    ]
+    saveHistory(next)
+    return {
+      reply: blocked,
+      guestKey: guestKey || loadGuestKey(),
+      ownerships: owns,
+    }
+  }
   const triggers = detectTriggers(message)
   const selected = pickPrompts(prompts, triggers)
   buildSystemPrompt(selected, owns, memories)
@@ -109,9 +123,7 @@ function localChat(message, guestKey) {
   saveGuestKey(guestKey || loadGuestKey())
   return {
     reply,
-    mode: 'local',
     guestKey: guestKey || loadGuestKey(),
-    triggers,
     ownerships: owns,
   }
 }

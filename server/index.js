@@ -8,6 +8,7 @@ import {
   buildSystemPrompt,
   mockReply,
   callGemini,
+  safetyReply,
 } from '../shared/mindLogic.js'
 
 ensureSeeded()
@@ -144,12 +145,12 @@ app.post('/api/claim-sync', (req, res) => {
 })
 
 app.get('/api/prompts', (_req, res) => {
-  res.json({ prompts: loadActivePrompts() })
+  res.status(404).json({ error: 'not found' })
 })
 
 app.post('/api/chat', async (req, res) => {
   try {
-    const message = String(req.body?.message || '').trim()
+    const message = String(req.body?.message || '').trim().slice(0, 2000)
     if (!message) return res.status(400).json({ error: 'empty message' })
 
     const user = getOrCreateUser(req.body?.guestKey)
@@ -170,6 +171,13 @@ app.post('/api/chat', async (req, res) => {
         ? req.body.history.slice(-16)
         : loadHistory(conv.id, 16)
 
+    const blocked = safetyReply(message)
+    if (blocked) {
+      addMessage(conv.id, 'user', message)
+      addMessage(conv.id, 'assistant', blocked)
+      return res.json({ reply: blocked, guestKey: user.guest_key, ownerships: owns })
+    }
+
     const triggers = detectTriggers(message)
     const selected = pickPrompts(loadActivePrompts(), triggers)
     const system = buildSystemPrompt(selected, owns, memories)
@@ -177,7 +185,6 @@ app.post('/api/chat', async (req, res) => {
     addMessage(conv.id, 'user', message)
 
     let reply = null
-    let mode = 'mock'
     try {
       reply = await callGemini({
         apiKey: GEMINI_API_KEY,
@@ -187,17 +194,13 @@ app.post('/api/chat', async (req, res) => {
         userMessage: message,
         owns,
       })
-      if (reply) mode = 'gemini'
     } catch (err) {
       console.warn('[mind] gemini failed', err.message)
     }
-    if (!reply) {
-      reply = mockReply(message, owns, triggers)
-      mode = 'mock'
-    }
+    if (!reply) reply = mockReply(message, owns, triggers)
 
     addMessage(conv.id, 'assistant', reply)
-    res.json({ reply, mode, guestKey: user.guest_key, triggers, ownerships: owns })
+    res.json({ reply, guestKey: user.guest_key, ownerships: owns })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'chat failed' })

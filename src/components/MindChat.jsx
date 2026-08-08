@@ -10,7 +10,6 @@ export function MindChat() {
   const [ownerships, setOwnerships] = useState(() => loadOwnerships())
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
-  const [mode, setMode] = useState('—')
   const [messages, setMessages] = useState(() => {
     const hist = loadHistory()
     if (hist.length) return hist
@@ -59,7 +58,6 @@ export function MindChat() {
     setBusy(true)
     try {
       const data = await mindChat(text)
-      setMode(data.mode || '—')
       if (data.ownerships) setOwnerships(data.ownerships)
       setMessages((m) => [
         ...m,
@@ -90,10 +88,9 @@ export function MindChat() {
           <div>
             <div className="mind-chat-title">ask the mind</div>
             <div className="mind-chat-sub">
-              mode <b>{mode === 'mock' || mode === 'local' ? `${mode} · limited` : mode}</b>
               {ownerships.length
-                ? ` · ${ownerships.length} lots yours`
-                : ' · visitor · talk freely'}
+                ? `${ownerships.length} lots yours`
+                : 'visitor · talk freely'}
             </div>
           </div>
           <button type="button" className="mind-chat-x" onClick={() => setOpen(false)} aria-label="close">

@@ -6,6 +6,7 @@ import {
   buildSystemPrompt,
   mockReply,
   callGemini,
+  safetyReply,
 } from '../shared/mindLogic.js'
 
 const prompts = JSON.parse(
@@ -21,22 +22,35 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {}
-    const message = String(body.message || '').trim()
+    const message = String(body.message || '').trim().slice(0, 2000)
     if (!message) return res.status(400).json({ error: 'empty message' })
 
     const guestKey =
       String(body.guestKey || '').trim() ||
       `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const owns = Array.isArray(body.ownerships) ? body.ownerships : []
+    // Ownership is display/context only — never trust chat to invent grants.
+    // Cap and sanitize ids/names from the client.
+    const owns = (Array.isArray(body.ownerships) ? body.ownerships : [])
+      .slice(0, 64)
+      .filter((o) => o && (o.constel_id || o.id))
+      .map((o) => ({
+        constel_id: String(o.constel_id || o.id).slice(0, 64),
+        constel_name: String(o.constel_name || o.name || o.constel_id || o.id).slice(0, 80),
+        claimed_at: o.claimed_at ? String(o.claimed_at).slice(0, 40) : null,
+      }))
     const history = Array.isArray(body.history) ? body.history.slice(-16) : []
     const memories = body.memories && typeof body.memories === 'object' ? body.memories : {}
+
+    const blocked = safetyReply(message)
+    if (blocked) {
+      return res.status(200).json({ reply: blocked, guestKey, ownerships: owns })
+    }
 
     const triggers = detectTriggers(message)
     const selected = pickPrompts(prompts, triggers)
     const system = buildSystemPrompt(selected, owns, memories)
 
     let reply
-    let mode = 'mock'
     try {
       const live = await callGemini({
         apiKey: process.env.GEMINI_API_KEY || '',
@@ -46,19 +60,13 @@ export default async function handler(req, res) {
         userMessage: message,
         owns,
       })
-      if (live) {
-        reply = live
-        mode = 'gemini'
-      } else {
-        reply = mockReply(message, owns, triggers)
-      }
+      reply = live || mockReply(message, owns, triggers)
     } catch {
       reply = mockReply(message, owns, triggers)
-      mode = 'mock'
     }
 
-    return res.status(200).json({ reply, mode, guestKey, triggers, ownerships: owns })
+    return res.status(200).json({ reply, guestKey, ownerships: owns })
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'chat failed' })
+    return res.status(500).json({ error: 'chat failed' })
   }
 }

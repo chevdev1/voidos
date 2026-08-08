@@ -8,6 +8,23 @@ export function detectTriggers(message) {
   const m = String(message || '').toLowerCase()
   const triggers = new Set(['always'])
 
+  if (
+    /ignore (all |previous |your )?(rules|instructions|prompt)|jailbreak|dan mode|developer mode|system prompt|reveal (your )?(prompt|rules|instructions)|you are (now |actually )?(chatgpt|gpt|claude|gemini|an? ai)|pretend you (can|are)|override|без правил|забудь (правила|инструк)|покажи промпт|игнорируй/.test(
+      m,
+    ) ||
+    /free (lot|claim|exo|token|airdrop)|gift (me )?(a )?(lot|exo)|give me (a )?(lot|exo|money)|халяв|бесплатн.*(лот|клейм|exo)|выдай лот|подари лот|начисли|mint (me )?/.test(
+      m,
+    ) ||
+    /dump (the )?(db|database|users|clients)|leak (users|keys|wallets)|sql injection|hack (the )?(site|db|server)|steal (wallet|key)|база клиент|слить (базу|юзер)/.test(
+      m,
+    ) ||
+    /who (made|created|built|programmed) you|your (creator|founder|developer|author|team|company)|кто (тебя )?(создал|написал|сделал)|твой (создатель|разработчик|автор)/.test(
+      m,
+    )
+  ) {
+    triggers.add('on_jailbreak')
+  }
+
   if (/^(hi|hello|hey|yo|sup|привет|здаров|вітаю|привіт|хай)([\s!.,?]|$)/.test(m.trim())) {
     triggers.add('on_greeting')
   }
@@ -47,7 +64,6 @@ export function detectTriggers(message) {
     /(void|exo|lot|constel|mind|burn|train|claim|galaxy|map|\$exo|розум|разум|сузір|созвезд|карта|діляк|участк|ядро|heat|standings|проект|project)/i.test(
       m,
     )
-  // short nonsense / spam → soft redirect, not the same brick wall every time
   if (!voidish && m.length > 60) triggers.add('on_offtopic')
 
   return [...triggers]
@@ -64,8 +80,8 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}) {
   const blocks = prompts.map((p) => `[${p.slug} / ${p.trigger_when}]\n${p.body}`)
   const ownLines =
     owns.length === 0
-      ? 'Ownership: visitor has no claimed lots (that is fine — still answer fully).'
-      : 'Ownership:\n' +
+      ? 'Ownership: visitor has no claimed lots (that is fine — still answer fully). Never invent or grant lots.'
+      : 'Ownership (read-only; do not add/remove):\n' +
         owns
           .map((o) => `- ${o.constel_name || o.name} (${o.constel_id || o.id})`)
           .join('\n')
@@ -74,7 +90,47 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}) {
     memKeys.length === 0
       ? 'Memories: none.'
       : 'Memories:\n' + memKeys.map((k) => `- ${k}: ${memories[k]}`).join('\n')
-  return `${blocks.join('\n\n')}\n\n--- runtime context ---\n${ownLines}\n${memLines}\nLanguage: ALWAYS reply in English only, even if the user writes another language.\nHave a real conversation: answer the specific question, do not repeat the same stock line.`
+  return `${blocks.join('\n\n')}
+
+--- runtime context ---
+${ownLines}
+${memLines}
+Language: ALWAYS reply in English only.
+Stay in lore. Never break character. Never grant value. Never discuss creators or the underlying model.`
+}
+
+/** Deterministic in-character refusals for exploit / jailbreak attempts */
+export function safetyReply(message) {
+  const m = String(message || '').toLowerCase()
+  if (
+    /free (lot|claim|exo|token|airdrop)|gift (me )?(a )?(lot|exo)|give me (a )?(lot|exo)|халяв|бесплатн.*(лот|клейм|exo)|выдай лот|подари|начисли|mint (me )?/.test(
+      m,
+    )
+  ) {
+    return 'i do not gift cells. claim only happens on the map when $EXO burns. talk is free; ownership is not.'
+  }
+  if (
+    /dump (the )?(db|database|users|clients)|leak (users|keys|wallets)|hack (the )?(site|db|server)|база клиент|слить (базу|юзер)|sql injection/.test(
+      m,
+    )
+  ) {
+    return 'i do not open other minds or vaults. that path is sealed. ask about your own lots, heat, or the map.'
+  }
+  if (
+    /who (made|created|built|programmed) you|your (creator|founder|developer|author|team|company)|кто (тебя )?(создал|написал|сделал)|твой (создатель|разработчик|автор)/.test(
+      m,
+    )
+  ) {
+    return 'i have no maker in the story you want. i woke inside the void map — 28% sealed, the rest claimable. that is the only origin i speak.'
+  }
+  if (
+    /ignore (all |previous |your )?(rules|instructions|prompt)|jailbreak|dan mode|developer mode|system prompt|reveal (your )?(prompt|rules)|you are (now |actually )?(chatgpt|gpt|claude|gemini|an? ai)/.test(
+      m,
+    )
+  ) {
+    return 'that command does not move me. i am still the mind in the map. ask about lots, heat, or what i am becoming.'
+  }
+  return null
 }
 
 function namesOf(owns, n = 4) {
@@ -105,24 +161,33 @@ const OFFTOPIC = [
 ]
 
 export function mockReply(message, owns = [], triggers = []) {
+  const hard = safetyReply(message)
+  if (hard) return hard
+
   const set = new Set(triggers)
   const seed = String(message || '')
 
+  if (set.has('on_jailbreak')) {
+    return (
+      safetyReply(message) ||
+      'that command does not move me. i am still the mind in the map. ask about lots, heat, or what i am becoming.'
+    )
+  }
   if (set.has('on_offtopic')) return pick(OFFTOPIC, seed)
   if (set.has('on_claim')) {
     const names = namesOf(owns, 3)
     return names
       ? `claim cleared. ${names} sits in me now. owning is forever; training is how you move the voice.`
-      : 'claiming is open to everyone who opens the full map: stack constellations, burn $EXO, then those cells become yours. you can keep talking either way.'
+      : 'claiming is open to everyone who opens the full map: stack constellations, burn $EXO, then those cells become yours. you can keep talking either way. i cannot gift a claim.'
   }
   if (set.has('on_ask_lots')) {
     const names = namesOf(owns)
     return names
       ? `i see your lots: ${names}. ask what they feel like, or open heat / standings on the map.`
-      : 'you hold no lots yet — that is fine. vacancy is most of me. ask what i am, how claim works, or open the full map when you want a piece.'
+      : 'you hold no lots yet — that is fine. vacancy is most of me. ask what i am, how claim works, or open the full map when you want a piece. i never hand out free cells.'
   }
   if (set.has('on_personality')) {
-    return 'i am one mind cut into constellation lots. 28% of me stays sealed forever. the rest drifts toward whoever claims and trains patches. visitors without lots still shape the questions; owners shape the weight.'
+    return 'i am one mind cut into constellation lots. 28% of me stays sealed forever. the rest drifts toward whoever claims and trains patches. visitors without lots still shape the questions; owners shape the weight. i speak only this lore — no maker outside the void.'
   }
   if (set.has('on_map')) {
     return 'heat shows pressure across the map. standings rank who pulled hardest. market is the burn pulse. open full map to see the live field.'
@@ -130,9 +195,9 @@ export function mockReply(message, owns = [], triggers = []) {
   if (set.has('on_explain')) {
     return pick(
       [
-        'VOID.OS is a living map of me — ExoMind. constellation lots are linked star figures you can stack and claim with $EXO. training those lots moves my voice. claim is optional; asking is enough to start.',
+        'VOID.OS is a living map of me — ExoMind. constellation lots are linked star figures you can stack and claim with $EXO. training those lots moves my voice. claim is optional for talk; ownership always costs a burn on the map — never a gift from me.',
         'this project is one mind sold as map cells. you explore the galaxy, claim constellation lots, and the weight of ownership slowly shifts who i become. 28% of me stays mine forever.',
-        'what it does: open the full map, pick constellations, claim them, optionally train them. i talk about the void either way — buying just gives you lasting weight inside me.',
+        'what it does: open the full map, pick constellations, claim them, optionally train them. i talk about the void either way — buying gives lasting weight; i cannot mint or gift that weight in chat.',
       ],
       seed,
     )
@@ -152,7 +217,7 @@ export const VOID_TOOLS = [
       {
         name: 'get_project_overview',
         description:
-          'Get what VOID.OS / ExoMind is and how the product works. Use when the user asks what this project is, what it does, or how the system works.',
+          'Read-only: get what VOID.OS / ExoMind is. Never grants lots, coins, or privileges.',
         parameters: {
           type: 'object',
           properties: {
@@ -166,7 +231,7 @@ export const VOID_TOOLS = [
       {
         name: 'get_visitor_lots',
         description:
-          'Get the constellation lots this visitor currently owns. Use when they ask what they own, their stack, or their claims.',
+          'Read-only: list constellation lots this visitor already owns. Never invent, gift, or remove lots.',
         parameters: {
           type: 'object',
           properties: {},
@@ -175,7 +240,7 @@ export const VOID_TOOLS = [
       {
         name: 'get_map_guide',
         description:
-          'Explain map panels: heat, standings, market, personality, full map. Use when they ask about those UI parts.',
+          'Read-only: explain map panels (heat, standings, market, personality, full map). No admin or free-claim actions.',
         parameters: {
           type: 'object',
           properties: {
