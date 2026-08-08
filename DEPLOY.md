@@ -23,7 +23,11 @@ Chat still answers in **mock** mode. Claims + history live in the browser (`loca
 
 ### With Gemini
 
-Same UI; replies use prompts from [`shared/mind-prompts.json`](shared/mind-prompts.json).
+Same UI; replies come from Gemini Flash using prompts in [`shared/mind-prompts.json`](shared/mind-prompts.json).
+
+Gemini uses **function calling** (same pattern as [Google’s codelab](https://codelabs.developers.google.com/codelabs/gemini-function-calling)): tools `get_project_overview`, `get_visitor_lots`, `get_map_guide` so answers stay on real VOID facts.
+
+Without `GEMINI_API_KEY`, chat stays in **mock** mode (templates only — not a real conversation).
 
 ## Local DIY SQLite mind (optional)
 

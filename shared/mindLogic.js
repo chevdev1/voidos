@@ -146,8 +146,154 @@ export function mockReply(message, owns = [], triggers = []) {
   return pick(FALLBACKS, seed)
 }
 
-export async function callGemini({ apiKey, model, system, history, userMessage }) {
+export const VOID_TOOLS = [
+  {
+    functionDeclarations: [
+      {
+        name: 'get_project_overview',
+        description:
+          'Get what VOID.OS / ExoMind is and how the product works. Use when the user asks what this project is, what it does, or how the system works.',
+        parameters: {
+          type: 'object',
+          properties: {
+            focus: {
+              type: 'string',
+              description: 'Optional focus: overview | claim | training | personality',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_visitor_lots',
+        description:
+          'Get the constellation lots this visitor currently owns. Use when they ask what they own, their stack, or their claims.',
+        parameters: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'get_map_guide',
+        description:
+          'Explain map panels: heat, standings, market, personality, full map. Use when they ask about those UI parts.',
+        parameters: {
+          type: 'object',
+          properties: {
+            panel: {
+              type: 'string',
+              description: 'heat | standings | market | personality | full_map | all',
+            },
+          },
+        },
+      },
+    ],
+  },
+]
+
+export function runVoidTool(name, args = {}, ctx = {}) {
+  const owns = Array.isArray(ctx.owns) ? ctx.owns : []
+  const focus = String(args.focus || 'overview').toLowerCase()
+  const panel = String(args.panel || 'all').toLowerCase()
+
+  if (name === 'get_visitor_lots') {
+    return {
+      lot_count: owns.length,
+      lots: owns.map((o) => ({
+        id: o.constel_id || o.id,
+        name: o.constel_name || o.name,
+        claimed_at: o.claimed_at || null,
+      })),
+      note:
+        owns.length === 0
+          ? 'Visitor owns no lots. Talking is still allowed; claiming is optional.'
+          : 'These lots are lasting weight inside ExoMind.',
+    }
+  }
+
+  if (name === 'get_map_guide') {
+    const guides = {
+      heat: 'Heat shows pressure / activity across constellation regions on the live map.',
+      standings: 'Standings ranks who has pulled hardest on the mind (claims + training weight).',
+      market: 'Market is the $EXO burn pulse — claim activity over time.',
+      personality: 'Personality / core: 28% of ExoMind stays sealed forever; the rest drifts with owners.',
+      full_map: 'Open full map to orbit, multi-select constellation lots, stack them, then claim.',
+    }
+    if (panel !== 'all' && guides[panel]) return { panel, guide: guides[panel] }
+    return { panel: 'all', guides }
+  }
+
+  // get_project_overview (default)
+  const base = {
+    name: 'VOID.OS / ExoMind',
+    summary:
+      'One mind cut into claimable constellation lots on a living void map. Visitors explore and talk freely; owners burn $EXO to claim lots and train patches that shift the mind.',
+    units: 'Constellation lots (linked star figures), not single stars.',
+    currency: '$EXO',
+    core_reserved: '28%',
+    claim_optional: true,
+  }
+  if (focus === 'claim') {
+    return {
+      ...base,
+      claim_flow: 'Open full map → multi-select constellations → stack → claim / burn $EXO. Owning is forever; training moves the voice.',
+    }
+  }
+  if (focus === 'training') {
+    return {
+      ...base,
+      training: 'Training spends fuel to push owned patches; that weight slowly changes how ExoMind speaks and acts.',
+    }
+  }
+  if (focus === 'personality') {
+    return {
+      ...base,
+      personality:
+        'ExoMind is one first-person mind. 28% sealed. Remaining weight drifts toward claimed and trained lots. Questions from visitors still matter.',
+    }
+  }
+  return base
+}
+
+function extractText(parts = []) {
+  return parts
+    .map((p) => p.text)
+    .filter(Boolean)
+    .join('')
+    .trim()
+}
+
+function extractFunctionCalls(parts = []) {
+  return parts.filter((p) => p.functionCall?.name).map((p) => p.functionCall)
+}
+
+async function geminiOnce({ apiKey, model, system, contents, tools }) {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent?key=${encodeURIComponent(apiKey)}`
+  const body = {
+    systemInstruction: { parts: [{ text: system }] },
+    contents,
+    generationConfig: { temperature: 0.9, maxOutputTokens: 640 },
+  }
+  if (tools?.length) body.tools = tools
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const errText = await res.text()
+    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
+  }
+  return res.json()
+}
+
+/**
+ * Gemini chat with optional function calling (codelab pattern):
+ * model may return functionCall → we run local tools → send functionResponse → final text.
+ */
+export async function callGemini({ apiKey, model, system, history, userMessage, owns = [] }) {
   if (!apiKey) return null
+
   const contents = (history || [])
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
     .map((m) => ({
@@ -156,21 +302,31 @@ export async function callGemini({ apiKey, model, system, history, userMessage }
     }))
   contents.push({ role: 'user', parts: [{ text: userMessage }] })
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-2.0-flash'}:generateContent?key=${encodeURIComponent(apiKey)}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents,
-      generationConfig: { temperature: 0.9, maxOutputTokens: 640 },
-    }),
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
+  const tools = VOID_TOOLS
+  let data = await geminiOnce({ apiKey, model, system, contents, tools })
+  let parts = data?.candidates?.[0]?.content?.parts || []
+  let calls = extractFunctionCalls(parts)
+
+  // Up to 2 tool rounds (same idea as the Google codelab exchange-rate loop)
+  for (let round = 0; round < 2 && calls.length; round++) {
+    contents.push({ role: 'model', parts })
+
+    const fnParts = calls.map((fc) => {
+      const result = runVoidTool(fc.name, fc.args || {}, { owns })
+      return {
+        functionResponse: {
+          name: fc.name,
+          response: { content: result },
+        },
+      }
+    })
+    contents.push({ role: 'user', parts: fnParts })
+
+    data = await geminiOnce({ apiKey, model, system, contents, tools })
+    parts = data?.candidates?.[0]?.content?.parts || []
+    calls = extractFunctionCalls(parts)
   }
-  const data = await res.json()
-  const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join('') || ''
-  return text.trim() || null
+
+  const text = extractText(parts)
+  return text || null
 }

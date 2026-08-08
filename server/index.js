@@ -185,6 +185,7 @@ app.post('/api/chat', async (req, res) => {
         system,
         history,
         userMessage: message,
+        owns,
       })
       if (reply) mode = 'gemini'
     } catch (err) {

@@ -44,6 +44,7 @@ export default async function handler(req, res) {
         system,
         history,
         userMessage: message,
+        owns,
       })
       if (live) {
         reply = live
