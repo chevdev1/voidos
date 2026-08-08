@@ -23,6 +23,7 @@
 | `GOOGLE_CLIENT_ID` | for Google login | same value as above (server verify) |
 | `SOLANA_RPC_URL` | no | default mainnet public RPC |
 | `EXO_MINT` | when $EXO live | SPL token mint for balance |
+| `VITE_WALLETCONNECT_PROJECT_ID` | for Robinhood | [Reown Cloud](https://cloud.reown.com) Project ID |
 
 ### Google OAuth setup
 
@@ -30,9 +31,13 @@
 2. Authorized JavaScript origins: `https://ashy-gamma-42.vercel.app` and `http://localhost:5173`
 3. Put the client ID in `VITE_GOOGLE_CLIENT_ID` **and** `GOOGLE_CLIENT_ID`, then redeploy
 
-### Wallet
+### Wallet (Phantom + Robinhood)
 
-Cabinet → **connect Phantom** → sign link message → SOL balance shows. `$EXO` appears when `EXO_MINT` is set.
+1. Create a Project ID at [cloud.reown.com](https://cloud.reown.com) → set `VITE_WALLETCONNECT_PROJECT_ID` → redeploy
+2. Cabinet → **connect Robinhood** → QR → open Robinhood Wallet → Scan → approve + sign
+3. Or **Phantom** / other injected wallets on desktop
+4. Or open the site inside Robinhood Wallet **Web3 browser** and use the injected connect button
+5. SOL balance shows live; `$EXO` when `EXO_MINT` is set
 
 4. Deploy / Redeploy after setting env
 
