@@ -31,3 +31,10 @@ server/data/*.db
 server/data/*.db-*
 server/.env
 
+
+.vercel
+.env
+.env.local
+.env.*.local
+!.env.example
+!server/.env.example
