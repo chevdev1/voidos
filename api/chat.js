@@ -33,7 +33,7 @@ export default async function handler(req, res) {
 
     const triggers = detectTriggers(message)
     const selected = pickPrompts(prompts, triggers)
-    const system = buildSystemPrompt(selected, owns, memories, message)
+    const system = buildSystemPrompt(selected, owns, memories)
 
     let reply
     let mode = 'mock'

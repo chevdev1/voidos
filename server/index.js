@@ -172,7 +172,7 @@ app.post('/api/chat', async (req, res) => {
 
     const triggers = detectTriggers(message)
     const selected = pickPrompts(loadActivePrompts(), triggers)
-    const system = buildSystemPrompt(selected, owns, memories, message)
+    const system = buildSystemPrompt(selected, owns, memories)
 
     addMessage(conv.id, 'user', message)
 

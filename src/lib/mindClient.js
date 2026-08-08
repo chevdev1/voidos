@@ -98,7 +98,7 @@ function localChat(message, guestKey) {
   }
   const triggers = detectTriggers(message)
   const selected = pickPrompts(prompts, triggers)
-  buildSystemPrompt(selected, owns, memories, message)
+  buildSystemPrompt(selected, owns, memories)
   const reply = mockReply(message, owns, triggers)
   const next = [
     ...history,
