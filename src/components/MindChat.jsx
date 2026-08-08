@@ -90,7 +90,7 @@ export function MindChat() {
           <div>
             <div className="mind-chat-title">ask the mind</div>
             <div className="mind-chat-sub">
-              mode <b>{mode}</b>
+              mode <b>{mode === 'mock' || mode === 'local' ? `${mode} · limited` : mode}</b>
               {ownerships.length
                 ? ` · ${ownerships.length} lots yours`
                 : ' · visitor · talk freely'}
