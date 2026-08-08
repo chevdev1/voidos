@@ -619,7 +619,10 @@ body.arena-live .cart-dock{
   font-size:10px;padding:4px 8px;
   border:1px solid rgba(204,255,0,.35);color:var(--lime);
   background:rgba(204,255,0,.06);
+  cursor:pointer;font:inherit;
 }
+.mind-chat-chip:hover{border-color:rgba(204,255,0,.7);background:rgba(204,255,0,.12)}
+.mind-chat-chip:disabled{opacity:.5;cursor:default}
 .mind-chat-log{
   flex:1;overflow:auto;min-height:160px;
   border-top:1px solid rgba(255,255,255,.08);
