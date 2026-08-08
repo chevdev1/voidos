@@ -31,9 +31,9 @@ export default async function handler(req, res) {
     const history = Array.isArray(body.history) ? body.history.slice(-16) : []
     const memories = body.memories && typeof body.memories === 'object' ? body.memories : {}
 
-    const triggers = detectTriggers(message, owns)
+    const triggers = detectTriggers(message)
     const selected = pickPrompts(prompts, triggers)
-    const system = buildSystemPrompt(selected, owns, memories)
+    const system = buildSystemPrompt(selected, owns, memories, message)
 
     let reply
     let mode = 'mock'

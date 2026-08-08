@@ -96,10 +96,9 @@ function localChat(message, guestKey) {
     memories.name = name[1]
     saveMemories(memories)
   }
-  const triggers = detectTriggers(message, owns)
+  const triggers = detectTriggers(message)
   const selected = pickPrompts(prompts, triggers)
-  // system built for future live client-side keys; mock uses triggers
-  buildSystemPrompt(selected, owns, memories)
+  buildSystemPrompt(selected, owns, memories, message)
   const reply = mockReply(message, owns, triggers)
   const next = [
     ...history,

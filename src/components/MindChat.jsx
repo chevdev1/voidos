@@ -18,7 +18,7 @@ export function MindChat() {
       {
         role: 'assistant',
         content:
-          'i am one mind cut into constellation lots. claim on the map — i will remember what you own. ask me something.',
+          'i am one mind cut into constellation lots. ask me anything about the void — buying is optional.',
       },
     ]
   })
@@ -91,7 +91,9 @@ export function MindChat() {
             <div className="mind-chat-title">ask the mind</div>
             <div className="mind-chat-sub">
               mode <b>{mode}</b>
-              {ownerships.length ? ` · ${ownerships.length} lots yours` : ' · no lots yet'}
+              {ownerships.length
+                ? ` · ${ownerships.length} lots yours`
+                : ' · visitor · talk freely'}
             </div>
           </div>
           <button type="button" className="mind-chat-x" onClick={() => setOpen(false)} aria-label="close">
@@ -122,7 +124,7 @@ export function MindChat() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="ask about lots, burn, what you are…"
+            placeholder="who are you · how claim works · heat…"
             disabled={busy}
             autoComplete="off"
           />

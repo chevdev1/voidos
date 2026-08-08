@@ -170,9 +170,9 @@ app.post('/api/chat', async (req, res) => {
         ? req.body.history.slice(-16)
         : loadHistory(conv.id, 16)
 
-    const triggers = detectTriggers(message, owns)
+    const triggers = detectTriggers(message)
     const selected = pickPrompts(loadActivePrompts(), triggers)
-    const system = buildSystemPrompt(selected, owns, memories)
+    const system = buildSystemPrompt(selected, owns, memories, message)
 
     addMessage(conv.id, 'user', message)
 
