@@ -5,6 +5,8 @@ import { mindSession, loadOwnerships, loadUser } from '../lib/mindClient'
 import { LotFigure, buildLotProfile } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
+import { WalletPanel } from '../components/WalletPanel'
+import { GoogleSignIn } from '../components/GoogleSignIn'
 
 /**
  * Personal cabinet — owned constellation lots, drawn + readable lore.
@@ -49,7 +51,7 @@ export default function Cabinet() {
     }
   }, [active, selectedId])
 
-  const who = user?.registered ? user.displayName : 'visitor'
+  const who = user?.displayName || user?.email || (user?.google ? 'google' : 'visitor')
 
   return (
     <div className="min-h-screen bg-void text-ink">
@@ -91,11 +93,29 @@ export default function Cabinet() {
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted">
             signed as <span className="text-lime">{who}</span>
+            {user?.email ? <span className="text-muted"> · {user.email}</span> : null}
             {ownerships.length
               ? ` · ${ownerships.length} constellation${ownerships.length === 1 ? '' : 's'} bound to this mind`
               : ' · no claims yet — open the full map and burn $EXO'}
           </p>
         </motion.div>
+
+        <div className="mt-8 space-y-4">
+          {!user?.google && (
+            <div className="border border-white/10 bg-black/40 p-4">
+              <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted">
+                sign in with google
+              </p>
+              <GoogleSignIn
+                onDone={(data) => {
+                  setUser(data.user || null)
+                  if (data.ownerships) setOwnerships(data.ownerships)
+                }}
+              />
+            </div>
+          )}
+          <WalletPanel user={user} onUser={setUser} />
+        </div>
 
         {loading ? (
           <p className="mt-16 text-sm text-muted">loading ledger…</p>

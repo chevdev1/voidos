@@ -207,6 +207,42 @@ export async function mindLogin(displayName, password) {
   return state
 }
 
+export async function mindGoogleLogin(idToken) {
+  const data = await api('/api/auth-google', {
+    guestKey: loadGuestKey(),
+    idToken,
+  })
+  const state = applyServerState(data)
+  notifyOwnershipHydrate(state.ownerships)
+  return state
+}
+
+export async function mindWalletLink({ pubkey, message, signature }) {
+  const data = await api('/api/wallet-link', {
+    guestKey: loadGuestKey(),
+    pubkey,
+    message,
+    signature,
+  })
+  const state = applyServerState(data)
+  return state
+}
+
+export async function mindWalletUnlink() {
+  const data = await api('/api/wallet-link', {
+    guestKey: loadGuestKey(),
+    action: 'unlink',
+  })
+  return applyServerState(data)
+}
+
+export async function mindWalletBalance(pubkey) {
+  return api('/api/wallet-balance', {
+    guestKey: loadGuestKey(),
+    pubkey,
+  })
+}
+
 export async function mindChat(message) {
   const guestKey = loadGuestKey()
   try {

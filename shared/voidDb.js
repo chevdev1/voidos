@@ -56,6 +56,18 @@ export async function migrate() {
   } catch {
     /* exists */
   }
+  for (const col of [
+    'google_sub TEXT',
+    'email TEXT',
+    'avatar_url TEXT',
+    'wallet_pubkey TEXT',
+  ]) {
+    try {
+      await db.execute(`ALTER TABLE users ADD COLUMN ${col}`)
+    } catch {
+      /* exists */
+    }
+  }
   _migrated = true
   return db
 }
@@ -272,8 +284,90 @@ export function publicUser(user) {
   return {
     guestKey: user.guest_key,
     displayName: user.display_name || null,
-    registered: Boolean(user.display_name),
+    registered: Boolean(user.display_name || user.google_sub),
+    email: user.email || null,
+    avatarUrl: user.avatar_url || null,
+    google: Boolean(user.google_sub),
+    wallet: user.wallet_pubkey || null,
   }
+}
+
+export async function getUserByGoogleSub(sub) {
+  await migrate()
+  if (!sub) return null
+  return row(
+    await getDb().execute({
+      sql: 'SELECT * FROM users WHERE google_sub = ?',
+      args: [String(sub)],
+    }),
+  )
+}
+
+/**
+ * Link Google identity to current guest session (or resume existing Google user).
+ * Merges guest_key cookie session into Google account when possible.
+ */
+export async function linkGoogleAccount(guestKey, { sub, email, name, picture }) {
+  await migrate()
+  if (!sub) throw new Error('missing google sub')
+
+  const byGoogle = await getUserByGoogleSub(sub)
+  if (byGoogle) {
+    // Prefer returning the Google-linked user; keep their guest_key for cookie
+    return byGoogle
+  }
+
+  const user = await getOrCreateUser(guestKey)
+  const display =
+    user.display_name ||
+    String(name || '')
+      .trim()
+      .slice(0, 24)
+      .replace(/[^a-zA-Z0-9_\-.\s]/g, '')
+      .replace(/\s+/g, '_') ||
+    `g_${String(sub).slice(-8)}`
+
+  // Ensure unique display_name
+  let finalName = display
+  const taken = await getUserByName(finalName)
+  if (taken && taken.id !== user.id) {
+    finalName = `${display.slice(0, 16)}_${String(sub).slice(-4)}`
+  }
+
+  await getDb().execute({
+    sql: `UPDATE users SET google_sub = ?, email = ?, avatar_url = ?,
+            display_name = COALESCE(display_name, ?)
+          WHERE id = ?`,
+    args: [String(sub), email || null, picture || null, finalName, user.id],
+  })
+  return getUserById(user.id)
+}
+
+export async function linkWallet(userId, pubkey) {
+  await migrate()
+  const key = String(pubkey || '').trim()
+  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(key)) throw new Error('invalid wallet')
+  const clash = row(
+    await getDb().execute({
+      sql: 'SELECT id FROM users WHERE wallet_pubkey = ? AND id != ?',
+      args: [key, userId],
+    }),
+  )
+  if (clash) throw new Error('wallet already linked to another account')
+  await getDb().execute({
+    sql: 'UPDATE users SET wallet_pubkey = ? WHERE id = ?',
+    args: [key, userId],
+  })
+  return getUserById(userId)
+}
+
+export async function unlinkWallet(userId) {
+  await migrate()
+  await getDb().execute({
+    sql: 'UPDATE users SET wallet_pubkey = NULL WHERE id = ?',
+    args: [userId],
+  })
+  return getUserById(userId)
 }
 
 /** Cookie helpers for Vercel / Express */

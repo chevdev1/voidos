@@ -5,6 +5,10 @@ CREATE TABLE IF NOT EXISTS users (
   guest_key TEXT NOT NULL UNIQUE,
   display_name TEXT UNIQUE,
   password_hash TEXT,
+  google_sub TEXT UNIQUE,
+  email TEXT,
+  avatar_url TEXT,
+  wallet_pubkey TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

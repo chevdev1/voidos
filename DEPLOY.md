@@ -19,8 +19,20 @@
 | `GEMINI_MODEL` | no | default `gemini-flash-latest` |
 | `TURSO_DATABASE_URL` | **yes for persistence** | `libsql://…` from [Turso](https://turso.tech) |
 | `TURSO_AUTH_TOKEN` | **yes with Turso** | Turso auth token |
+| `VITE_GOOGLE_CLIENT_ID` | for Google login | Google Cloud OAuth Web client ID |
+| `GOOGLE_CLIENT_ID` | for Google login | same value as above (server verify) |
+| `SOLANA_RPC_URL` | no | default mainnet public RPC |
+| `EXO_MINT` | when $EXO live | SPL token mint for balance |
 
-Without Turso on Vercel the API falls back to an ephemeral `/tmp` DB (lost on cold start). Create a free Turso DB and paste URL + token.
+### Google OAuth setup
+
+1. [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → Create OAuth Client ID (Web)
+2. Authorized JavaScript origins: `https://ashy-gamma-42.vercel.app` and `http://localhost:5173`
+3. Put the client ID in `VITE_GOOGLE_CLIENT_ID` **and** `GOOGLE_CLIENT_ID`, then redeploy
+
+### Wallet
+
+Cabinet → **connect Phantom** → sign link message → SOL balance shows. `$EXO` appears when `EXO_MINT` is set.
 
 4. Deploy / Redeploy after setting env
 

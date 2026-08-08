@@ -6,9 +6,10 @@ import {
   mindLogin,
   loadGuestKey,
 } from '../lib/mindClient'
+import { GoogleSignIn } from './GoogleSignIn'
 
 /**
- * Compact account panel — guest usable immediately; optional name+password upgrade.
+ * Compact account panel — Google / name+password; guest works immediately.
  */
 export function AccountMenu() {
   const [open, setOpen] = useState(false)
@@ -48,21 +49,33 @@ export function AccountMenu() {
     }
   }
 
-  const label = user?.registered ? user.displayName : 'account'
+  const label = user?.displayName || (user?.google ? 'google' : 'account')
 
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime"
+        className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime"
         title={loadGuestKey() ? `id ${loadGuestKey().slice(0, 10)}…` : 'account'}
       >
+        {user?.avatarUrl ? (
+          <img src={user.avatarUrl} alt="" className="h-4 w-4 rounded-full" />
+        ) : null}
         {label}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[60] mt-2 w-64 border border-lime/30 bg-void/95 p-3 shadow-xl backdrop-blur">
+        <div className="absolute right-0 top-full z-[60] mt-2 w-72 border border-lime/30 bg-void/95 p-3 shadow-xl backdrop-blur">
+          <div className="mb-3">
+            <GoogleSignIn
+              onDone={(data) => {
+                setUser(data.user || null)
+                setOpen(false)
+              }}
+            />
+          </div>
+
           <div className="mb-2 flex gap-2 text-[10px] uppercase tracking-wider text-muted">
             <button
               type="button"
@@ -83,13 +96,24 @@ export function AccountMenu() {
 
           {user?.registered ? (
             <p className="mb-2 text-xs text-lime/90">
-              signed in as <b>{user.displayName}</b>
-              <br />
-              <span className="text-muted">claims & chat sync to your account</span>
+              signed in as <b>{user.displayName || user.email}</b>
+              {user.wallet ? (
+                <>
+                  <br />
+                  <span className="text-muted">
+                    wallet {user.wallet.slice(0, 4)}…{user.wallet.slice(-4)}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <br />
+                  <span className="text-muted">link wallet in cabinet</span>
+                </>
+              )}
             </p>
           ) : (
             <p className="mb-2 text-[11px] text-muted">
-              visitor mode works now. register to keep lots & mind memory across devices.
+              Google or name+password. Then link Phantom in cabinet for balances.
             </p>
           )}
 
