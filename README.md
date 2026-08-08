@@ -1,33 +1,31 @@
 # ExoMind / VOID.OS
 
-Interactive void map + constellation claims + ExoMind chat.
+Interactive void map + constellation claims + ExoMind chat with durable accounts.
 
 ## Quick start
 
 ```bash
 npm install
-npm run dev
+npm run mind   # local API + SQLite file (server/data/void.db)
+npm run dev    # Vite (proxies /api → :8787)
 ```
 
-Open the site → **Open full map** → stack constellations → **ask me**.
+Open → **account** (optional register) → **Open full map** → claim lots → **ask me**.
 
 ## Production
 
-See **[DEPLOY.md](DEPLOY.md)** — Vercel one-click, Gemini key optional, SPA rewrites included.
+See **[DEPLOY.md](DEPLOY.md)** — Vercel + `GEMINI_API_KEY` + **Turso** for persistent clients.
 
-```bash
-npm run build
-```
+## What persists
 
-## Mind AI
+| Data | Where |
+|------|--------|
+| Guest / account | `users` (+ cookie `void_sid`) |
+| Claimed constellations | `ownerships` |
+| Chat history | `messages` |
+| Small memories (e.g. name) | `memories` |
 
-| Mode | When |
-|------|------|
-| Vercel `/api/chat` | Deployed site + optional `GEMINI_API_KEY` |
-| Local SQLite server | `npm run mind` (port 8787) for DIY DB editing |
-| Offline local | Automatic fallback in the browser if API is down |
-
-Prompts live in [`shared/mind-prompts.json`](shared/mind-prompts.json).
+Offline: browser `localStorage` cache; syncs when API is up.
 
 ## Scripts
 
@@ -35,5 +33,5 @@ Prompts live in [`shared/mind-prompts.json`](shared/mind-prompts.json).
 |--------|------|
 | `npm run dev` | Vite frontend |
 | `npm run build` | Production bundle |
-| `npm run mind` | Local SQLite mind API |
-| `npm run mind:seed` | Reseed prompts into `server/data/void.db` |
+| `npm run mind` | Local mind API |
+| `npm run mind:seed` | Reseed prompts |

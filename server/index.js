@@ -1,7 +1,9 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { ensureSeeded, db } from './db.js'
+import { readFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   detectTriggers,
   pickPrompts,
@@ -10,142 +12,105 @@ import {
   callGemini,
   safetyReply,
 } from '../shared/mindLogic.js'
+import {
+  getOrCreateUser,
+  listOwnerships,
+  upsertOwnerships,
+  loadMemories,
+  saveMemory,
+  getOrCreateConversation,
+  loadHistory,
+  addMessage,
+  ensurePromptsSeeded,
+  loadActivePrompts,
+  publicUser,
+  registerUser,
+  loginUser,
+  newGuestKey,
+} from '../shared/voidDb.js'
 
-ensureSeeded()
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const promptsPack = JSON.parse(
+  readFileSync(join(__dirname, '..', 'shared', 'mind-prompts.json'), 'utf8'),
+)
+
+await ensurePromptsSeeded(promptsPack)
 
 const PORT = Number(process.env.PORT || process.env.MIND_PORT || 8787)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest'
 
-function loadActivePrompts() {
-  return db
-    .prepare(
-      `SELECT slug, kind, trigger_when, priority, body
-       FROM prompts WHERE active = 1
-       ORDER BY priority DESC, id ASC`,
-    )
-    .all()
-}
-
-function getOrCreateUser(guestKey) {
-  const key =
-    String(guestKey || '').trim() ||
-    `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  let row = db.prepare('SELECT id, guest_key FROM users WHERE guest_key = ?').get(key)
-  if (!row) {
-    const info = db.prepare('INSERT INTO users (guest_key) VALUES (?)').run(key)
-    row = { id: Number(info.lastInsertRowid), guest_key: key }
-  }
-  return row
-}
-
-function listOwnerships(userId) {
-  return db
-    .prepare(
-      `SELECT constel_id, constel_name, claimed_at
-       FROM ownerships WHERE user_id = ?
-       ORDER BY claimed_at DESC`,
-    )
-    .all(userId)
-}
-
-function upsertOwnerships(userId, lots) {
-  const insert = db.prepare(
-    `INSERT INTO ownerships (user_id, constel_id, constel_name, claimed_at)
-     VALUES (?, ?, ?, datetime('now'))
-     ON CONFLICT(user_id, constel_id) DO UPDATE SET
-       constel_name = excluded.constel_name`,
-  )
-  db.exec('BEGIN')
-  try {
-    for (const l of lots || []) {
-      if (!l?.id && !l?.constel_id) continue
-      const id = String(l.constel_id || l.id)
-      const name = String(l.constel_name || l.name || id)
-      insert.run(userId, id, name)
-    }
-    db.exec('COMMIT')
-  } catch (err) {
-    db.exec('ROLLBACK')
-    throw err
-  }
-  return listOwnerships(userId)
-}
-
-function loadMemories(userId) {
-  const rows = db.prepare('SELECT key, value FROM memories WHERE user_id = ?').all(userId)
-  const out = {}
-  for (const r of rows) out[r.key] = r.value
-  return out
-}
-
-function saveMemory(userId, key, value) {
-  db.prepare(
-    `INSERT INTO memories (user_id, key, value, updated_at)
-     VALUES (?, ?, ?, datetime('now'))
-     ON CONFLICT(user_id, key) DO UPDATE SET
-       value = excluded.value, updated_at = datetime('now')`,
-  ).run(userId, key, String(value))
-}
-
-function getOrCreateConversation(userId) {
-  let row = db
-    .prepare(
-      `SELECT id FROM conversations WHERE user_id = ? ORDER BY id DESC LIMIT 1`,
-    )
-    .get(userId)
-  if (!row) {
-    const info = db.prepare('INSERT INTO conversations (user_id) VALUES (?)').run(userId)
-    row = { id: Number(info.lastInsertRowid) }
-  }
-  return row
-}
-
-function loadHistory(conversationId, limit = 16) {
-  return db
-    .prepare(
-      `SELECT role, content FROM messages
-       WHERE conversation_id = ? AND role IN ('user','assistant')
-       ORDER BY id DESC LIMIT ?`,
-    )
-    .all(conversationId, limit)
-    .reverse()
-}
-
-function addMessage(conversationId, role, content) {
-  db.prepare(
-    `INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)`,
-  ).run(conversationId, role, content)
-}
-
 const app = express()
-app.use(cors({ origin: true }))
+app.use(cors({ origin: true, credentials: true }))
 app.use(express.json({ limit: '256kb' }))
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, gemini: Boolean(GEMINI_API_KEY), db: 'sqlite' })
+  res.json({ ok: true, gemini: Boolean(GEMINI_API_KEY), db: 'libsql' })
 })
 
-app.post('/api/session', (req, res) => {
-  const user = getOrCreateUser(req.body?.guestKey)
-  const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
-  if (clientOwns.length) upsertOwnerships(user.id, clientOwns)
-  res.json({
-    ok: true,
-    guestKey: user.guest_key,
-    ownerships: listOwnerships(user.id),
-  })
+app.post('/api/session', async (req, res) => {
+  try {
+    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
+    const user = await getOrCreateUser(guestKey)
+    const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
+    if (clientOwns.length) await upsertOwnerships(user.id, clientOwns)
+    const conv = await getOrCreateConversation(user.id)
+    const history = await loadHistory(conv.id, 40)
+    res.json({
+      ok: true,
+      guestKey: user.guest_key,
+      user: publicUser(user),
+      ownerships: await listOwnerships(user.id),
+      history,
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'session failed' })
+  }
 })
 
-app.post('/api/claim-sync', (req, res) => {
-  const user = getOrCreateUser(req.body?.guestKey)
-  const lots = Array.isArray(req.body?.lots) ? req.body.lots : []
-  const ownerships = upsertOwnerships(user.id, lots)
-  res.json({ ok: true, guestKey: user.guest_key, ownerships })
+app.post('/api/register', async (req, res) => {
+  try {
+    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
+    const user = await registerUser(guestKey, req.body?.displayName, req.body?.password)
+    res.json({
+      ok: true,
+      guestKey: user.guest_key,
+      user: publicUser(user),
+      ownerships: await listOwnerships(user.id),
+    })
+  } catch (err) {
+    res.status(400).json({ error: err.message || 'register failed' })
+  }
 })
 
-app.get('/api/prompts', (_req, res) => {
-  res.status(404).json({ error: 'not found' })
+app.post('/api/login', async (req, res) => {
+  try {
+    const user = await loginUser(req.body?.displayName, req.body?.password)
+    res.json({
+      ok: true,
+      guestKey: user.guest_key,
+      user: publicUser(user),
+      ownerships: await listOwnerships(user.id),
+    })
+  } catch (err) {
+    res.status(401).json({ error: err.message || 'login failed' })
+  }
+})
+
+app.post('/api/claim-sync', async (req, res) => {
+  try {
+    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
+    const user = await getOrCreateUser(guestKey)
+    const lots = Array.isArray(req.body?.lots) ? req.body.lots : []
+    const ownerships = lots.length
+      ? await upsertOwnerships(user.id, lots)
+      : await listOwnerships(user.id)
+    res.json({ ok: true, guestKey: user.guest_key, user: publicUser(user), ownerships })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'claim sync failed' })
+  }
 })
 
 app.post('/api/chat', async (req, res) => {
@@ -153,36 +118,37 @@ app.post('/api/chat', async (req, res) => {
     const message = String(req.body?.message || '').trim().slice(0, 2000)
     if (!message) return res.status(400).json({ error: 'empty message' })
 
-    const user = getOrCreateUser(req.body?.guestKey)
-    const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
-    if (clientOwns.length) upsertOwnerships(user.id, clientOwns)
-    const owns = listOwnerships(user.id)
-
-    const memories = { ...loadMemories(user.id), ...(req.body?.memories || {}) }
-    const name = message.match(/(?:i am|i'm|меня зовут|я)\s+([A-Za-zА-Яа-яёЁ]{2,24})/i)
-    if (name) {
-      memories.name = name[1]
-      saveMemory(user.id, 'name', name[1])
-    }
-
-    const conv = getOrCreateConversation(user.id)
-    const history =
-      Array.isArray(req.body?.history) && req.body.history.length
-        ? req.body.history.slice(-16)
-        : loadHistory(conv.id, 16)
+    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
+    const user = await getOrCreateUser(guestKey)
+    const owns = await listOwnerships(user.id)
+    const memories = await loadMemories(user.id)
+    const conv = await getOrCreateConversation(user.id)
+    const history = await loadHistory(conv.id, 24)
 
     const blocked = safetyReply(message)
     if (blocked) {
-      addMessage(conv.id, 'user', message)
-      addMessage(conv.id, 'assistant', blocked)
-      return res.json({ reply: blocked, guestKey: user.guest_key, ownerships: owns })
+      await addMessage(conv.id, 'user', message)
+      await addMessage(conv.id, 'assistant', blocked)
+      return res.json({
+        reply: blocked,
+        guestKey: user.guest_key,
+        user: publicUser(user),
+        ownerships: owns,
+        history: [...history, { role: 'user', content: message }, { role: 'assistant', content: blocked }],
+      })
     }
 
-    const triggers = detectTriggers(message)
-    const selected = pickPrompts(loadActivePrompts(), triggers)
-    const system = buildSystemPrompt(selected, owns, memories)
+    const name = message.match(/(?:i am|i'm|меня зовут|я)\s+([A-Za-zА-Яа-яёЁ]{2,24})/i)
+    if (name) await saveMemory(user.id, 'name', name[1])
+    const memAfter = name ? await loadMemories(user.id) : memories
 
-    addMessage(conv.id, 'user', message)
+    const dbPrompts = await loadActivePrompts()
+    const promptList = dbPrompts.length ? dbPrompts : promptsPack
+    const triggers = detectTriggers(message)
+    const selected = pickPrompts(promptList, triggers)
+    const system = buildSystemPrompt(selected, owns, memAfter)
+
+    await addMessage(conv.id, 'user', message)
 
     let reply = null
     try {
@@ -199,8 +165,18 @@ app.post('/api/chat', async (req, res) => {
     }
     if (!reply) reply = mockReply(message, owns, triggers)
 
-    addMessage(conv.id, 'assistant', reply)
-    res.json({ reply, guestKey: user.guest_key, ownerships: owns })
+    await addMessage(conv.id, 'assistant', reply)
+    res.json({
+      reply,
+      guestKey: user.guest_key,
+      user: publicUser(user),
+      ownerships: owns,
+      history: [
+        ...history,
+        { role: 'user', content: message },
+        { role: 'assistant', content: reply },
+      ].slice(-40),
+    })
   } catch (err) {
     console.error(err)
     res.status(500).json({ error: 'chat failed' })

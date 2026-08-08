@@ -5,6 +5,7 @@ const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
 const HIST_KEY = 'void_chat_history'
 const MEM_KEY = 'void_memories'
+const USER_KEY = 'void_user'
 
 function apiBase() {
   const raw = import.meta.env.VITE_MIND_API_URL
@@ -14,6 +15,23 @@ function apiBase() {
 
 function url(path) {
   return `${apiBase()}${path}`
+}
+
+async function api(path, body) {
+  const res = await fetch(url(path), {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {}),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const err = new Error(data.error || `request failed ${res.status}`)
+    err.status = res.status
+    err.data = data
+    throw err
+  }
+  return data
 }
 
 export function loadGuestKey() {
@@ -64,6 +82,23 @@ export function saveHistory(list) {
   }
 }
 
+export function loadUser() {
+  try {
+    return JSON.parse(localStorage.getItem(USER_KEY) || 'null')
+  } catch {
+    return null
+  }
+}
+
+export function saveUser(user) {
+  try {
+    if (user) localStorage.setItem(USER_KEY, JSON.stringify(user))
+    else localStorage.removeItem(USER_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
 function loadMemories() {
   try {
     return JSON.parse(localStorage.getItem(MEM_KEY) || '{}')
@@ -80,11 +115,26 @@ function saveMemories(mem) {
   }
 }
 
+function applyServerState(data) {
+  if (data.guestKey) saveGuestKey(data.guestKey)
+  if (data.user) saveUser(data.user)
+  if (Array.isArray(data.ownerships)) saveOwnerships(data.ownerships)
+  if (Array.isArray(data.history) && data.history.length) saveHistory(data.history)
+  return {
+    guestKey: data.guestKey || loadGuestKey(),
+    user: data.user || loadUser(),
+    ownerships: Array.isArray(data.ownerships) ? data.ownerships : loadOwnerships(),
+    history: Array.isArray(data.history) ? data.history : loadHistory(),
+    reply: data.reply,
+    ok: true,
+  }
+}
+
 function localSession(guestKey) {
   const key =
     guestKey || loadGuestKey() || `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   saveGuestKey(key)
-  return { guestKey: key, ownerships: loadOwnerships(), ok: true }
+  return { guestKey: key, ownerships: loadOwnerships(), user: loadUser(), ok: true }
 }
 
 function localChat(message, guestKey) {
@@ -97,34 +147,32 @@ function localChat(message, guestKey) {
     saveMemories(memories)
   }
   const blocked = safetyReply(message)
-  if (blocked) {
-    const next = [
-      ...history,
-      { role: 'user', content: message },
-      { role: 'assistant', content: blocked },
-    ]
-    saveHistory(next)
-    return {
-      reply: blocked,
-      guestKey: guestKey || loadGuestKey(),
-      ownerships: owns,
-    }
-  }
-  const triggers = detectTriggers(message)
-  const selected = pickPrompts(prompts, triggers)
-  buildSystemPrompt(selected, owns, memories)
-  const reply = mockReply(message, owns, triggers)
-  const next = [
-    ...history,
-    { role: 'user', content: message },
-    { role: 'assistant', content: reply },
-  ]
+  const reply =
+    blocked ||
+    (() => {
+      const triggers = detectTriggers(message)
+      const selected = pickPrompts(prompts, triggers)
+      buildSystemPrompt(selected, owns, memories)
+      return mockReply(message, owns, triggers)
+    })()
+  const next = [...history, { role: 'user', content: message }, { role: 'assistant', content: reply }]
   saveHistory(next)
   saveGuestKey(guestKey || loadGuestKey())
   return {
     reply,
     guestKey: guestKey || loadGuestKey(),
     ownerships: owns,
+    user: loadUser(),
+    history: next,
+  }
+}
+
+/** Notify map engine that ownerships changed (server hydrate / claim). */
+export function notifyOwnershipHydrate(list) {
+  try {
+    window.__voidHydrateOwns?.(list || loadOwnerships())
+  } catch {
+    /* ignore */
   }
 }
 
@@ -132,47 +180,53 @@ export async function mindSession() {
   const guestKey = loadGuestKey()
   const ownerships = loadOwnerships()
   try {
-    const res = await fetch(url('/api/session'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestKey, ownerships }),
-    })
-    if (!res.ok) throw new Error('session failed')
-    const data = await res.json()
-    if (data.guestKey) saveGuestKey(data.guestKey)
-    if (Array.isArray(data.ownerships) && data.ownerships.length) {
-      // merge server echo with local
-      const map = new Map(loadOwnerships().map((o) => [o.constel_id, o]))
-      for (const o of data.ownerships) map.set(o.constel_id, o)
-      saveOwnerships([...map.values()])
-    }
-    return { guestKey: data.guestKey || guestKey, ownerships: loadOwnerships() }
+    const data = await api('/api/session', { guestKey, ownerships })
+    const state = applyServerState(data)
+    notifyOwnershipHydrate(state.ownerships)
+    return state
   } catch {
     return localSession(guestKey)
   }
 }
 
+export async function mindRegister(displayName, password) {
+  const data = await api('/api/register', {
+    guestKey: loadGuestKey(),
+    displayName,
+    password,
+  })
+  const state = applyServerState(data)
+  notifyOwnershipHydrate(state.ownerships)
+  return state
+}
+
+export async function mindLogin(displayName, password) {
+  const data = await api('/api/login', { displayName, password })
+  const state = applyServerState(data)
+  notifyOwnershipHydrate(state.ownerships)
+  return state
+}
+
 export async function mindChat(message) {
   const guestKey = loadGuestKey()
-  const ownerships = loadOwnerships()
-  const history = loadHistory().filter((m) => m.role === 'user' || m.role === 'assistant')
-  const memories = loadMemories()
   try {
-    const res = await fetch(url('/api/chat'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, guestKey, ownerships, history, memories }),
+    const data = await api('/api/chat', {
+      message,
+      guestKey,
     })
-    if (!res.ok) throw new Error('chat failed')
-    const data = await res.json()
-    if (data.guestKey) saveGuestKey(data.guestKey)
-    const next = [
-      ...history,
-      { role: 'user', content: message },
-      { role: 'assistant', content: data.reply },
-    ]
-    saveHistory(next)
-    return data
+    const state = applyServerState(data)
+    if (data.reply) {
+      const hist = loadHistory()
+      // server already returns history; ensure local cache
+      if (!Array.isArray(data.history)) {
+        saveHistory([
+          ...hist,
+          { role: 'user', content: message },
+          { role: 'assistant', content: data.reply },
+        ])
+      }
+    }
+    return { ...state, reply: data.reply }
   } catch {
     return localChat(message, guestKey)
   }
@@ -189,31 +243,21 @@ export async function mindClaimSync(lots) {
   for (const o of mapped) map.set(o.constel_id, o)
   const merged = [...map.values()]
   saveOwnerships(merged)
+  notifyOwnershipHydrate(merged)
 
   try {
-    const res = await fetch(url('/api/claim-sync'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ guestKey: loadGuestKey(), lots }),
+    const data = await api('/api/claim-sync', {
+      guestKey: loadGuestKey(),
+      lots,
     })
-    if (res.ok) {
-      const data = await res.json()
-      if (data.guestKey) saveGuestKey(data.guestKey)
-      if (Array.isArray(data.ownerships) && data.ownerships.length) {
-        const map = new Map(merged.map((o) => [o.constel_id, o]))
-        for (const o of data.ownerships) map.set(o.constel_id, o)
-        const next = [...map.values()]
-        saveOwnerships(next)
-        return next
-      }
-    }
+    const state = applyServerState(data)
+    notifyOwnershipHydrate(state.ownerships)
+    return state.ownerships
   } catch {
-    /* local already saved */
+    return merged
   }
-  return merged
 }
 
-/** Tiny toast for claim / errors — no blocking alert() */
 export function voidToast(text, ms = 2800) {
   let el = document.getElementById('voidToast')
   if (!el) {

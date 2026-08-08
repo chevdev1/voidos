@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
+import { AccountMenu } from './AccountMenu'
 
 const LINKS = [
   { label: 'MAP', target: '#map' },
@@ -40,7 +41,14 @@ export function Nav() {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-void via-void/80 to-transparent" />
 
-      <a href="#top" className="flex items-center gap-2.5" onClick={(e) => { e.preventDefault(); goTo('#top') }}>
+      <a
+        href="#top"
+        className="flex items-center gap-2.5"
+        onClick={(e) => {
+          e.preventDefault()
+          goTo('#top')
+        }}
+      >
         <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
         <span className="font-display text-sm font-extrabold tracking-wide text-ink">
           VOID<span className="text-lime">.OS</span>
@@ -60,18 +68,7 @@ export function Nav() {
       </nav>
 
       <div className="flex items-center gap-2.5">
-        <a
-          href="#"
-          className="hidden h-[30px] w-[30px] items-center justify-center rounded-full border border-white/10 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime sm:flex"
-        >
-          𝕏
-        </a>
-        <a
-          href="#"
-          className="hidden h-[30px] w-[30px] items-center justify-center rounded-full border border-white/10 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime sm:flex"
-        >
-          ✈
-        </a>
+        <AccountMenu />
         <button
           onClick={() => goTo('#market')}
           className="rounded-full border border-lime/40 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black"

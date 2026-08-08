@@ -11,7 +11,7 @@
  * because it's invoked from an effect in App.jsx, after the full tree has
  * committed to the DOM.
  */
-import { mindClaimSync } from '../lib/mindClient.js'
+import { mindClaimSync, loadOwnerships, mindSession } from '../lib/mindClient.js'
 
 export function initVoidEngine() {
   'use strict';
@@ -779,6 +779,39 @@ export function initVoidEngine() {
         .map((c) => ({ id: c.id, name: c.name }));
       syncClaimedLots(lots);
     }
+
+    /** Apply server / localStorage ownership list onto the live map. */
+    function hydrateOwnsFromLedger(list) {
+      if (!g0?.constels || !Array.isArray(list)) return;
+      for (const o of list) {
+        const cid = String(o.constel_id || o.id || '');
+        if (!cid) continue;
+        const c = g0.constels.find((x) => String(x.id) === cid);
+        if (!c) continue;
+        for (const s of c.grains) {
+          yoursSet.add(s.id);
+          if (s.kind === 'empty') s.kind = 'claimed';
+        }
+      }
+      const yc = document.getElementById('yoursCnt');
+      if (yc) yc.textContent = String(yoursSet.size);
+      refreshCounts();
+      refreshCartDock();
+    }
+
+    window.__voidHydrateOwns = hydrateOwnsFromLedger;
+    onCleanup(() => {
+      if (window.__voidHydrateOwns === hydrateOwnsFromLedger) delete window.__voidHydrateOwns;
+    });
+
+    // Pull durable ownerships on boot (cache + server)
+    hydrateOwnsFromLedger(loadOwnerships())
+    mindSession()
+      .then((data) => {
+        if (data?.ownerships) hydrateOwnsFromLedger(data.ownerships)
+      })
+      .catch(() => {})
+
 
     function stackGrainList() {
       const grainIds = new Set();

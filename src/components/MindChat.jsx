@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import '../legacy/void.css'
-import { mindSession, mindChat, loadHistory, loadOwnerships } from '../lib/mindClient'
+import { mindSession, mindChat, loadHistory, loadOwnerships, loadUser } from '../lib/mindClient'
 
 /**
  * ExoMind chat — works on Vercel (/api) or local mind server; falls back to offline local mind.
@@ -8,6 +8,7 @@ import { mindSession, mindChat, loadHistory, loadOwnerships } from '../lib/mindC
 export function MindChat() {
   const [open, setOpen] = useState(false)
   const [ownerships, setOwnerships] = useState(() => loadOwnerships())
+  const [account, setAccount] = useState(() => loadUser())
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState(() => {
@@ -39,6 +40,10 @@ export function MindChat() {
       const data = await mindSession()
       if (cancelled) return
       setOwnerships(data.ownerships || [])
+      setAccount(data.user || null)
+      if (Array.isArray(data.history) && data.history.length) {
+        setMessages(data.history)
+      }
     })()
     return () => {
       cancelled = true
@@ -59,13 +64,18 @@ export function MindChat() {
     try {
       const data = await mindChat(text)
       if (data.ownerships) setOwnerships(data.ownerships)
-      setMessages((m) => [
-        ...m,
-        {
-          role: 'assistant',
-          content: data.reply || data.error || 'silence from the void.',
-        },
-      ])
+      if (data.user) setAccount(data.user)
+      if (Array.isArray(data.history) && data.history.length) {
+        setMessages(data.history)
+      } else {
+        setMessages((m) => [
+          ...m,
+          {
+            role: 'assistant',
+            content: data.reply || data.error || 'silence from the void.',
+          },
+        ])
+      }
     } catch {
       setMessages((m) => [
         ...m,
@@ -88,9 +98,12 @@ export function MindChat() {
           <div>
             <div className="mind-chat-title">ask the mind</div>
             <div className="mind-chat-sub">
+              {account?.registered
+                ? `${account.displayName}`
+                : 'visitor'}
               {ownerships.length
-                ? `${ownerships.length} lots yours`
-                : 'visitor · talk freely'}
+                ? ` · ${ownerships.length} lots yours`
+                : ' · talk freely'}
             </div>
           </div>
           <button type="button" className="mind-chat-x" onClick={() => setOpen(false)} aria-label="close">

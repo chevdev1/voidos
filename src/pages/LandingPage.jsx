@@ -11,8 +11,13 @@ import { Footer } from '../components/Footer'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
 import { initVoidEngine } from '../legacy/voidEngine'
+import { mindSession } from '../lib/mindClient'
 
 export default function LandingPage() {
+  useEffect(() => {
+    mindSession().catch(() => {})
+  }, [])
+
   useEffect(() => {
     let destroy = null
     let cancelled = false
