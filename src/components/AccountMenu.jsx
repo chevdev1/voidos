@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   mindSession,
   mindRegister,
@@ -91,6 +92,14 @@ export function AccountMenu() {
               visitor mode works now. register to keep lots & mind memory across devices.
             </p>
           )}
+
+          <Link
+            to="/cabinet"
+            onClick={() => setOpen(false)}
+            className="mb-2 block border border-lime/35 bg-lime/10 px-2 py-1.5 text-center text-[11px] tracking-wide text-lime"
+          >
+            open cabinet →
+          </Link>
 
           <form className="flex flex-col gap-2" onSubmit={submit}>
             <input

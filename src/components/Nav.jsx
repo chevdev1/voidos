@@ -1,4 +1,5 @@
 import { motion } from 'framer-motion'
+import { Link, useLocation } from 'react-router-dom'
 import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 import { AccountMenu } from './AccountMenu'
@@ -12,6 +13,8 @@ const LINKS = [
 
 export function Nav() {
   const lenisRef = useLenis()
+  const loc = useLocation()
+  const onHome = loc.pathname === '/'
 
   function goTo(target) {
     if (target === '#map') {
@@ -41,40 +44,54 @@ export function Nav() {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-void via-void/80 to-transparent" />
 
-      <a
-        href="#top"
+      <Link
+        to="/"
         className="flex items-center gap-2.5"
         onClick={(e) => {
-          e.preventDefault()
-          goTo('#top')
+          if (onHome) {
+            e.preventDefault()
+            goTo('#top')
+          }
         }}
       >
         <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
         <span className="font-display text-sm font-extrabold tracking-wide text-ink">
           VOID<span className="text-lime">.OS</span>
         </span>
-      </a>
+      </Link>
 
       <nav className="hidden items-center gap-6 text-xs tracking-[0.08em] text-muted lg:flex">
-        {LINKS.map((link) => (
-          <button
-            key={link.target}
-            onClick={() => goTo(link.target)}
-            className="transition-colors duration-150 ease-out hover:text-lime"
-          >
-            <ScrambleText text={link.label} trigger="hover" duration={400} />
-          </button>
-        ))}
+        {onHome &&
+          LINKS.map((link) => (
+            <button
+              key={link.target}
+              onClick={() => goTo(link.target)}
+              className="transition-colors duration-150 ease-out hover:text-lime"
+            >
+              <ScrambleText text={link.label} trigger="hover" duration={400} />
+            </button>
+          ))}
+        <Link to="/cabinet" className="transition-colors duration-150 ease-out hover:text-lime">
+          <ScrambleText text="CABINET" trigger="hover" duration={400} />
+        </Link>
       </nav>
 
       <div className="flex items-center gap-2.5">
-        <AccountMenu />
-        <button
-          onClick={() => goTo('#market')}
-          className="rounded-full border border-lime/40 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black"
+        <Link
+          to="/cabinet"
+          className="rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime lg:hidden"
         >
-          Buy $EXO
-        </button>
+          cabinet
+        </Link>
+        <AccountMenu />
+        {onHome && (
+          <button
+            onClick={() => goTo('#market')}
+            className="rounded-full border border-lime/40 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black"
+          >
+            Buy $EXO
+          </button>
+        )}
       </div>
     </motion.header>
   )

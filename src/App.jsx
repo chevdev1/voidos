@@ -1,9 +1,8 @@
 import { HashRouter, BrowserRouter, Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import Documentation from './pages/Documentation'
+import Cabinet from './pages/Cabinet'
 
-// Prefer BrowserRouter on hosts with SPA rewrites (Vercel). Hash fallback if
-// opened as a file:// or when VITE_HASH_ROUTER=1.
 const useHash =
   import.meta.env.VITE_HASH_ROUTER === '1' ||
   (typeof location !== 'undefined' && location.protocol === 'file:')
@@ -15,6 +14,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/docs" element={<Documentation />} />
+        <Route path="/cabinet" element={<Cabinet />} />
       </Routes>
     </Router>
   )
