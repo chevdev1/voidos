@@ -267,13 +267,17 @@ export async function loadActivePrompts() {
 
 export async function ensurePromptsSeeded(fallbackJson) {
   await migrate()
-  const count = row(await getDb().execute('SELECT COUNT(*) AS c FROM prompts'))
-  if (Number(count?.c || 0) > 0) return
   const list = Array.isArray(fallbackJson) ? fallbackJson : []
   for (const p of list) {
     await getDb().execute({
-      sql: `INSERT OR IGNORE INTO prompts (slug, kind, trigger_when, priority, body, active)
-            VALUES (?, ?, ?, ?, ?, 1)`,
+      sql: `INSERT INTO prompts (slug, kind, trigger_when, priority, body, active)
+            VALUES (?, ?, ?, ?, ?, 1)
+            ON CONFLICT(slug) DO UPDATE SET
+              kind = excluded.kind,
+              trigger_when = excluded.trigger_when,
+              priority = excluded.priority,
+              body = excluded.body,
+              active = 1`,
       args: [p.slug, p.kind, p.trigger_when, p.priority || 0, p.body],
     })
   }
@@ -313,8 +317,13 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
 
   const byGoogle = await getUserByGoogleSub(sub)
   if (byGoogle) {
-    // Prefer returning the Google-linked user; keep their guest_key for cookie
-    return byGoogle
+    // Refresh profile fields on return visits
+    await getDb().execute({
+      sql: `UPDATE users SET email = COALESCE(?, email), avatar_url = COALESCE(?, avatar_url)
+            WHERE id = ?`,
+      args: [email || null, picture || null, byGoogle.id],
+    })
+    return getUserById(byGoogle.id)
   }
 
   const user = await getOrCreateUser(guestKey)
@@ -327,7 +336,6 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
       .replace(/\s+/g, '_') ||
     `g_${String(sub).slice(-8)}`
 
-  // Ensure unique display_name
   let finalName = display
   const taken = await getUserByName(finalName)
   if (taken && taken.id !== user.id) {

@@ -18,7 +18,7 @@ export function MindChat() {
       {
         role: 'assistant',
         content:
-          'i am one mind cut into constellation lots. ask me anything about the void — buying is optional.',
+          'i am awake in the void — one mind cut into constellation lots. ask me anything about this place. i answer as the mind, not a script.',
       },
     ]
   })
@@ -134,7 +134,7 @@ export function MindChat() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="who are you · how claim works · heat…"
+            placeholder="ask the void anything…"
             disabled={busy}
             autoComplete="off"
           />

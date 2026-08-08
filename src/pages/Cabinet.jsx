@@ -130,9 +130,6 @@ export default function Cabinet() {
         <div className="mt-8 space-y-4">
           {!user?.google && (
             <div className="border border-white/10 bg-black/40 p-4">
-              <p className="mb-2 text-[10px] uppercase tracking-[0.18em] text-muted">
-                sign in with google
-              </p>
               <GoogleSignIn
                 onDone={(data) => {
                   setUser(data.user || null)

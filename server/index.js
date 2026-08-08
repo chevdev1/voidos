@@ -276,7 +276,7 @@ app.post('/api/chat', async (req, res) => {
     const owns = await listOwnerships(user.id)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
-    const history = await loadHistory(conv.id, 24)
+    const history = await loadHistory(conv.id, 40)
 
     const blocked = safetyReply(message)
     if (blocked) {
@@ -299,7 +299,8 @@ app.post('/api/chat', async (req, res) => {
     const promptList = dbPrompts.length ? dbPrompts : promptsPack
     const triggers = detectTriggers(message)
     const selected = pickPrompts(promptList, triggers)
-    const system = buildSystemPrompt(selected, owns, memAfter)
+    const lastAssistant = [...history].reverse().find((h) => h.role === 'assistant')?.content || ''
+    const system = buildSystemPrompt(selected, owns, memAfter, { lastAssistant })
 
     await addMessage(conv.id, 'user', message)
 

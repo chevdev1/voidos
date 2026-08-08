@@ -9,7 +9,7 @@ import {
 import { GoogleSignIn } from './GoogleSignIn'
 
 /**
- * Compact account panel — Google / name+password; guest works immediately.
+ * Account panel — Google is full register/login; name+password is optional fallback.
  */
 export function AccountMenu() {
   const [open, setOpen] = useState(false)
@@ -19,6 +19,7 @@ export function AccountMenu() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [showPass, setShowPass] = useState(false)
 
   async function refresh() {
     const data = await mindSession()
@@ -49,7 +50,8 @@ export function AccountMenu() {
     }
   }
 
-  const label = user?.displayName || (user?.google ? 'google' : 'account')
+  const label =
+    user?.displayName || user?.email || (user?.google ? 'google' : 'account')
 
   return (
     <div className="relative">
@@ -66,92 +68,116 @@ export function AccountMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[60] mt-2 w-72 border border-lime/30 bg-void/95 p-3 shadow-xl backdrop-blur">
-          <div className="mb-3">
-            <GoogleSignIn
-              onDone={(data) => {
-                setUser(data.user || null)
-                setOpen(false)
-              }}
-            />
-          </div>
-
-          <div className="mb-2 flex gap-2 text-[10px] uppercase tracking-wider text-muted">
-            <button
-              type="button"
-              className={tab === 'login' ? 'text-lime' : ''}
-              onClick={() => setTab('login')}
-            >
-              login
-            </button>
-            <span>·</span>
-            <button
-              type="button"
-              className={tab === 'register' ? 'text-lime' : ''}
-              onClick={() => setTab('register')}
-            >
-              register
-            </button>
-          </div>
-
+        <div className="absolute right-0 top-full z-[60] mt-2 w-80 border border-lime/30 bg-void/95 p-3 shadow-xl backdrop-blur">
           {user?.registered ? (
-            <p className="mb-2 text-xs text-lime/90">
-              signed in as <b>{user.displayName || user.email}</b>
+            <div className="mb-3 space-y-2">
+              <p className="text-xs text-lime/90">
+                signed in as <b>{user.displayName || user.email}</b>
+                {user.google ? (
+                  <span className="text-muted"> · google</span>
+                ) : null}
+              </p>
+              {user.email ? (
+                <p className="text-[10px] text-muted">{user.email}</p>
+              ) : null}
               {user.wallet ? (
-                <>
-                  <br />
-                  <span className="text-muted">
-                    wallet {user.wallet.slice(0, 4)}…{user.wallet.slice(-4)}
-                  </span>
-                </>
+                <p className="text-[10px] text-muted">
+                  wallet {user.wallet.slice(0, 4)}…{user.wallet.slice(-4)}
+                </p>
               ) : (
-                <>
-                  <br />
-                  <span className="text-muted">link wallet in cabinet</span>
-                </>
+                <p className="text-[10px] text-muted">link Robinhood in cabinet</p>
               )}
-            </p>
+            </div>
           ) : (
-            <p className="mb-2 text-[11px] text-muted">
-              Google or name+password. Then link Robinhood in cabinet for balances.
-            </p>
+            <div className="mb-3">
+              <GoogleSignIn
+                onDone={(data) => {
+                  setUser(data.user || null)
+                  setOpen(false)
+                }}
+              />
+            </div>
           )}
 
           <Link
             to="/cabinet"
             onClick={() => setOpen(false)}
-            className="mb-2 block border border-lime/35 bg-lime/10 px-2 py-1.5 text-center text-[11px] tracking-wide text-lime"
+            className="mb-3 block border border-lime/35 bg-lime/10 px-2 py-1.5 text-center text-[11px] tracking-wide text-lime"
           >
             open cabinet / лк →
           </Link>
 
-          <form className="flex flex-col gap-2" onSubmit={submit}>
-            <input
-              className="border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-ink outline-none focus:border-lime/50"
-              placeholder="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoComplete="username"
-              required
-            />
-            <input
-              className="border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-ink outline-none focus:border-lime/50"
-              placeholder="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={tab === 'register' ? 'new-password' : 'current-password'}
-              required
-            />
-            {error && <p className="text-[11px] text-red-400">{error}</p>}
-            <button
-              type="submit"
-              disabled={busy}
-              className="bg-lime/90 px-2 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
-            >
-              {busy ? '…' : tab === 'register' ? 'create account' : 'enter'}
-            </button>
-          </form>
+          {!user?.registered && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowPass((v) => !v)}
+                className="mb-2 text-[10px] uppercase tracking-wider text-muted hover:text-lime"
+              >
+                {showPass ? 'hide name / password' : 'or name + password'}
+              </button>
+
+              {showPass && (
+                <>
+                  <div className="mb-2 flex gap-2 text-[10px] uppercase tracking-wider text-muted">
+                    <button
+                      type="button"
+                      className={tab === 'login' ? 'text-lime' : ''}
+                      onClick={() => setTab('login')}
+                    >
+                      login
+                    </button>
+                    <span>·</span>
+                    <button
+                      type="button"
+                      className={tab === 'register' ? 'text-lime' : ''}
+                      onClick={() => setTab('register')}
+                    >
+                      register
+                    </button>
+                  </div>
+                  <form className="flex flex-col gap-2" onSubmit={submit}>
+                    <input
+                      className="border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-ink outline-none focus:border-lime/50"
+                      placeholder="name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      autoComplete="username"
+                      required
+                    />
+                    <input
+                      className="border border-white/15 bg-black/40 px-2 py-1.5 text-xs text-ink outline-none focus:border-lime/50"
+                      placeholder="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete={tab === 'register' ? 'new-password' : 'current-password'}
+                      required
+                    />
+                    {error && <p className="text-[11px] text-red-400">{error}</p>}
+                    <button
+                      type="submit"
+                      disabled={busy}
+                      className="bg-lime/90 px-2 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
+                    >
+                      {busy ? '…' : tab === 'register' ? 'create account' : 'enter'}
+                    </button>
+                  </form>
+                </>
+              )}
+            </>
+          )}
+
+          {user?.registered && !user?.google && (
+            <div className="mt-2 border-t border-white/10 pt-2">
+              <GoogleSignIn
+                compact
+                onDone={(data) => {
+                  setUser(data.user || null)
+                }}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
