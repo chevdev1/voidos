@@ -115,15 +115,45 @@ function saveMemories(mem) {
   }
 }
 
+function normalizeOwn(o) {
+  const id = String(o?.constel_id || o?.id || '').trim()
+  if (!id) return null
+  return {
+    constel_id: id,
+    constel_name: String(o.constel_name || o.name || id),
+    claimed_at: o.claimed_at || null,
+  }
+}
+
+/** Merge server + local ownerships — never drop local claims when server returns []. */
+export function mergeOwnerships(serverList, localList) {
+  const map = new Map()
+  for (const raw of [...(localList || []), ...(serverList || [])]) {
+    const o = normalizeOwn(raw)
+    if (!o) continue
+    const prev = map.get(o.constel_id)
+    map.set(o.constel_id, {
+      ...prev,
+      ...o,
+      claimed_at: o.claimed_at || prev?.claimed_at || null,
+    })
+  }
+  return [...map.values()]
+}
+
 function applyServerState(data) {
   if (data.guestKey) saveGuestKey(data.guestKey)
   if (data.user) saveUser(data.user)
-  if (Array.isArray(data.ownerships)) saveOwnerships(data.ownerships)
+  let ownerships = loadOwnerships()
+  if (Array.isArray(data.ownerships)) {
+    ownerships = mergeOwnerships(data.ownerships, ownerships)
+    saveOwnerships(ownerships)
+  }
   if (Array.isArray(data.history) && data.history.length) saveHistory(data.history)
   return {
     guestKey: data.guestKey || loadGuestKey(),
     user: data.user || loadUser(),
-    ownerships: Array.isArray(data.ownerships) ? data.ownerships : loadOwnerships(),
+    ownerships,
     history: Array.isArray(data.history) ? data.history : loadHistory(),
     reply: data.reply,
     ok: true,
@@ -211,6 +241,7 @@ export async function mindGoogleLogin(idToken) {
   const data = await api('/api/auth-google', {
     guestKey: loadGuestKey(),
     idToken,
+    ownerships: loadOwnerships(),
   })
   const state = applyServerState(data)
   notifyOwnershipHydrate(state.ownerships)
@@ -245,10 +276,12 @@ export async function mindWalletBalance(pubkey) {
 
 export async function mindChat(message) {
   const guestKey = loadGuestKey()
+  const ownerships = loadOwnerships()
   try {
     const data = await api('/api/chat', {
       message,
       guestKey,
+      ownerships,
     })
     const state = applyServerState(data)
     if (data.reply) {

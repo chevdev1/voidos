@@ -10,6 +10,7 @@ import {
 } from '../shared/mindLogic.js'
 import {
   getOrCreateUser,
+  upsertOwnerships,
   listOwnerships,
   loadMemories,
   saveMemory,
@@ -41,6 +42,13 @@ export default async function handler(req, res) {
 
     const guestKey = resolveGuestKey(req, body.guestKey)
     const user = await getOrCreateUser(guestKey)
+
+    // Push client ledger into DB so Mind sees claimed lots (esp. without durable Turso)
+    const clientOwns = Array.isArray(body.ownerships) ? body.ownerships : []
+    if (clientOwns.length) {
+      await upsertOwnerships(user.id, clientOwns)
+    }
+
     const owns = await listOwnerships(user.id)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)

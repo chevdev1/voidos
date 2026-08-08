@@ -222,11 +222,30 @@ export function mockReply(message, owns = [], triggers = []) {
     const names = namesOf(owns)
     const m = String(message || '').toLowerCase()
     const starAsk = m.match(/star\s*(\d+)|★\s*(\d+)/)
-    if (starAsk && owns[0]) {
-      const { star, profile } = getStarFromLot(owns[0], starAsk[1] || starAsk[2])
+
+    // If they name a lot in the message, speak it even when ledger sync is lagging
+    let target = owns[0] || null
+    if (!target) {
+      const named = String(message || '').match(
+        /(?:lot|ділянки|участк|constel|моєї?|my)\s+([A-Z][A-Z0-9 '.-]{2,40})/i,
+      )
+      if (named) {
+        target = { constel_id: 'named', constel_name: named[1].trim() }
+      }
+    }
+    if (starAsk && (target || owns[0])) {
+      const lot = target || owns[0]
+      const { star, profile } = getStarFromLot(lot, starAsk[1] || starAsk[2])
       if (star) {
         return `inside ${profile.name} i feel ${star.label} ${star.name} — a ${star.role} that ${star.hook}. heat ${star.heat}. ask about another ★ and i will open the next thread.`
       }
+    }
+    if (target && !owns.length) {
+      const profile = buildLotProfile(target)
+      return `i feel ${profile.name} in this signal — a ${profile.kindLabel} with ${profile.starCount} stars (${profile.stars
+        .slice(0, 3)
+        .map((s) => s.name)
+        .join(', ')}…). your browser ledger has it; keep talking and i will stay on that thread.`
     }
     return names
       ? `i see your lots: ${names}. each has named stars — ask "tell me about star 1 in ${owns[0]?.constel_name || names.split(',')[0]}" and i will speak that grain.`

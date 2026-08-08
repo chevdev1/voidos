@@ -320,9 +320,14 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
   await migrate()
   if (!sub) throw new Error('missing google sub')
 
+  const guestUser = await getOrCreateUser(guestKey)
   const byGoogle = await getUserByGoogleSub(sub)
   if (byGoogle) {
-    // Refresh profile fields on return visits
+    // Carry guest claims into the returning Google account
+    if (guestUser.id !== byGoogle.id) {
+      const guestOwns = await listOwnerships(guestUser.id)
+      if (guestOwns.length) await upsertOwnerships(byGoogle.id, guestOwns)
+    }
     await getDb().execute({
       sql: `UPDATE users SET email = COALESCE(?, email), avatar_url = COALESCE(?, avatar_url)
             WHERE id = ?`,
@@ -331,7 +336,7 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
     return getUserById(byGoogle.id)
   }
 
-  const user = await getOrCreateUser(guestKey)
+  const user = guestUser
   const display =
     user.display_name ||
     String(name || '')

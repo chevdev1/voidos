@@ -4,6 +4,7 @@ import {
   linkGoogleAccount,
   publicUser,
   listOwnerships,
+  upsertOwnerships,
   getOrCreateConversation,
   loadHistory,
 } from '../shared/voidDb.js'
@@ -38,6 +39,10 @@ export default async function handler(req, res) {
     const profile = await verifyGoogleIdToken(body.idToken || body.credential)
     const guestKey = resolveGuestKey(req, body.guestKey)
     const user = await linkGoogleAccount(guestKey, profile)
+    const clientOwns = Array.isArray(body.ownerships) ? body.ownerships : []
+    if (clientOwns.length) {
+      await upsertOwnerships(user.id, clientOwns)
+    }
     const ownerships = await listOwnerships(user.id)
     const conv = await getOrCreateConversation(user.id)
     const history = await loadHistory(conv.id, 40)

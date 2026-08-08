@@ -273,6 +273,10 @@ app.post('/api/chat', async (req, res) => {
 
     const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
     const user = await getOrCreateUser(guestKey)
+    const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
+    if (clientOwns.length) {
+      await upsertOwnerships(user.id, clientOwns)
+    }
     const owns = await listOwnerships(user.id)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
