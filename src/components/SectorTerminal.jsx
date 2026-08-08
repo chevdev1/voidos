@@ -50,7 +50,7 @@ export function SectorTerminal() {
           + add constellation to stack
         </button>
         <button className="btn-lime" id="termBuy" type="button">
-          connect · claim constellation
+          claim constellation · test
         </button>
       </aside>
 
@@ -71,7 +71,7 @@ export function SectorTerminal() {
           </span>
         </div>
         <button type="button" className="btn-lime cart-claim" id="cartClaim">
-          claim all constellations
+          claim all · test (no real $EXO)
         </button>
       </div>
     </>

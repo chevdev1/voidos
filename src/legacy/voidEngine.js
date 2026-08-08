@@ -12,6 +12,7 @@
  * committed to the DOM.
  */
 import { mindClaimSync, loadOwnerships, mindSession } from '../lib/mindClient.js'
+import { getLotKind } from '../../shared/lotLore.js'
 
 export function initVoidEngine() {
   'use strict';
@@ -804,6 +805,21 @@ export function initVoidEngine() {
       if (window.__voidHydrateOwns === hydrateOwnsFromLedger) delete window.__voidHydrateOwns;
     });
 
+    function focusLotFromStorage() {
+      try {
+        const cid = sessionStorage.getItem('void_focus_lot')
+        if (!cid || !g0?.constels) return
+        sessionStorage.removeItem('void_focus_lot')
+        const c = g0.constels.find((x) => String(x.id) === String(cid))
+        if (!c) return
+        const p = constelWorld(c, g0)
+        focusOn(p.x, p.y, 3.2)
+        openConstelTerm(c)
+      } catch (_) {
+        /* ignore */
+      }
+    }
+
     // Pull durable ownerships on boot (cache + server)
     hydrateOwnsFromLedger(loadOwnerships())
     mindSession()
@@ -811,6 +827,9 @@ export function initVoidEngine() {
         if (data?.ownerships) hydrateOwnsFromLedger(data.ownerships)
       })
       .catch(() => {})
+      .finally(() => {
+        requestAnimationFrame(() => focusLotFromStorage())
+      })
 
 
     function stackGrainList() {
@@ -881,18 +900,22 @@ export function initVoidEngine() {
       const burn = c.grains.reduce((a, s) => a + s.usd, 0);
       const yours = c.grains.filter((s) => yoursSet.has(s.id)).length;
       const owned = yours === c.grains.length && c.grains.length > 0;
+      const kind = getLotKind(typeof c.figure === 'number' ? c.figure : c.id);
       openTerm({
         title: 'CONSTEL · ' + c.name,
-        sub: c.id + ' · ' + c.grains.length + ' stars linked',
+        sub: c.id + ' · ' + kind.label + ' · ' + c.grains.length + ' stars',
         status: owned ? 'yours' : yours ? 'partial' : 'unclaimed',
-        ring: 'constellation lot',
-        tier: c.grains.length + ' stars · one claim',
-        price: '$' + burn.toFixed(2) + ' · full burn',
+        ring: 'kind · ' + kind.label,
+        tier: kind.tag + ' · ' + kind.rarity,
+        price: '$' + burn.toFixed(2) + ' · test claim (no real $EXO yet)',
         size: fmt(mass) + ' cells',
         grav: yours + '/' + c.grains.length + ' owned',
         note: owned
-          ? 'This constellation is already yours.'
-          : 'Click another constellation to stack more. Claim stack buys every selected lot at once.',
+          ? 'Yours. Open CABINET (nav) to rotate this ' +
+            kind.label +
+            ' and read full lot info.'
+          : kind.blurb +
+            ' Test mode: claim is free until $EXO mint is live. Then open CABINET to rotate.',
       });
     }
 
@@ -1206,7 +1229,13 @@ export function initVoidEngine() {
       selectedConstels.delete(lastTermConstel.id);
       refreshCartDock();
       openConstelTerm(lastTermConstel);
-      toast('claimed · ' + name + ' · ' + items.length + '★ · burns $EXO');
+      toast(
+        'claimed · ' +
+          name +
+          ' · ' +
+          getLotKind(lastTermConstel.figure ?? lastTermConstel.id).label +
+          ' · open CABINET to rotate',
+      );
     };
     const cartClear = document.getElementById('cartClear');
     if (cartClear) {

@@ -122,7 +122,7 @@ export function AccountMenu() {
             onClick={() => setOpen(false)}
             className="mb-2 block border border-lime/35 bg-lime/10 px-2 py-1.5 text-center text-[11px] tracking-wide text-lime"
           >
-            open cabinet →
+            open cabinet / лк →
           </Link>
 
           <form className="flex flex-col gap-2" onSubmit={submit}>

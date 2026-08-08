@@ -83,10 +83,16 @@ export function WalletPanel({ user, onUser }) {
     <div className="border border-lime/25 bg-black/45 p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
+            <span className="border border-white/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted">
+              test ok
+            </span>
+          </div>
           <p className="mt-1 text-sm text-lime">{short || 'not linked'}</p>
           <p className="mt-1 text-[11px] text-muted">
-            Solana / Phantom — link to show coin balances on this account.
+            Solana / Phantom — link anytime. SOL shows live; $EXO stays mint TBA until the coin
+            is connected. Claims work without burn for now.
           </p>
         </div>
         <div className="flex gap-2">

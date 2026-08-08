@@ -71,7 +71,11 @@ export function Nav() {
               <ScrambleText text={link.label} trigger="hover" duration={400} />
             </button>
           ))}
-        <Link to="/cabinet" className="transition-colors duration-150 ease-out hover:text-lime">
+        <Link
+          to="/cabinet"
+          className="transition-colors duration-150 ease-out hover:text-lime"
+          title="личный кабинет"
+        >
           <ScrambleText text="CABINET" trigger="hover" duration={400} />
         </Link>
       </nav>
