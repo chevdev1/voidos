@@ -1,9 +1,15 @@
 /* Phone map UX
-   - Demo (hero): keep map controls (explore + zoom/orbit)
-   - Full map (arena): all tools, fit the screen
+   - Demo: explore + zoom/orbit on map, actions under map
+   - Full map: map stays free; tools in a collapsed bottom dock
 */
 
 .hero-map-actions {
+  display: none;
+}
+
+.mind-dock-row,
+.mind-btn--ask-compact,
+.mind-dock-toggle {
   display: none;
 }
 
@@ -32,7 +38,6 @@
     margin-right: 0 !important;
   }
 
-  /* Demo: hide heavy chrome, KEEP explore + map controls */
   .hero-right:not(.in-arena) .mind-bar,
   .hero-right:not(.in-arena) .mind-meta,
   .hero-right:not(.in-arena) .cosmos-hud,
@@ -62,11 +67,6 @@
     font-size: 15px;
   }
 
-  .hero-right:not(.in-arena) .cosmos-bar {
-    padding: 8px 10px;
-  }
-
-  /* Actions under the demo map */
   .hero-map-actions {
     display: flex;
     gap: 8px;
@@ -97,12 +97,49 @@
     display: none;
   }
 
-  /* ========== FULL MAP ========== */
+  /* ========== FULL MAP: free sky, thin dock ========== */
+
+  /* Kill the giant title that covers the galaxy */
+  body.arena-live .arena-hud {
+    max-width: none;
+    padding: max(10px, env(safe-area-inset-top)) 12px 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, transparent 70%);
+  }
+
+  body.arena-live .arena-eyebrow,
+  body.arena-live .arena-hud h2,
+  body.arena-live .arena-lead {
+    display: none !important;
+  }
+
+  body.arena-live .arena-hud-top {
+    justify-content: flex-end;
+  }
+
+  body.arena-live .arena-back {
+    min-height: 40px;
+  }
+
+  body.arena-live .cosmos-hud {
+    display: none !important;
+  }
+
+  body.arena-live .vc {
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    bottom: auto;
+    right: 8px;
+  }
+
+  body.arena-live .vc button {
+    width: 42px;
+    height: 42px;
+  }
+
   body.arena-live .mind-bar,
   .hero-right.in-arena .mind-bar {
-    left: 0;
-    right: 0;
-    bottom: 0;
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
     transform: none;
     width: auto;
     max-width: none;
@@ -110,118 +147,134 @@
     flex-wrap: nowrap;
     align-items: stretch;
     gap: 8px;
-    padding: 10px 10px max(12px, env(safe-area-inset-bottom));
+    padding: 8px;
     box-sizing: border-box;
-    overflow: visible;
-    border-radius: 16px 16px 0 0;
+    overflow: hidden;
+    border-radius: 14px;
     z-index: 40;
+    max-height: min(42vh, 280px);
   }
 
-  body.arena-live .mind-meta,
-  .hero-right.in-arena .mind-meta {
-    position: static;
+  body.arena-live .mind-dock-row,
+  .hero-right.in-arena .mind-dock-row {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px 10px;
-    max-width: 100%;
-    font-size: 9px;
-    opacity: 0.9;
-    text-shadow: none;
-    pointer-events: none;
+    gap: 8px;
+    align-items: center;
   }
 
-  body.arena-live .mind-sep,
-  .hero-right.in-arena .mind-sep {
-    display: none;
+  body.arena-live .mind-dock-toggle,
+  .hero-right.in-arena .mind-dock-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 14px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 999px;
+    color: var(--muted);
+    background: transparent;
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    cursor: pointer;
+    flex-shrink: 0;
   }
 
-  body.arena-live .mind-legend,
-  .hero-right.in-arena .mind-legend {
+  body.arena-live .mind-btn--ask-compact,
+  .hero-right.in-arena .mind-btn--ask-compact {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(204, 255, 0, 0.5);
+    background: rgba(204, 255, 0, 0.12);
+    color: var(--lime);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  body.arena-live .mind-meta {
+    display: none !important;
+  }
+
+  body.arena-live:not(.mind-dock-open) .mind-legend,
+  body.arena-live:not(.mind-dock-open) .mind-sep,
+  body.arena-live:not(.mind-dock-open) .mind-actions {
+    display: none !important;
+  }
+
+  body.arena-live:not(.mind-dock-open) .mind-bar {
+    max-height: none;
+  }
+
+  body.arena-live:not(.mind-dock-open) #actAsk {
+    display: none !important;
+  }
+
+  /* Expanded tools panel */
+  body.arena-live.mind-dock-open .mind-legend {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px;
     width: 100%;
-    overflow: visible;
   }
 
-  body.arena-live .mind-leg,
-  .hero-right.in-arena .mind-leg {
-    flex: none;
-    min-height: 40px;
+  body.arena-live.mind-dock-open .mind-leg {
+    min-height: 36px;
     justify-content: center;
-    padding: 6px 8px;
-    font-size: 10px;
     border: 1px solid rgba(255, 255, 255, 0.12);
     border-radius: 8px;
-    box-sizing: border-box;
+    padding: 6px;
+    font-size: 10px;
   }
 
-  body.arena-live .mind-actions,
-  .hero-right.in-arena .mind-actions {
+  body.arena-live.mind-dock-open .mind-actions {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
     width: 100%;
-    overflow: visible;
+    overflow-y: auto;
+    max-height: min(28vh, 180px);
   }
 
-  body.arena-live .mind-btn,
-  .hero-right.in-arena .mind-btn {
-    flex: none;
-    min-height: 44px;
+  body.arena-live.mind-dock-open .mind-btn {
+    min-height: 40px;
     min-width: 0;
-    padding: 8px 4px;
+    padding: 6px 4px;
     font-size: 10px;
     justify-content: center;
     text-align: center;
     white-space: normal;
-    line-height: 1.15;
     border-radius: 8px;
-    box-sizing: border-box;
   }
 
-  body.arena-live .mind-btn[data-act='ask'],
-  .hero-right.in-arena .mind-btn[data-act='ask'] {
+  body.arena-live.mind-dock-open .mind-btn[data-act='ask'] {
     grid-column: 1 / -1;
-    min-height: 46px;
-    border-color: rgba(204, 255, 0, 0.55);
-    background: rgba(204, 255, 0, 0.12);
-    color: var(--lime);
-    font-weight: 700;
   }
 
-  body.arena-live .cosmos-hud {
-    top: max(52px, env(safe-area-inset-top));
-    bottom: auto;
-    right: 8px;
-    left: auto;
-    transform: none;
-    max-width: min(42%, 150px);
+  body.arena-live.mind-dock-open .mind-btn--ask-compact {
+    display: none !important;
   }
 
-  body.arena-live .cosmos-hud .pill .sub {
-    display: none;
-  }
-
-  body.arena-live .vc {
-    top: max(56px, calc(env(safe-area-inset-top) + 52px));
-    bottom: auto;
-    right: 8px;
-  }
-
-  body.arena-live .vc button {
-    width: 44px;
-    height: 44px;
-    font-size: 16px;
+  body.arena-live.mind-dock-open .mind-bar {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   body.arena-live .cart-dock {
-    bottom: calc(210px + env(safe-area-inset-bottom));
+    bottom: calc(72px + env(safe-area-inset-bottom));
     width: calc(100vw - 16px);
     left: 50%;
     transform: translateX(-50%);
     box-sizing: border-box;
+  }
+
+  body.arena-live.mind-dock-open .cart-dock {
+    bottom: calc(min(42vh, 280px) + 12px + env(safe-area-inset-bottom));
   }
 
   body.arena-live.term-open .cart-dock {
@@ -229,9 +282,9 @@
     z-index: 112;
   }
 
-  body.arena-live.term-open .term {
-    max-height: min(58vh, calc(100dvh - 8rem));
-    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  body.arena-live.term-open .mind-bar {
+    opacity: 0.25;
+    pointer-events: none;
   }
 }
 
@@ -245,13 +298,30 @@
     flex-direction: column;
   }
 
-  body.arena-live .mind-actions,
-  .hero-right.in-arena .mind-actions {
+  body.arena-live.mind-dock-open .mind-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
 
-  body.arena-live .mind-btn[data-act='ask'],
-  .hero-right.in-arena .mind-btn[data-act='ask'] {
-    grid-column: 1 / -1;
+/* Landscape phones: keep dock ultra-thin */
+@media (max-width: 960px) and (orientation: landscape) and (max-height: 500px) {
+  body.arena-live .mind-bar {
+    left: 8px;
+    right: 8px;
+    max-height: 34vh;
+  }
+
+  body.arena-live.mind-dock-open .mind-actions {
+    max-height: 18vh;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.arena-live .vc {
+    top: 44px;
+  }
+
+  body.arena-live .vc button {
+    width: 36px;
+    height: 36px;
   }
 }

@@ -1296,6 +1296,12 @@ export function initVoidEngine() {
         pop.classList.add('open');
       }
       document.body.classList.add('arena-live');
+      document.body.classList.remove('mind-dock-open');
+      const dockToggle = document.getElementById('mindDockToggle');
+      if (dockToggle) {
+        dockToggle.setAttribute('aria-expanded', 'false');
+        dockToggle.textContent = 'tools';
+      }
       arenaMode = true;
       frame.classList.add('in-arena');
       // Popup is a dedicated play surface — capture gestures immediately.
@@ -1320,6 +1326,7 @@ export function initVoidEngine() {
         pop.hidden = true;
       }
       document.body.classList.remove('arena-live');
+      document.body.classList.remove('mind-dock-open');
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);
@@ -1538,6 +1545,18 @@ export function initVoidEngine() {
             return;
           }
           openMindPanel(act);
+        });
+      }
+      document.getElementById('actAskCompact')?.addEventListener('click', () => {
+        closeMindPanel();
+        window.__openMindChat?.();
+      });
+      const dockToggle = document.getElementById('mindDockToggle');
+      if (dockToggle) {
+        dockToggle.addEventListener('click', () => {
+          const open = document.body.classList.toggle('mind-dock-open');
+          dockToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+          dockToggle.textContent = open ? 'hide tools' : 'tools';
         });
       }
       document.getElementById('mindPanelX')?.addEventListener('click', closeMindPanel);

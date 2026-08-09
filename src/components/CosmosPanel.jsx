@@ -61,6 +61,14 @@ export function CosmosPanel() {
         </button>
       </div>
       <div className="mind-bar" id="mindBar">
+        <div className="mind-dock-row">
+          <button type="button" className="mind-dock-toggle" id="mindDockToggle" aria-expanded="false">
+            tools
+          </button>
+          <button type="button" className="mind-btn mind-btn--ask-compact" data-act="ask" id="actAskCompact">
+            <span className="ico">◉</span> ask me
+          </button>
+        </div>
         <div className="mind-legend" id="mindLegend">
           <span className="mind-leg" data-f="empty">
             <i className="box empty" />
