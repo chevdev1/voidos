@@ -11,6 +11,7 @@ import {
   callGemini,
   safetyReply,
   degradedSignal,
+  stayOnTopicReply,
   DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
@@ -312,8 +313,10 @@ app.post('/api/chat', async (req, res) => {
 
     let reply = null
     let live = false
+    const wantsGame = triggers.includes('on_game')
     if (!GEMINI_API_KEY) {
-      reply = degradedSignal('no_key')
+      reply = wantsGame ? stayOnTopicReply(message) : degradedSignal('no_key')
+      live = wantsGame
     } else {
       try {
         reply = await callGemini({
@@ -328,7 +331,14 @@ app.post('/api/chat', async (req, res) => {
       } catch (err) {
         console.warn('[mind] gemini failed', err.message)
       }
-      if (!reply) reply = degradedSignal('offline')
+      if (!reply) {
+        if (wantsGame || triggers.includes('on_offtopic')) {
+          reply = stayOnTopicReply(message)
+          live = true
+        } else {
+          reply = degradedSignal('offline')
+        }
+      }
     }
 
     await addMessage(conv.id, 'assistant', reply)

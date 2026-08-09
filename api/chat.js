@@ -7,6 +7,7 @@ import {
   callGemini,
   safetyReply,
   degradedSignal,
+  stayOnTopicReply,
   DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
@@ -87,10 +88,11 @@ export default async function handler(req, res) {
     const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
     let reply = null
     let live = false
+    const wantsGame = triggers.includes('on_game')
 
     if (!apiKey) {
-      reply = degradedSignal('no_key')
-      live = false
+      reply = wantsGame ? stayOnTopicReply(message) : degradedSignal('no_key')
+      live = wantsGame
     } else {
       try {
         reply = await callGemini({
@@ -106,8 +108,14 @@ export default async function handler(req, res) {
         console.warn('[chat] gemini failed', err?.message || err)
       }
       if (!reply) {
-        reply = degradedSignal('offline')
-        live = false
+        // Empty/blocked model or transport fail: stay in dialogue, never look like a crash on games/offtopic
+        if (wantsGame || triggers.includes('on_offtopic')) {
+          reply = stayOnTopicReply(message)
+          live = true
+        } else {
+          reply = degradedSignal('offline')
+          live = false
+        }
       }
     }
 

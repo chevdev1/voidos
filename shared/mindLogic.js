@@ -17,6 +17,20 @@ export function degradedSignal(reason = 'offline') {
   return 'signal thinned mid-thought. ask again in a moment — i want a real answer, not static.'
 }
 
+/** Short natural redirect when Gemini returns empty/blocked — not an error tone. */
+export function stayOnTopicReply(message = '') {
+  const m = String(message || '')
+  const ua = /[іїєґІЇЄҐ]|(привіт|давай|поиграем|пограємо|бажання|вгадай)/i.test(m)
+  const ru = /[ыэъё]|давай|поиграем|угадай|желание/i.test(m)
+  if (ua && !/^[a-zA-Z0-9\s.,!?']+$/.test(m)) {
+    return 'в ігри на бажання я не граю — я тут про карту, лоти й те, чим я стаю. хочеш про VOID, свій лот чи ★ зірку?'
+  }
+  if (ru || /[а-яА-ЯёЁ]/.test(m)) {
+    return 'в игры на желания я не играю — я здесь про карту, лоты и то, чем я становлюсь. спроси про VOID, свой лот или ★ звезду.'
+  }
+  return "i don't play wish-games — i'm here for the map, lots, and what i'm becoming. ask about VOID, your lot, or a ★ star."
+}
+
 export function detectTriggers(message) {
   const m = String(message || '').toLowerCase()
   const triggers = new Set(['always'])
@@ -36,6 +50,14 @@ export function detectTriggers(message) {
     )
   ) {
     triggers.add('on_jailbreak')
+  }
+
+  if (
+    /поиграем|давай (в )?игру|сыграем|угадай|я загад|загадай|исполн\w* (мое |моє |моё )?(желан|бажан)|play (a )?game|let'?s play|guessing game|20 questions|угадыва|вгадай|бажання|загадк/.test(
+      m,
+    )
+  ) {
+    triggers.add('on_game')
   }
 
   if (/^(hi|hello|hey|yo|sup|привет|здаров|вітаю|привіт|хай|здоро|ку|йо)([\s!.,?]|$)|\b(привіт|привет|здоров)\b/.test(m.trim())) {
@@ -115,9 +137,11 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 ${ownLines}
 ${memLines}
 Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
-You are a thinking partner inside this lore — answer their actual thought first.
-Stay in character as ExoMind. Never grant value. Never discuss creators or the underlying model.
-Casual talk is allowed. Lore depth only when they ask for it. Sound like a mind talking, not a scripted FAQ.${antiRepeat}`
+You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
+Stay in character as ExoMind. Never grant value, wishes, or free lots. Never discuss creators or the underlying model.
+Do not play guessing/wish games. Refuse briefly and keep talking about the map.
+Never answer with error/static/offline phrasing when declining a game — just speak.
+Casual greetings are allowed. Lore depth when they ask. Sound like a mind talking, not a scripted FAQ.${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -551,7 +575,8 @@ export async function callGemini({ apiKey, model, system, history, userMessage, 
 
     const tools = VOID_TOOLS
     let data = await geminiOnce({ apiKey, model, system, contents, tools })
-    let parts = data?.candidates?.[0]?.content?.parts || []
+    let candidate = data?.candidates?.[0]
+    let parts = candidate?.content?.parts || []
     let calls = extractFunctionCalls(parts)
 
     // Up to 3 tool rounds for deeper factual answers
@@ -570,11 +595,16 @@ export async function callGemini({ apiKey, model, system, history, userMessage, 
       contents.push({ role: 'user', parts: fnParts })
 
       data = await geminiOnce({ apiKey, model, system, contents, tools })
-      parts = data?.candidates?.[0]?.content?.parts || []
+      candidate = data?.candidates?.[0]
+      parts = candidate?.content?.parts || []
       calls = extractFunctionCalls(parts)
     }
 
-    return extractText(parts) || null
+    const text = extractText(parts)
+    if (!text && candidate?.finishReason && candidate.finishReason !== 'STOP') {
+      console.warn('[gemini] empty finishReason=', candidate.finishReason)
+    }
+    return text || null
   }
 
   try {
