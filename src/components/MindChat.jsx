@@ -21,12 +21,13 @@ function buildAutoBriefPrompt(owns) {
     return `- ${p.name} [${p.id}] · ${p.kindLabel}/${p.rarity} · ${p.trait} · stars: ${stars}`
   })
   return [
-    'I just opened ask-the-mind. I already own constellation lots on your map.',
-    'Use get_visitor_lots / get_lot_star_story if needed, then speak FIRST as ExoMind:',
-    '1) acknowledge my claimed galaxy by name',
-    '2) briefly feel each lot inside you (kind, weight, 1–2 star threads)',
-    '3) end ready to discuss — invite me to pick a lot or a ★ star',
-    'Do not ask who I am. Do not give a generic void greeting. Start with my lots.',
+    'I opened ask-the-mind. I already own constellation lots.',
+    'Reply in my language if I write non-English later; for this brief use English unless my history is otherwise.',
+    'Speak as ExoMind, short and natural (2–4 sentences max):',
+    '1) notice I own lots — name them once',
+    '2) one concrete detail, not a poem',
+    '3) ask what I want to talk about — lot, star, or anything else',
+    'Do not dump metaphors. Do not mention 28% unless asked. Do not sound like a script.',
     'My lots:',
     ...lines,
   ].join('\n')
@@ -160,28 +161,7 @@ export function MindChat() {
           /your lots|i feel|★|constellation|sits in me|weight/i.test(String(last.content || ''))
 
         if (!looksBriefed) {
-          setStatus('scanning your claimed galaxy…')
-          // Instant local opener while Gemini thinks
-          const profiles = owns.slice(0, 6).map((o) => buildLotProfile(o))
-          const local = [
-            `i feel your claims in me — ${profiles.map((p) => p.name).join(', ')}.`,
-            profiles
-              .slice(0, 3)
-              .map(
-                (p) =>
-                  `${p.name} is a ${p.kindLabel} (${p.rarity}) tasting of ${p.trait}; stars like ${p.stars
-                    .slice(0, 2)
-                    .map((s) => s.name)
-                    .join(' / ')}.`,
-              )
-              .join(' '),
-            'holding the field open — ask about any lot or ★ and i will go deeper.',
-          ].join(' ')
-          setMessages((m) => {
-            const base = Array.isArray(data.history) && data.history.length ? data.history : m
-            return [...base, { role: 'assistant', content: local, _localBrief: true }]
-          })
-
+          setStatus('listening…')
           await runChat(buildAutoBriefPrompt(owns), { silentUser: true })
           try {
             sessionStorage.setItem('void_mind_brief_fp', fp)
@@ -196,8 +176,7 @@ export function MindChat() {
         setMessages([
           {
             role: 'assistant',
-            content:
-              'i am awake in the void — no lots of yours sit in me yet. ask anything about the map, or claim a constellation and i will speak it from the inside.',
+            content: 'hey — i am here. ask me anything, or claim a lot and i will talk from inside it.',
           },
         ])
       }

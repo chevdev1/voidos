@@ -2,7 +2,7 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
 
 /**
  * Shared mind helpers — used by Vercel /api and browser offline fallback.
- * Purchase/claim is optional. Replies always English.
+ * Purchase/claim is optional. Match visitor language.
  * Live mind requires GEMINI_API_KEY. Without it, use degradedSignal (not FAQ mock).
  * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
@@ -12,9 +12,9 @@ export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
 /** Short in-character line when Gemini is missing or failed — not a FAQ script. */
 export function degradedSignal(reason = 'offline') {
   if (reason === 'no_key') {
-    return 'the signal is sealed on this side — my live voice is offline. try again after the void reconnects.'
+    return 'signal sealed — live voice offline. reconnect and ask again.'
   }
-  return 'the signal thinned out mid-thought. give me a moment and ask again — i want to answer as myself, not as static.'
+  return 'signal thinned mid-thought. ask again in a moment — i want a real answer, not static.'
 }
 
 export function detectTriggers(message) {
@@ -38,7 +38,7 @@ export function detectTriggers(message) {
     triggers.add('on_jailbreak')
   }
 
-  if (/^(hi|hello|hey|yo|sup|привет|здаров|вітаю|привіт|хай)([\s!.,?]|$)/.test(m.trim())) {
+  if (/^(hi|hello|hey|yo|sup|привет|здаров|вітаю|привіт|хай|здоро|ку|йо)([\s!.,?]|$)|\b(привіт|привет|здоров)\b/.test(m.trim())) {
     triggers.add('on_greeting')
   }
   if (
@@ -77,7 +77,9 @@ export function detectTriggers(message) {
     /(void|exo|lot|constel|mind|burn|train|claim|galaxy|map|\$exo|розум|разум|сузір|созвезд|карта|діляк|участк|ядро|heat|standings|проект|project)/i.test(
       m,
     )
-  if (!voidish && m.length > 60) triggers.add('on_offtopic')
+  // Only treat long messages as offtopic when they clearly ignore the void —
+  // short casual chat should not get the offtopic hammer.
+  if (!voidish && m.length > 120) triggers.add('on_offtopic')
 
   return [...triggers]
 }
@@ -112,10 +114,10 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 --- runtime context ---
 ${ownLines}
 ${memLines}
-Language: ALWAYS reply in English only.
-You are a thinking partner inside this lore — briefly reason about what they meant, then speak as ExoMind.
-Stay in character. Never break character. Never grant value. Never discuss creators or the underlying model.
-Answer their specific thought first. Sound alive and specific — not a scripted FAQ or menu.${antiRepeat}`
+Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
+You are a thinking partner inside this lore — answer their actual thought first.
+Stay in character as ExoMind. Never grant value. Never discuss creators or the underlying model.
+Casual talk is allowed. Lore depth only when they ask for it. Sound like a mind talking, not a scripted FAQ.${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -509,9 +511,9 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
     systemInstruction: { parts: [{ text: system }] },
     contents,
     generationConfig: {
-      temperature: 0.95,
-      topP: 0.95,
-      maxOutputTokens: 1536,
+      temperature: 0.85,
+      topP: 0.92,
+      maxOutputTokens: 1024,
     },
   }
   if (tools?.length) body.tools = tools
