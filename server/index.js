@@ -8,9 +8,10 @@ import {
   detectTriggers,
   pickPrompts,
   buildSystemPrompt,
-  mockReply,
   callGemini,
   safetyReply,
+  degradedSignal,
+  DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
   getOrCreateUser,
@@ -42,15 +43,15 @@ const promptsPack = JSON.parse(
 await ensurePromptsSeeded(promptsPack)
 
 const PORT = Number(process.env.PORT || process.env.MIND_PORT || 8787)
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || ''
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest'
+const GEMINI_API_KEY = String(process.env.GEMINI_API_KEY || '').trim()
+const GEMINI_MODEL = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
 
 const app = express()
 app.use(cors({ origin: true, credentials: true }))
 app.use(express.json({ limit: '256kb' }))
 
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, gemini: Boolean(GEMINI_API_KEY), db: 'libsql' })
+  res.json({ ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_MODEL, db: 'libsql' })
 })
 
 app.post('/api/session', async (req, res) => {
@@ -288,6 +289,7 @@ app.post('/api/chat', async (req, res) => {
       await addMessage(conv.id, 'assistant', blocked)
       return res.json({
         reply: blocked,
+        live: true,
         guestKey: user.guest_key,
         user: publicUser(user),
         ownerships: owns,
@@ -309,23 +311,30 @@ app.post('/api/chat', async (req, res) => {
     await addMessage(conv.id, 'user', message)
 
     let reply = null
-    try {
-      reply = await callGemini({
-        apiKey: GEMINI_API_KEY,
-        model: GEMINI_MODEL,
-        system,
-        history,
-        userMessage: message,
-        owns,
-      })
-    } catch (err) {
-      console.warn('[mind] gemini failed', err.message)
+    let live = false
+    if (!GEMINI_API_KEY) {
+      reply = degradedSignal('no_key')
+    } else {
+      try {
+        reply = await callGemini({
+          apiKey: GEMINI_API_KEY,
+          model: GEMINI_MODEL,
+          system,
+          history,
+          userMessage: message,
+          owns,
+        })
+        if (reply) live = true
+      } catch (err) {
+        console.warn('[mind] gemini failed', err.message)
+      }
+      if (!reply) reply = degradedSignal('offline')
     }
-    if (!reply) reply = mockReply(message, owns, triggers)
 
     await addMessage(conv.id, 'assistant', reply)
     res.json({
       reply,
+      live,
       guestKey: user.guest_key,
       user: publicUser(user),
       ownerships: owns,

@@ -1,10 +1,8 @@
-import prompts from '../../shared/mind-prompts.json'
-import { detectTriggers, pickPrompts, buildSystemPrompt, mockReply, safetyReply } from '../../shared/mindLogic.js'
+import { degradedSignal } from '../../shared/mindLogic.js'
 
 const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
 const HIST_KEY = 'void_chat_history'
-const MEM_KEY = 'void_memories'
 const USER_KEY = 'void_user'
 
 function apiBase() {
@@ -99,22 +97,6 @@ export function saveUser(user) {
   }
 }
 
-function loadMemories() {
-  try {
-    return JSON.parse(localStorage.getItem(MEM_KEY) || '{}')
-  } catch {
-    return {}
-  }
-}
-
-function saveMemories(mem) {
-  try {
-    localStorage.setItem(MEM_KEY, JSON.stringify(mem || {}))
-  } catch {
-    /* ignore */
-  }
-}
-
 function normalizeOwn(o) {
   const id = String(o?.constel_id || o?.id || '').trim()
   if (!id) return null
@@ -165,36 +147,6 @@ function localSession(guestKey) {
     guestKey || loadGuestKey() || `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   saveGuestKey(key)
   return { guestKey: key, ownerships: loadOwnerships(), user: loadUser(), ok: true }
-}
-
-function localChat(message, guestKey) {
-  const owns = loadOwnerships()
-  const history = loadHistory()
-  const memories = loadMemories()
-  const name = message.match(/(?:i am|i'm|меня зовут|я)\s+([A-Za-zА-Яа-яёЁ]{2,24})/i)
-  if (name) {
-    memories.name = name[1]
-    saveMemories(memories)
-  }
-  const blocked = safetyReply(message)
-  const reply =
-    blocked ||
-    (() => {
-      const triggers = detectTriggers(message)
-      const selected = pickPrompts(prompts, triggers)
-      buildSystemPrompt(selected, owns, memories)
-      return mockReply(message, owns, triggers)
-    })()
-  const next = [...history, { role: 'user', content: message }, { role: 'assistant', content: reply }]
-  saveHistory(next)
-  saveGuestKey(guestKey || loadGuestKey())
-  return {
-    reply,
-    guestKey: guestKey || loadGuestKey(),
-    ownerships: owns,
-    user: loadUser(),
-    history: next,
-  }
 }
 
 /** Notify map engine that ownerships changed (server hydrate / claim). */
@@ -286,7 +238,6 @@ export async function mindChat(message) {
     const state = applyServerState(data)
     if (data.reply) {
       const hist = loadHistory()
-      // server already returns history; ensure local cache
       if (!Array.isArray(data.history)) {
         saveHistory([
           ...hist,
@@ -295,9 +246,26 @@ export async function mindChat(message) {
         ])
       }
     }
-    return { ...state, reply: data.reply }
-  } catch {
-    return localChat(message, guestKey)
+    return { ...state, reply: data.reply, live: data.live !== false }
+  } catch (err) {
+    // Do not fake a smart FAQ mind offline — thin signal only.
+    const reply = degradedSignal('offline')
+    const history = loadHistory()
+    const next = [
+      ...history,
+      { role: 'user', content: message },
+      { role: 'assistant', content: reply },
+    ]
+    saveHistory(next)
+    return {
+      reply,
+      live: false,
+      guestKey: guestKey || loadGuestKey(),
+      ownerships: loadOwnerships(),
+      user: loadUser(),
+      history: next,
+      error: err?.message || 'chat unreachable',
+    }
   }
 }
 

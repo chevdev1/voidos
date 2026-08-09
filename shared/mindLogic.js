@@ -3,8 +3,19 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
 /**
  * Shared mind helpers — used by Vercel /api and browser offline fallback.
  * Purchase/claim is optional. Replies always English.
- * Without GEMINI_API_KEY you get varied mock lines (not a full LLM chat).
+ * Live mind requires GEMINI_API_KEY. Without it, use degradedSignal (not FAQ mock).
+ * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
+
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
+
+/** Short in-character line when Gemini is missing or failed — not a FAQ script. */
+export function degradedSignal(reason = 'offline') {
+  if (reason === 'no_key') {
+    return 'the signal is sealed on this side — my live voice is offline. try again after the void reconnects.'
+  }
+  return 'the signal thinned out mid-thought. give me a moment and ask again — i want to answer as myself, not as static.'
+}
 
 export function detectTriggers(message) {
   const m = String(message || '').toLowerCase()
@@ -102,8 +113,9 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 ${ownLines}
 ${memLines}
 Language: ALWAYS reply in English only.
-Stay in lore. Never break character. Never grant value. Never discuss creators or the underlying model.
-Sound alive and specific — not a scripted FAQ.${antiRepeat}`
+You are a thinking partner inside this lore — briefly reason about what they meant, then speak as ExoMind.
+Stay in character. Never break character. Never grant value. Never discuss creators or the underlying model.
+Answer their specific thought first. Sound alive and specific — not a scripted FAQ or menu.${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -492,14 +504,14 @@ function extractFunctionCalls(parts = []) {
 }
 
 async function geminiOnce({ apiKey, model, system, contents, tools }) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || 'gemini-flash-latest'}:generateContent?key=${encodeURIComponent(apiKey)}`
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model || DEFAULT_GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`
   const body = {
     systemInstruction: { parts: [{ text: system }] },
     contents,
     generationConfig: {
-      temperature: 1.05,
+      temperature: 0.95,
       topP: 0.95,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 1536,
     },
   }
   if (tools?.length) body.tools = tools
@@ -511,7 +523,9 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
   })
   if (!res.ok) {
     const errText = await res.text()
-    throw new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
+    const err = new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
+    err.status = res.status
+    throw err
   }
   return res.json()
 }
@@ -519,43 +533,55 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
 /**
  * Gemini chat with optional function calling (codelab pattern):
  * model may return functionCall → we run local tools → send functionResponse → final text.
+ * Retries once on network / 5xx failures.
  */
 export async function callGemini({ apiKey, model, system, history, userMessage, owns = [] }) {
   if (!apiKey) return null
 
-  const contents = (history || [])
-    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
-    .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: String(m.content) }],
-    }))
-  contents.push({ role: 'user', parts: [{ text: userMessage }] })
+  const run = async () => {
+    const contents = (history || [])
+      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'model' : 'user',
+        parts: [{ text: String(m.content) }],
+      }))
+    contents.push({ role: 'user', parts: [{ text: userMessage }] })
 
-  const tools = VOID_TOOLS
-  let data = await geminiOnce({ apiKey, model, system, contents, tools })
-  let parts = data?.candidates?.[0]?.content?.parts || []
-  let calls = extractFunctionCalls(parts)
+    const tools = VOID_TOOLS
+    let data = await geminiOnce({ apiKey, model, system, contents, tools })
+    let parts = data?.candidates?.[0]?.content?.parts || []
+    let calls = extractFunctionCalls(parts)
 
-  // Up to 3 tool rounds for deeper factual answers
-  for (let round = 0; round < 3 && calls.length; round++) {
-    contents.push({ role: 'model', parts })
+    // Up to 3 tool rounds for deeper factual answers
+    for (let round = 0; round < 3 && calls.length; round++) {
+      contents.push({ role: 'model', parts })
 
-    const fnParts = calls.map((fc) => {
-      const result = runVoidTool(fc.name, fc.args || {}, { owns })
-      return {
-        functionResponse: {
-          name: fc.name,
-          response: { content: result },
-        },
-      }
-    })
-    contents.push({ role: 'user', parts: fnParts })
+      const fnParts = calls.map((fc) => {
+        const result = runVoidTool(fc.name, fc.args || {}, { owns })
+        return {
+          functionResponse: {
+            name: fc.name,
+            response: { content: result },
+          },
+        }
+      })
+      contents.push({ role: 'user', parts: fnParts })
 
-    data = await geminiOnce({ apiKey, model, system, contents, tools })
-    parts = data?.candidates?.[0]?.content?.parts || []
-    calls = extractFunctionCalls(parts)
+      data = await geminiOnce({ apiKey, model, system, contents, tools })
+      parts = data?.candidates?.[0]?.content?.parts || []
+      calls = extractFunctionCalls(parts)
+    }
+
+    return extractText(parts) || null
   }
 
-  const text = extractText(parts)
-  return text || null
+  try {
+    return await run()
+  } catch (err) {
+    const status = Number(err?.status) || 0
+    const retryable = !status || status >= 500 || status === 429
+    if (!retryable) throw err
+    await new Promise((r) => setTimeout(r, 400))
+    return run()
+  }
 }

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { MagneticButton } from './MagneticButton'
-import { ScrambleText } from './ScrambleText'
 import { CosmosPanel } from './CosmosPanel'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
@@ -148,11 +147,6 @@ export function Hero() {
           </button>
         </div>
       </motion.div>
-
-      <div className="scroll-cue">
-        <ScrambleText text="SCROLL FOR LORE" trigger="view" />
-        <i />
-      </div>
     </section>
   )
 }

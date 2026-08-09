@@ -42,6 +42,7 @@ export function MindChat() {
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState('')
+  const [live, setLive] = useState(true)
   const [messages, setMessages] = useState(() => {
     const hist = loadHistory()
     if (hist.length) return hist
@@ -70,6 +71,7 @@ export function MindChat() {
       const data = await mindChat(trimmed)
       if (data.ownerships) setOwnerships(data.ownerships)
       if (data.user) setAccount(data.user)
+      if (typeof data.live === 'boolean') setLive(data.live)
       const reply = data.reply || data.error || 'silence from the void.'
       if (silentUser) {
         setMessages((m) => {
@@ -82,11 +84,12 @@ export function MindChat() {
         setMessages((m) => [...m, { role: 'assistant', content: reply }])
       }
     } catch {
+      setLive(false)
       setMessages((m) => [
         ...m,
         {
           role: 'assistant',
-          content: 'something snagged in the void. try again in a moment.',
+          content: 'the signal thinned out mid-thought. give me a moment and ask again.',
         },
       ])
     } finally {
@@ -102,6 +105,17 @@ export function MindChat() {
     }
     let cancelled = false
     ;(async () => {
+      try {
+        const base = import.meta.env.VITE_MIND_API_URL
+          ? String(import.meta.env.VITE_MIND_API_URL).replace(/\/$/, '')
+          : ''
+        const hr = await fetch(`${base}/api/health`, { credentials: 'include' })
+        const hj = await hr.json().catch(() => ({}))
+        if (!cancelled && typeof hj.gemini === 'boolean') setLive(hj.gemini)
+      } catch {
+        if (!cancelled) setLive(false)
+      }
+
       const data = await mindSession()
       if (cancelled) return
       const owns = data.ownerships || []
@@ -219,6 +233,7 @@ export function MindChat() {
               {ownerships.length
                 ? ` · ${ownerships.length} lots yours`
                 : ' · talk freely'}
+              {!live ? ' · signal degraded' : ''}
               {status ? ` · ${status}` : ''}
             </div>
           </div>

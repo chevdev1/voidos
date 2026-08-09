@@ -54,10 +54,12 @@ Never commit real secrets into git. Use `.env.example` as the template.
 | Env | Required | Where to get |
 |-----|----------|----------------|
 | `GEMINI_API_KEY` | **Yes** for smart Mind | https://aistudio.google.com/apikey |
-| `GEMINI_MODEL` | No (default ok) | e.g. `gemini-flash-latest` |
+| `GEMINI_MODEL` | No (default ok) | e.g. `gemini-2.0-flash` |
 
 - **Who:** client creates their own Google AI Studio key  
-- **Note:** without this key Mind falls back to canned lines (“feels like a script”)
+- **Vercel:** Project → Settings → Environment Variables → add `GEMINI_API_KEY` (Production + Preview) → **Redeploy**  
+- **Check:** `GET /api/health` should return `{ "ok": true, "gemini": true }`  
+- **Note:** without this key Mind answers with a short “signal degraded” line — it will not fake a smart FAQ script
 
 ### 2) Google login — same Client ID twice
 

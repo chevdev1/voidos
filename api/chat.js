@@ -4,9 +4,10 @@ import {
   detectTriggers,
   pickPrompts,
   buildSystemPrompt,
-  mockReply,
   callGemini,
   safetyReply,
+  degradedSignal,
+  DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
   getOrCreateUser,
@@ -61,6 +62,7 @@ export default async function handler(req, res) {
       res.setHeader('Set-Cookie', sidCookie(user.guest_key, { secure: isSecureReq(req) }))
       return res.status(200).json({
         reply: blocked,
+        live: true,
         guestKey: user.guest_key,
         user: publicUser(user),
         ownerships: owns,
@@ -81,20 +83,32 @@ export default async function handler(req, res) {
 
     await addMessage(conv.id, 'user', message)
 
-    let reply
-    try {
-      const live = await callGemini({
-        apiKey: process.env.GEMINI_API_KEY || '',
-        model: process.env.GEMINI_MODEL || 'gemini-flash-latest',
-        system,
-        history,
-        userMessage: message,
-        owns,
-      })
-      reply = live || mockReply(message, owns, triggers)
-    } catch (err) {
-      console.warn('[chat] gemini failed', err?.message || err)
-      reply = mockReply(message, owns, triggers)
+    const apiKey = String(process.env.GEMINI_API_KEY || '').trim()
+    const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
+    let reply = null
+    let live = false
+
+    if (!apiKey) {
+      reply = degradedSignal('no_key')
+      live = false
+    } else {
+      try {
+        reply = await callGemini({
+          apiKey,
+          model,
+          system,
+          history,
+          userMessage: message,
+          owns,
+        })
+        if (reply) live = true
+      } catch (err) {
+        console.warn('[chat] gemini failed', err?.message || err)
+      }
+      if (!reply) {
+        reply = degradedSignal('offline')
+        live = false
+      }
     }
 
     await addMessage(conv.id, 'assistant', reply)
@@ -107,6 +121,7 @@ export default async function handler(req, res) {
     res.setHeader('Set-Cookie', sidCookie(user.guest_key, { secure: isSecureReq(req) }))
     return res.status(200).json({
       reply,
+      live,
       guestKey: user.guest_key,
       user: publicUser(user),
       ownerships: owns,
@@ -114,6 +129,6 @@ export default async function handler(req, res) {
     })
   } catch (err) {
     console.error('[chat]', err)
-    return res.status(500).json({ error: 'chat failed' })
+    return res.status(500).json({ error: 'chat failed', live: false })
   }
 }
