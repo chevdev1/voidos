@@ -89,6 +89,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .btn-ghost:hover{border-color:var(--lime);color:var(--lime)}
 .price-note{color:var(--muted2);font-size:11px;line-height:1.5;max-width:360px;margin-top:12px}
 .price-note b{color:var(--lime);font-weight:600}
+.hero-map-actions{display:none}
 
 .hero-cosmos-slot{
   position:relative;z-index:8;
@@ -628,51 +629,34 @@ body.arena-live .cart-dock{bottom:78px}
   .minimap{display:none}
   .filters{display:none !important}
 
-  /* —— Hero preview: galaxy first, one soft ask pill —— */
+  /* —— Hero preview: clean galaxy, controls BELOW the map —— */
   .hero-right:not(.in-arena) .mind-btn--tool{display:none !important}
   .hero-right:not(.in-arena) .vc{display:none !important}
   .hero-right:not(.in-arena) .mind-meta{display:none}
   .hero-right:not(.in-arena) .mind-legend{display:none !important}
-  .hero-right:not(.in-arena) .mind-bar{
-    left:50%;
-    right:auto;
-    bottom:max(12px, env(safe-area-inset-bottom));
-    transform:translateX(-50%);
-    width:auto;
-    max-width:min(280px, calc(100% - 28px));
-    padding:0;
-    gap:0;
-    background:transparent;
-    border:none;
-    box-shadow:none;
-    border-radius:0;
+  .hero-right:not(.in-arena) .mind-bar{display:none !important}
+  .hero-right:not(.in-arena) .cosmos-explore{display:none !important}
+  .hero-right:not(.in-arena) .cosmos-bar{
+    padding:8px 10px;
+    background:linear-gradient(180deg,rgba(0,0,0,.55),transparent);
   }
-  .hero-right:not(.in-arena) .mind-actions{
-    grid-template-columns:1fr;
-    width:auto;
+  .hero-map-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+    width:100%;
   }
-  .hero-right:not(.in-arena) .mind-btn--ask{
-    min-height:40px;
-    padding:0 18px;
+  .hero-map-actions .btn-lime,
+  .hero-map-actions .btn-ghost{
+    flex:1;
+    min-height:44px;
     border-radius:999px;
-    background:rgba(4,6,0,.82);
+    font-size:12px;
+  }
+  .hero-map-actions .btn-ghost{
+    border-color:rgba(204,255,0,.4);
     color:var(--lime);
-    border:1px solid rgba(204,255,0,.45);
-    font-size:11px;
-    letter-spacing:.08em;
-    backdrop-filter:blur(10px);
-    -webkit-backdrop-filter:blur(10px);
-    box-shadow:0 8px 28px rgba(0,0,0,.45);
-  }
-  .hero-right:not(.in-arena) .mind-btn--ask:hover,
-  .hero-right:not(.in-arena) .mind-btn--ask:active{
-    background:rgba(204,255,0,.14);
-  }
-  .hero-right:not(.in-arena) .mind-btn--ask .ico{
-    color:var(--lime);opacity:1;font-size:11px;
-  }
-  .hero-right:not(.in-arena) .mind-btn--ask .mind-btn-lab{
-    color:var(--lime);font-weight:600;
+    background:rgba(0,0,0,.55);
   }
 
   /* —— Full map: soft tools, ask as outline accent —— */
@@ -933,20 +917,32 @@ body.arena-live .cart-dock{
 }
 
 @media(max-width:960px){
-  .hero{grid-template-columns:1fr;padding-top:72px;gap:12px;padding-bottom:16px}
+  .hero{grid-template-columns:1fr;padding-top:68px;gap:10px;padding-bottom:20px}
   .hero-left{order:1}
+  .hero-left .live{display:none}
+  .hero-left .lead{display:none}
+  .hero-left .ca-row{display:none}
+  .hero-left .price-note{display:none}
+  .hero-left .cta{margin-bottom:8px}
+  .hero-left .cta .btn-lime:nth-child(2),
+  .hero-left .cta .btn-ghost{display:none}
   .hero-cosmos-slot{
     order:2;margin-right:0;
-    min-height:min(62vh,520px);
-    max-height:min(68vh,580px);
+    min-height:0;
+    max-height:none;
+    display:flex;
+    flex-direction:column;
   }
   .hero-right:not(.in-arena){
+    flex:none;
+    width:100%;
     min-height:min(62vh,520px);
-    max-height:min(68vh,580px);
-    height:auto;
+    height:min(62vh,520px);
+    max-height:none;
     mask-image:none;-webkit-mask-image:none;margin-right:0;
+    border:1px solid rgba(204,255,0,.18);
   }
-  .hero h1{font-size:clamp(36px,12vw,56px)}
+  .hero h1{font-size:clamp(40px,14vw,56px);margin-bottom:14px}
   .cta{gap:8px}
   .btn-lime,.btn-ghost{
     padding:0 14px;
@@ -954,6 +950,10 @@ body.arena-live .cart-dock{
     min-height:var(--tap-lg);
   }
   .btn-lime{color:#000}
+  .btn-ghost{
+    border-color:rgba(204,255,0,.4);
+    color:var(--lime);
+  }
   /* Burned HUD duplicates mind-meta — hide on compact hero map */
   .hero-right:not(.in-arena) .cosmos-hud{display:none}
   body.arena-live .cosmos-hud{
@@ -986,12 +986,11 @@ body.arena-live .cart-dock{
 }
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr}
-  .hero-cosmos-slot,
   .hero-right:not(.in-arena){
-    min-height:min(58vh,480px);
-    max-height:min(64vh,540px);
+    min-height:min(64vh,540px);
+    height:min(64vh,540px);
   }
-  .hero{min-height:auto;padding-bottom:12px}
+  .hero{min-height:auto;padding-bottom:16px}
   .cta{flex-direction:column;align-items:stretch}
   .cta > *{
     width:100%;
@@ -1000,6 +999,7 @@ body.arena-live .cart-dock{
     box-sizing:border-box;
   }
   .cta .btn-lime{color:#000}
+  .hero-map-actions{flex-direction:column}
 }
 
 /* —— mobile polish: term sheet + stack (no overlap) —— */
