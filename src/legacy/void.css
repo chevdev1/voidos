@@ -437,12 +437,14 @@ body.arena-live .cart-dock{bottom:78px}
   border-color:var(--lime);color:var(--lime);
   background:rgba(204,255,0,.06);
 }
+/* Sits just above the dock on desktop; flows inside the dock on mobile */
 .mind-meta{
   display:flex;
-  position:absolute;left:12px;bottom:58px;z-index:11;pointer-events:none;
+  position:absolute;left:0;bottom:calc(100% + 8px);z-index:11;pointer-events:none;
   flex-direction:column;gap:2px;
   font-size:9px;color:var(--muted2);letter-spacing:.03em;
   text-shadow:0 1px 8px #000;
+  white-space:nowrap;
 }
 .mind-meta b{color:var(--lime)}
 .mind-panel{
@@ -489,50 +491,65 @@ body.arena-live .cart-dock{bottom:78px}
 .mp-row em{color:var(--muted2);font-style:normal;font-size:10px}
 @media(max-width:960px){
   .mind-bar{
-    left:8px;right:8px;
-    bottom:max(8px, env(safe-area-inset-bottom));
+    left:0;right:0;
+    bottom:0;
     transform:none;
     max-width:none;
-    flex-wrap:wrap;
+    flex-direction:column;
+    flex-wrap:nowrap;
     align-items:stretch;
+    gap:6px;
+    padding:8px 8px max(8px, env(safe-area-inset-bottom));
+    overflow:visible;
+    border-left:none;border-right:none;border-bottom:none;
+    border-radius:0;
+  }
+  .mind-meta{
+    position:static;
+    flex-direction:row;
+    flex-wrap:nowrap;
     gap:8px;
-    padding:8px 8px;
-    overflow-x:visible;
-    overflow-y:visible;
+    font-size:9px;
+    text-shadow:none;
+    opacity:.95;
+    overflow:hidden;
+    max-width:100%;
+    pointer-events:none;
   }
-  .mind-legend{
-    flex-wrap:wrap;
-    gap:4px;
-    width:100%;
-    flex-shrink:1;
+  .mind-meta span{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+    min-width:0;
   }
+  .mind-meta #mindMetaBurn{flex-shrink:0;color:var(--lime)}
   .mind-sep{display:none}
+  .mind-legend,
   .mind-actions{
-    flex-wrap:wrap;
+    display:flex;
+    flex-wrap:nowrap;
+    align-items:center;
     gap:6px;
     width:100%;
-    flex-shrink:1;
+    overflow-x:auto;
+    overflow-y:hidden;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    overscroll-behavior-x:contain;
   }
+  .mind-legend::-webkit-scrollbar,
+  .mind-actions::-webkit-scrollbar{display:none}
   .mind-leg{
+    flex:0 0 auto;
     min-height:36px;
     padding:6px 8px;
     font-size:10px;
   }
   .mind-btn{
-    min-height:36px;
-    padding:8px 10px;
+    flex:0 0 auto;
+    min-height:40px;
+    padding:8px 12px;
     font-size:11px;
-    flex:1 1 auto;
-  }
-  .mind-meta{
-    left:10px;right:10px;
-    bottom:auto;
-    top:max(52px, env(safe-area-inset-top));
-    font-size:8px;
-    flex-direction:row;
-    flex-wrap:wrap;
-    gap:6px 10px;
-    opacity:.9;
   }
   .minimap{display:none}
   .filters{display:none !important}
@@ -738,52 +755,61 @@ body.arena-live .cart-dock{
   .hero-left{order:1}
   .hero-cosmos-slot{
     order:2;margin-right:0;
-    min-height:min(42vh,360px);
-    max-height:min(46vh,400px);
+    min-height:min(56vh,480px);
+    max-height:min(62vh,540px);
   }
   .hero-right:not(.in-arena){
-    min-height:min(42vh,360px);
-    max-height:min(46vh,400px);
+    min-height:min(56vh,480px);
+    max-height:min(62vh,540px);
     height:auto;
     mask-image:none;-webkit-mask-image:none;margin-right:0;
   }
   .hero h1{font-size:clamp(36px,12vw,56px)}
   .cta{gap:8px}
   .btn-lime,.btn-ghost{padding:10px 12px;font-size:12px}
-  .cosmos-hud{top:auto;bottom:110px;right:10px;transform:none;max-width:46%}
-  .cosmos-hud .pill .num{font-size:16px}
+  .btn-lime{color:#000}
+  /* Burned HUD duplicates mind-meta — hide on compact hero map */
+  .hero-right:not(.in-arena) .cosmos-hud{display:none}
+  body.arena-live .cosmos-hud{
+    display:block;
+    top:max(52px, env(safe-area-inset-top));
+    bottom:auto;
+    right:8px;
+    transform:none;
+    max-width:min(42%, 150px);
+  }
+  body.arena-live .cosmos-hud .pill .sub{display:none}
+  body.arena-live .cosmos-hud .pill .num{font-size:15px}
   .minimap{width:96px;bottom:8px;right:8px}
   .minimap canvas{height:64px}
   .filters{max-width:70%;bottom:8px;left:8px;gap:4px}
   .fchip{padding:4px 7px;font-size:9px}
-  .vc{bottom:90px;right:8px}
+  /* Zoom controls clear of bottom dock */
+  .vc{
+    top:40px;
+    bottom:auto;
+    right:8px;
+  }
   .vc button{width:40px;height:40px;font-size:14px}
   .term{width:100vw}
   .cart-dock{bottom:10px;width:calc(100vw - 16px);padding:10px}
   .arena-hud{padding-top:64px;max-width:100%}
   .m-stats{grid-template-columns:1fr 1fr}
+  .cosmos-scan{opacity:.12}
 }
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr}
   .hero-cosmos-slot,
   .hero-right:not(.in-arena){
-    min-height:min(36vh,300px);
-    max-height:min(40vh,320px);
+    min-height:min(52vh,440px);
+    max-height:min(58vh,500px);
   }
   .hero{min-height:auto;padding-bottom:12px}
-  .mind-bar{font-size:9px;padding:8px;gap:6px}
-  .mind-btn{padding:8px 9px;font-size:10px;min-height:40px}
-  .mind-leg{min-height:34px;padding:5px 7px}
-  .mind-meta{
-    display:flex;
-    font-size:8px;
-    top:max(48px, env(safe-area-inset-top));
-  }
-  body.arena-live .vc{top:max(64px, calc(env(safe-area-inset-top) + 56px))}
   .cta{flex-direction:column;align-items:stretch}
   .cta .btn-lime,
   .cta > a,
   .cta > button{width:100%;min-height:44px;justify-content:center}
+  .cta .btn-lime{color:#000}
 }
 
 /* —— mobile polish: term sheet, cart vs mind-bar, taps —— */
@@ -794,10 +820,8 @@ body.arena-live .cart-dock{
     overflow:auto;
     -webkit-overflow-scrolling:touch;
   }
-  body.arena-live .cosmos-hud .pill .sub{display:none}
-  body.arena-live .cosmos-hud{max-width:min(48%, 160px)}
   body.arena-live .cart-dock{
-    bottom:calc(128px + env(safe-area-inset-bottom));
+    bottom:calc(148px + env(safe-area-inset-bottom));
   }
   body.arena-live.term-open .mind-bar,
   body.mind-open .mind-bar{

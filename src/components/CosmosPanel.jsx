@@ -60,6 +60,10 @@ export function CosmosPanel() {
         </button>
       </div>
       <div className="mind-bar" id="mindBar">
+        <div className="mind-meta" id="mindMeta">
+          <span id="mindMetaLine">0 cells · 0 lots · 0 claimed · 0% of mind sold</span>
+          <span id="mindMetaBurn">0 $EXO burned</span>
+        </div>
         <div className="mind-legend" id="mindLegend">
           <span className="mind-leg" data-f="empty">
             <i className="box empty" />
@@ -99,10 +103,6 @@ export function CosmosPanel() {
             <span className="ico">◉</span> ask me
           </button>
         </div>
-      </div>
-      <div className="mind-meta" id="mindMeta">
-        <span id="mindMetaLine">0 cells · 0 lots · 0 claimed · 0% of mind sold</span>
-        <span id="mindMetaBurn">0 $EXO burned</span>
       </div>
       <div className="mind-panel" id="mindPanel" hidden>
         <div className="mind-panel-card" role="dialog" aria-modal="true">

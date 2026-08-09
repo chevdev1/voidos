@@ -430,10 +430,11 @@ export function initVoidEngine() {
         const saveData = navigator.connection && navigator.connection.saveData;
         if (saveData) return 'low';
         const mem = navigator.deviceMemory; // Chrome-ish; undefined elsewhere
-        if (mem != null && mem <= 4) return 'low';
+        if (mem != null && mem <= 2) return 'low';
         const cores = navigator.hardwareConcurrency || 8;
-        const coarse = matchMedia('(pointer: coarse)').matches;
-        if (cores <= 4 || coarse || (mem != null && mem <= 6)) return 'medium';
+        // Prefer sharp pixels on phones; cut draw cost via LOD, not a tiny framebuffer.
+        if (mem != null && mem <= 4 && cores <= 4) return 'medium';
+        if (cores <= 2) return 'medium';
       } catch (_) {
         /* ignore */
       }
@@ -492,19 +493,17 @@ export function initVoidEngine() {
       spike: Math.random() < 0.035,
     }));
 
-    // DPR cap and internal render resolution both shrink under sustained
-    // load. 'high' is unchanged for capable devices; 'medium'/'low' render
-    // to a genuinely smaller backing buffer (not just capped DPR) and let
-    // the browser upscale it via the canvas's CSS size, which stays at the
-    // container's full size the whole time — same "render small, display
-    // big" trick as a low-res game framebuffer.
+    // Prefer a sharp backing store. Phones often have DPR 2–3; capping at 1
+    // made constellations look soft. Drop particle/LOD cost before resolution.
     function dprCapForQuality() {
-      return quality === 'high' ? 1.5 : 1;
+      const native = devicePixelRatio || 1;
+      if (quality === 'high') return Math.min(native, 2.5);
+      if (quality === 'medium') return Math.min(native, 2);
+      return Math.min(native, 1.5);
     }
     function renderScaleForQuality() {
-      if (quality === 'high') return 1;
-      if (quality === 'medium') return 0.85;
-      return 0.7;
+      if (quality === 'low') return 0.9;
+      return 1;
     }
     function fitHomeScale() {
       if (!W || !H || !g0) return 0.85;
@@ -541,6 +540,8 @@ export function initVoidEngine() {
       canvas.style.width = W + 'px';
       canvas.style.height = H + 'px';
       ctx.setTransform(DPR * renderScale, 0, 0, DPR * renderScale, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      if (ctx.imageSmoothingQuality) ctx.imageSmoothingQuality = 'high';
       // Keep the whole galaxy readable on phone / short viewports
       if (atHomeView && !dragging) applyHomeView(true);
     }
@@ -2063,8 +2064,9 @@ export function initVoidEngine() {
       // Always draw — even on low quality — or the map reads as only points.
       {
         const vis = scale < 1.1 ? 0.7 : scale < 3 ? 0.95 : 1;
-        const maxStars = quality === 'low' ? 5 : quality === 'medium' ? 6 : 8;
+        const maxStars = quality === 'low' ? 6 : quality === 'medium' ? 7 : 8;
         const constelStep = quality === 'low' ? 2 : 1;
+        const lineBoost = Math.min(1.35, 0.85 + DPR * 0.15);
 
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
@@ -2158,8 +2160,8 @@ export function initVoidEngine() {
 
           const edges = mstEdges(stars);
           for (const [a, b] of edges) {
-            strokePath([a, b], false, glowCol, aMain * 0.22, picked ? 5.5 : 3.6);
-            strokePath([a, b], false, strokeCol, aMain, picked ? 2.1 : hot ? 1.55 : 1.25);
+            strokePath([a, b], false, glowCol, aMain * 0.22, (picked ? 5.5 : 3.6) * lineBoost);
+            strokePath([a, b], false, strokeCol, aMain, (picked ? 2.1 : hot ? 1.55 : 1.25) * lineBoost);
           }
 
           // Extra figure outline when zoomed into constellation scale
