@@ -12,11 +12,13 @@ Branch: `main` (auto-deploy via Vercel recommended)
 - Fullsite VOID.OS: map, claim constellations (test mode — no real $EXO burn yet)
 - **CABINET / ЛК** — owned lots, 6 kinds (Spire / Coil / Crown / Lattice / Vein / Halo)
 - Lot viewer: rotate, tap stars, per-star lore
+- **Train patch (test)** in CABINET — marks lot trained / fed on the map (free until mint)
 - **Google-only** account (register = login)
 - **Robinhood Wallet** link via WalletConnect QR (+ in-app Web3 browser)
 - SOL balance; `$EXO` balance when mint is set
 - **Ask the mind** — Gemini ExoMind chat; auto-briefs owned lots on open; tools for lot/star stories
 - Claims sync to browser ledger + server (Mind sees your lots)
+- Footer / Hero CA are env-driven (`VITE_X_URL`, `VITE_EXO_CA`, …) — no fake `#` / dummy CA
 
 ### Infra / fixes shipped
 - Google OAuth wired on Vercel
@@ -109,6 +111,8 @@ Without Turso: works for demos; serverless `/tmp` DB can reset.
 |-----|----------|--------|
 | `VITE_MIND_API_URL` | No | Leave empty on Vercel (same origin `/api`) |
 | `VITE_HASH_ROUTER` | No | Only if host has no SPA rewrites |
+| `VITE_EXO_CA` / `VITE_EXO_MINT` | When live | Hero CA box; without → **CA TBA · mint not live** |
+| `VITE_X_URL` / `VITE_GITHUB_URL` / `VITE_DEX_URL` / `VITE_TELEGRAM_URL` | No | Footer / Follow; without → **soon** (no fake `#`) |
 
 ---
 

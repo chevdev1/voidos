@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { mindSession, loadOwnerships, loadUser } from '../lib/mindClient'
+import { mindSession, loadOwnerships, loadUser, mindTrainLot } from '../lib/mindClient'
 import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
@@ -18,6 +18,7 @@ export default function Cabinet() {
   const [kindFilter, setKindFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [selectedStar, setSelectedStar] = useState(null)
+  const [trainNote, setTrainNote] = useState('')
 
   useEffect(() => {
     let cancelled = false
@@ -89,6 +90,18 @@ export default function Cabinet() {
       .join(', ')}`
     sessionStorage.setItem('void_mind_prefill', q)
     window.__openMindChat?.()
+  }
+
+  function trainActiveLot() {
+    if (!active?.lot?.constel_id) return
+    if (active.lot.trained) {
+      setTrainNote('already trained — map filter sees this patch as fed.')
+      return
+    }
+    const next = mindTrainLot(active.lot.constel_id)
+    setOwnerships(next)
+    setTrainNote('trained (test) — free until $EXO mint is live.')
+    setTimeout(() => setTrainNote(''), 3200)
   }
 
   return (
@@ -260,7 +273,7 @@ export default function Cabinet() {
                           <div className="flex items-start justify-between gap-2">
                             <span className="text-sm text-lime">✧ {profile.name}</span>
                             <span className="text-[10px] uppercase tracking-wider text-muted">
-                              {profile.kindLabel}
+                              {lot.trained ? 'trained' : profile.kindLabel}
                             </span>
                           </div>
                           <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted">
@@ -386,12 +399,27 @@ export default function Cabinet() {
                         </Link>
                         <button
                           type="button"
+                          className="border border-lime/40 px-4 py-2 text-[11px] tracking-wide text-lime disabled:opacity-50"
+                          disabled={Boolean(active.lot.trained)}
+                          onClick={trainActiveLot}
+                        >
+                          {active.lot.trained ? 'trained ✓' : 'Train patch (test)'}
+                        </button>
+                        <button
+                          type="button"
                           className="border border-lime/40 px-4 py-2 text-[11px] tracking-wide text-lime"
                           onClick={() => askMindAboutLot(active.profile)}
                         >
                           ask the mind the lot story
                         </button>
                       </div>
+                      {trainNote ? (
+                        <p className="text-[11px] text-lime/90">{trainNote}</p>
+                      ) : (
+                        <p className="text-[10px] text-muted">
+                          training is free in test mode — burns $EXO when mint is live.
+                        </p>
+                      )}
                     </div>
                   </motion.article>
                 )}

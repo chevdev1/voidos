@@ -794,9 +794,14 @@ export function initVoidEngine() {
         if (!cid) continue;
         const c = g0.constels.find((x) => String(x.id) === cid);
         if (!c) continue;
+        const trained =
+          Boolean(o.trained) ||
+          Boolean(o.trained_at) ||
+          String(o.status || '').toLowerCase() === 'fed';
         for (const s of c.grains) {
           yoursSet.add(s.id);
-          if (s.kind === 'empty') s.kind = 'claimed';
+          if (trained) s.kind = 'fed';
+          else if (s.kind === 'empty') s.kind = 'claimed';
         }
       }
       const yc = document.getElementById('yoursCnt');
@@ -805,9 +810,27 @@ export function initVoidEngine() {
       refreshCartDock();
     }
 
+    function trainLotOnMap(constelId) {
+      const cid = String(constelId || '');
+      if (!cid || !g0?.constels) return false;
+      const c = g0.constels.find((x) => String(x.id) === cid);
+      if (!c) return false;
+      for (const s of c.grains) {
+        yoursSet.add(s.id);
+        s.kind = 'fed';
+      }
+      const yc = document.getElementById('yoursCnt');
+      if (yc) yc.textContent = String(yoursSet.size);
+      refreshCounts();
+      refreshCartDock();
+      return true;
+    }
+
     window.__voidHydrateOwns = hydrateOwnsFromLedger;
+    window.__voidTrainLot = trainLotOnMap;
     onCleanup(() => {
       if (window.__voidHydrateOwns === hydrateOwnsFromLedger) delete window.__voidHydrateOwns;
+      if (window.__voidTrainLot === trainLotOnMap) delete window.__voidTrainLot;
     });
 
     function focusLotFromStorage() {

@@ -100,10 +100,14 @@ export function saveUser(user) {
 function normalizeOwn(o) {
   const id = String(o?.constel_id || o?.id || '').trim()
   if (!id) return null
+  const trained =
+    Boolean(o.trained) || Boolean(o.trained_at) || String(o.status || '').toLowerCase() === 'fed'
   return {
     constel_id: id,
     constel_name: String(o.constel_name || o.name || id),
     claimed_at: o.claimed_at || null,
+    trained,
+    trained_at: o.trained_at || (trained ? o.claimed_at || null : null),
   }
 }
 
@@ -118,6 +122,8 @@ export function mergeOwnerships(serverList, localList) {
       ...prev,
       ...o,
       claimed_at: o.claimed_at || prev?.claimed_at || null,
+      trained: Boolean(prev?.trained || o.trained),
+      trained_at: o.trained_at || prev?.trained_at || null,
     })
   }
   return [...map.values()]
@@ -277,7 +283,15 @@ export async function mindClaimSync(lots) {
     claimed_at: new Date().toISOString(),
   }))
   const map = new Map(loadOwnerships().map((o) => [o.constel_id, o]))
-  for (const o of mapped) map.set(o.constel_id, o)
+  for (const o of mapped) {
+    const prev = map.get(o.constel_id)
+    map.set(o.constel_id, {
+      ...prev,
+      ...o,
+      trained: Boolean(prev?.trained),
+      trained_at: prev?.trained_at || null,
+    })
+  }
   const merged = [...map.values()]
   saveOwnerships(merged)
   notifyOwnershipHydrate(merged)
@@ -293,6 +307,32 @@ export async function mindClaimSync(lots) {
   } catch {
     return merged
   }
+}
+
+/** Mark a claimed lot as trained (test mode — no real $EXO burn). */
+export function mindTrainLot(constelId) {
+  const id = String(constelId || '').trim()
+  if (!id) return loadOwnerships()
+  const list = loadOwnerships()
+  const next = list.map((o) => {
+    if (String(o.constel_id) !== id) return o
+    return {
+      ...o,
+      trained: true,
+      trained_at: o.trained_at || new Date().toISOString(),
+    }
+  })
+  if (!next.some((o) => String(o.constel_id) === id && o.trained)) {
+    return list
+  }
+  saveOwnerships(next)
+  try {
+    window.__voidTrainLot?.(id)
+  } catch {
+    /* ignore */
+  }
+  notifyOwnershipHydrate(next)
+  return next
 }
 
 export function voidToast(text, ms = 2800) {

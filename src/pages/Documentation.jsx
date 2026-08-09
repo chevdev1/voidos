@@ -45,6 +45,10 @@ const SECTIONS = [
           no treasury, no team wallet collecting the proceeds. Each sector claimed forever reduces
           the total $EXO supply.
         </p>
+        <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
+          Live site status: claim runs in <b>test mode</b> (free, no real burn) until{' '}
+          <code className="text-white">EXO_MINT</code> / CA is set and burn rails go live.
+        </p>
       </>
     ),
   },
@@ -65,6 +69,10 @@ const SECTIONS = [
           Every publication and every retraining pass burns <b className="text-lime">$EXO</b> as
           fuel. Ownership of a sector is eternal — nothing can revoke it — but transmitting a new
           signal into it always costs something. Silence is free. Influence isn't.
+        </p>
+        <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
+          Until mint is live: use <b>Train patch (test)</b> in CABINET — free ledger training that
+          marks the lot as fed on the map. Real $EXO burns replace this later.
         </p>
       </>
     ),
@@ -232,7 +240,8 @@ function DocumentationContent() {
               Documentation
             </h1>
             <p className="mt-3 max-w-xl font-mono text-[13px] leading-relaxed text-gray-400">
-              The reference manual for the probe, the sectors, and the fuel that runs both.
+              The reference manual for the probe, the lots, and the fuel that runs both. Claim and
+              training are in test mode on the live site until $EXO mint goes live.
             </p>
           </motion.div>
 

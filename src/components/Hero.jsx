@@ -7,7 +7,10 @@ import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
-const CA = '0xEXO…VOID0000000000000000000DEAD'
+const CA = String(import.meta.env.VITE_EXO_CA || import.meta.env.VITE_EXO_MINT || '').trim()
+const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
+const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()
+const caLive = Boolean(CA)
 
 export function Hero() {
   const lenisRef = useLenis()
@@ -18,6 +21,7 @@ export function Hero() {
   }
 
   function copyCA() {
+    if (!caLive) return
     navigator.clipboard?.writeText(CA)
     setCopied(true)
     setTimeout(() => setCopied(false), 800)
@@ -59,13 +63,49 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.32 }}
           className="ca-row"
         >
-          <div className="ca-box" id="ca">
-            {CA}
+          <div className="ca-box" id="ca" title={caLive ? CA : 'Contract / mint not live yet'}>
+            {caLive ? CA : 'CA TBA · mint not live'}
           </div>
-          <motion.button whileTap={{ scale: 0.94 }} className="ca-copy" onClick={copyCA}>
-            {copied ? '✓' : '⧉'}
+          <motion.button
+            whileTap={{ scale: caLive ? 0.94 : 1 }}
+            className="ca-copy"
+            onClick={copyCA}
+            disabled={!caLive}
+            aria-label={caLive ? 'copy contract address' : 'contract not available yet'}
+          >
+            {caLive ? (copied ? '✓' : '⧉') : '—'}
           </motion.button>
         </motion.div>
+
+        {(X_URL || TG_URL) && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.36 }}
+            className="mt-3 flex flex-wrap gap-2"
+          >
+            {X_URL ? (
+              <a
+                href={X_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost"
+              >
+                Follow
+              </a>
+            ) : null}
+            {TG_URL ? (
+              <a
+                href={TG_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-ghost"
+              >
+                Telegram
+              </a>
+            ) : null}
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}

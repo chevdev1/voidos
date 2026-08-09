@@ -3,28 +3,32 @@ import { AnimatePresence, motion } from 'framer-motion'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
 
-// Apple-style critically-damped spring (bounce: 0 = no overshoot) — the
-// duration-based spring API reads far more natural for a height reveal
-// than a fixed-duration tween, per Emil Kowalski's guidance: keep bounce
-// out of UI unless it's a drag/dismiss gesture.
 const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 
 const FAQS = [
   {
-    q: 'How do I acquire a sector?',
-    a: "Sectors are claimed through the ExoMind app once the star map opens: connect a wallet, browse the 500 systems, and mint an available sector. Availability and pricing are shown live in-app — this page is lore, not the acquisition flow.",
+    q: 'How do I claim a constellation lot?',
+    a: 'Open the full map, tap to explore, multi-select constellation lots, then claim. Right now claim runs in test mode — free, no real $EXO burn — until the mint goes live. After claim, open CABINET to rotate the lot and read each ★ star.',
   },
   {
-    q: 'What happens if I sell my tokens?',
-    a: 'Sector ownership and $EXO holdings are separate. Selling $EXO does not revoke a sector you already own — but transmitting new signals into it (publishing or retraining) still costs fuel, so you\'ll need $EXO on hand to keep influencing the Mind.',
+    q: 'What happens if I sell my $EXO?',
+    a: 'Lot ownership and $EXO balance are separate. Selling $EXO does not revoke lots you already claimed. Training / transmitting later will still need fuel once mint is live — silence stays free; influence costs burn.',
   },
   {
-    q: 'Is the smart contract audited and safe?',
-    a: 'Audit status and report links belong here once finalized — treat any unaudited contract as high-risk. Always verify the contract address independently before interacting, and never trust a CA posted outside official channels.',
+    q: 'Is the smart contract audited?',
+    a: 'No live mint or audited claim contract is wired on this site yet (CA shows TBA until set). Treat unaudited deploys as high-risk. Never trust a contract address posted outside official channels once launch happens.',
   },
   {
-    q: 'What is the Immutable Core, exactly?',
-    a: 'A fixed 28% of the personality weighting that no sector purchase, signal, or retraining can touch. It exists so the probe always retains a part of itself no commander can own.',
+    q: 'What is the Immutable Core?',
+    a: 'A fixed 28% of ExoMind’s personality weighting that no claim, signal, or training pass can touch. It stays sealed so the probe always keeps a part of itself no commander can own.',
+  },
+  {
+    q: 'What does Ask the mind do?',
+    a: 'It is a live chat with ExoMind (Gemini). Talk about the map, your lots, or ★ stars. It stays on VOID topics — it will not play wish-games or grant free lots. With owned lots it can brief what you hold.',
+  },
+  {
+    q: 'How does training work?',
+    a: 'In CABINET, open a claimed lot and use Train patch (test). That marks the lot as trained in your ledger and on the map filter — free while $EXO mint is off. When mint is live, training will burn $EXO as fuel.',
   },
 ]
 

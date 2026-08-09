@@ -1,10 +1,14 @@
 import { Link } from 'react-router-dom'
 
+const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
+const GITHUB_URL = String(import.meta.env.VITE_GITHUB_URL || '').trim()
+const DEX_URL = String(import.meta.env.VITE_DEX_URL || '').trim()
+
 const LINKS = [
-  { label: 'X / Twitter', href: '#' },
-  { label: 'GitHub', href: '#' },
+  { label: 'X / Twitter', href: X_URL },
+  { label: 'GitHub', href: GITHUB_URL },
   { label: 'Documentation', to: '/docs' },
-  { label: 'DexScreener', href: '#' },
+  { label: 'DexScreener', href: DEX_URL },
 ]
 
 function FooterLink({ label, href, to }) {
@@ -20,14 +24,24 @@ function FooterLink({ label, href, to }) {
     </span>
   )
 
-  // `to` = internal route (React Router Link, no full page reload).
-  // `href` = external placeholder (plain anchor, opens in a new tab).
   if (to) {
     return (
       <Link to={to} className={className}>
         {label}
         {arrow}
       </Link>
+    )
+  }
+
+  if (!href) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 font-mono text-[13px] tracking-wide text-muted-2"
+        title="URL not set yet — add VITE_* env on Vercel"
+      >
+        {label}
+        <span className="text-[10px] uppercase tracking-[0.14em] text-muted-2/80">soon</span>
+      </span>
     )
   }
 
