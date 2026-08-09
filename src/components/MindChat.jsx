@@ -48,6 +48,7 @@ export function MindChat() {
     return []
   })
   const scroller = useRef(null)
+  const sheetRef = useRef(null)
   const briefingRef = useRef(false)
 
   useEffect(() => {
@@ -198,6 +199,37 @@ export function MindChat() {
     scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: 'smooth' })
   }, [messages, open, busy])
 
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.body.classList.add('mind-open')
+    const onKey = (e) => {
+      if (e.key === 'Escape') setOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+
+    const vv = window.visualViewport
+    const syncKb = () => {
+      const root = sheetRef.current
+      if (!root || !vv) return
+      const inset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop)
+      root.style.setProperty('--kb', `${inset}px`)
+    }
+    syncKb()
+    vv?.addEventListener('resize', syncKb)
+    vv?.addEventListener('scroll', syncKb)
+
+    return () => {
+      document.body.style.overflow = prev
+      document.body.classList.remove('mind-open')
+      window.removeEventListener('keydown', onKey)
+      vv?.removeEventListener('resize', syncKb)
+      vv?.removeEventListener('scroll', syncKb)
+      sheetRef.current?.style.removeProperty('--kb')
+    }
+  }, [open])
+
   async function send(e) {
     e?.preventDefault?.()
     const text = input.trim()
@@ -209,7 +241,16 @@ export function MindChat() {
   if (!open) return null
 
   return (
-    <div className="mind-chat" role="dialog" aria-modal="true" aria-label="ask the mind">
+    <div
+      ref={sheetRef}
+      className="mind-chat"
+      role="dialog"
+      aria-modal="true"
+      aria-label="ask the mind"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) setOpen(false)
+      }}
+    >
       <div className="mind-chat-card">
         <div className="mind-chat-top">
           <div>

@@ -4,9 +4,10 @@ import { mindGoogleLogin } from '../lib/mindClient'
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || ''
 
 /**
- * Google-only auth — custom VOID.OS chrome over GIS button.
+ * Google-only auth — custom VOID.OS chrome over GIS button (responsive width).
  */
 export function GoogleSignIn({ onDone }) {
+  const wrap = useRef(null)
   const slot = useRef(null)
   const [err, setErr] = useState('')
   const [ready, setReady] = useState(false)
@@ -31,6 +32,8 @@ export function GoogleSignIn({ onDone }) {
 
     function renderBtn() {
       if (cancelled || !window.google?.accounts?.id || !slot.current) return
+      const box = wrap.current?.getBoundingClientRect?.()
+      const width = Math.max(200, Math.min(288, Math.floor(box?.width || 280)))
       window.google.accounts.id.initialize({
         client_id: CLIENT_ID,
         callback: handleCredential,
@@ -46,36 +49,40 @@ export function GoogleSignIn({ onDone }) {
         size: 'large',
         shape: 'rectangular',
         text: 'continue_with',
-        width: 288,
+        width,
         logo_alignment: 'left',
       })
       setReady(true)
     }
 
-    if (window.google?.accounts?.id) {
-      renderBtn()
-      return () => {
-        cancelled = true
+    function boot() {
+      if (window.google?.accounts?.id) {
+        renderBtn()
+        return
       }
+      const existing = document.querySelector('script[data-gis]')
+      if (existing) {
+        existing.addEventListener('load', renderBtn)
+        return () => existing.removeEventListener('load', renderBtn)
+      }
+      const s = document.createElement('script')
+      s.src = 'https://accounts.google.com/gsi/client'
+      s.async = true
+      s.dataset.gis = '1'
+      s.onload = renderBtn
+      document.head.appendChild(s)
     }
 
-    const existing = document.querySelector('script[data-gis]')
-    if (existing) {
-      existing.addEventListener('load', renderBtn)
-      return () => {
-        cancelled = true
-        existing.removeEventListener('load', renderBtn)
-      }
-    }
+    const cleanupBoot = boot()
+    const ro = new ResizeObserver(() => {
+      if (window.google?.accounts?.id) renderBtn()
+    })
+    if (wrap.current) ro.observe(wrap.current)
 
-    const s = document.createElement('script')
-    s.src = 'https://accounts.google.com/gsi/client'
-    s.async = true
-    s.dataset.gis = '1'
-    s.onload = renderBtn
-    document.head.appendChild(s)
     return () => {
       cancelled = true
+      ro.disconnect()
+      cleanupBoot?.()
     }
   }, [onDone])
 
@@ -89,22 +96,22 @@ export function GoogleSignIn({ onDone }) {
 
   return (
     <div className="space-y-3">
-      <div className="relative overflow-hidden border border-lime/45 bg-black">
-        {/* VOID face */}
+      <div ref={wrap} className="relative w-full overflow-hidden border border-lime/45 bg-black">
         <div
-          className="pointer-events-none absolute inset-0 flex items-center justify-between px-3"
+          className="pointer-events-none absolute inset-0 flex items-center justify-between gap-2 px-3"
           aria-hidden
         >
-          <span className="flex items-center gap-2 text-[12px] font-semibold tracking-[0.14em] text-lime">
-            <span className="inline-flex h-5 w-5 items-center justify-center border border-lime/60 text-[10px]">
+          <span className="flex min-w-0 items-center gap-2 text-[10px] font-semibold tracking-[0.12em] text-lime sm:text-[12px] sm:tracking-[0.14em]">
+            <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center border border-lime/60 text-[10px]">
               G
             </span>
-            {busy ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE'}
+            <span className="truncate">{busy ? 'SIGNING IN…' : 'CONTINUE WITH GOOGLE'}</span>
           </span>
-          <span className="text-[9px] uppercase tracking-[0.2em] text-muted">enter</span>
+          <span className="hidden text-[9px] uppercase tracking-[0.2em] text-muted xs:inline sm:inline">
+            enter
+          </span>
         </div>
 
-        {/* Real GIS control — invisible but clickable on top */}
         <div
           ref={slot}
           className="relative z-10 flex h-11 w-full items-center justify-center opacity-0"

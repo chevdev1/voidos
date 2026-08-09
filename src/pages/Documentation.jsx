@@ -194,31 +194,54 @@ function Section({ section, index }) {
 function DocumentationContent() {
   const ids = SECTIONS.map((s) => s.id)
   const active = useScrollSpy(ids)
+  const lenisRef = useLenis()
 
   return (
     <div className="min-h-screen bg-void text-ink">
-      <header className="sticky top-0 z-20 border-b border-white/10 bg-void/90 px-5 py-4 backdrop-blur-md sm:px-10">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
-            <span className="font-display text-sm font-extrabold tracking-wide text-ink">
+      <header className="sticky top-0 z-20 border-b border-white/10 bg-void/90 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-10">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+          <Link to="/" className="flex min-w-0 items-center gap-2.5">
+            <img src="/assets/void-logo.png" alt="" className="h-6 w-6 shrink-0" />
+            <span className="truncate font-display text-sm font-extrabold tracking-wide text-ink">
               VOID<span className="text-lime">.OS</span>{' '}
               <span className="text-muted-2">/ docs</span>
             </span>
           </Link>
           <Link
             to="/"
-            className="rounded-full border border-white/15 px-4 py-1.5 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime"
+            className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-white/15 px-4 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime"
           >
-            ← Back to site
+            ← Back
           </Link>
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-5xl gap-12 px-5 py-14 sm:px-10">
+      <div className="mx-auto flex max-w-5xl gap-12 px-5 py-10 pb-[max(3.5rem,env(safe-area-inset-bottom))] sm:px-10 sm:py-14">
         <Sidebar active={active} />
 
         <main className="min-w-0 flex-1">
+          <nav
+            className="mb-8 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:hidden [&::-webkit-scrollbar]:hidden"
+            aria-label="docs sections"
+          >
+            {SECTIONS.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() =>
+                  lenisRef?.current?.scrollTo(`#${s.id}`, { offset: -90, duration: 1.1 })
+                }
+                className={`min-h-10 shrink-0 border px-3 text-[11px] tracking-wide ${
+                  active === s.id
+                    ? 'border-lime/50 bg-lime/15 text-lime'
+                    : 'border-white/15 text-muted'
+                }`}
+              >
+                {s.tag} {s.label}
+              </button>
+            ))}
+          </nav>
+
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
