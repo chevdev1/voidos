@@ -101,17 +101,17 @@ export default function Cabinet() {
         }}
       />
 
-      <header className="relative z-10 flex items-center justify-between gap-2 px-3 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-10 sm:py-5">
-        <Link to="/" className="flex min-w-0 items-center gap-2.5">
-          <img src="/assets/void-logo.png" alt="" className="h-6 w-6 shrink-0" />
+      <header className="relative z-10 flex items-center justify-between px-5 py-5 sm:px-10">
+        <Link to="/" className="flex items-center gap-2.5">
+          <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
           <span className="font-display text-sm font-extrabold tracking-wide">
             VOID<span className="text-lime">.OS</span>
           </span>
         </Link>
-        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="flex items-center gap-3">
           <Link
             to="/"
-            className="hidden min-h-11 items-center text-[11px] tracking-wide text-muted transition-colors hover:text-lime sm:inline-flex"
+            className="hidden text-[11px] tracking-wide text-muted transition-colors hover:text-lime sm:inline"
           >
             ← map
           </Link>
@@ -119,7 +119,7 @@ export default function Cabinet() {
         </div>
       </header>
 
-      <main className="relative z-10 mx-auto max-w-6xl px-3 pb-[max(5rem,env(safe-area-inset-bottom))] pt-4 sm:px-10">
+      <main className="relative z-10 mx-auto max-w-6xl px-5 pb-20 pt-4 sm:px-10">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -138,11 +138,7 @@ export default function Cabinet() {
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted">
             signed as <span className="text-lime">{who}</span>
-            {user?.email ? (
-              <span className="block truncate text-muted sm:inline sm:before:content-['·_']">
-                {user.email}
-              </span>
-            ) : null}
+            {user?.email ? <span className="text-muted"> · {user.email}</span> : null}
             {ownerships.length
               ? ` · ${ownerships.length} constellation${ownerships.length === 1 ? '' : 's'} · 6 kinds`
               : ' · no claims yet — open the map and claim (free while $EXO mint is off)'}
@@ -190,16 +186,16 @@ export default function Cabinet() {
               Coil, Crown, Lattice, Vein, Halo). after claim, open a lot here, drag to rotate, read
               full info.
             </p>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <div className="mt-6 flex justify-center gap-3">
               <Link
                 to="/"
-                className="flex min-h-11 items-center justify-center bg-lime px-5 text-[11px] font-semibold tracking-wide text-black"
+                className="bg-lime px-5 py-2.5 text-[11px] font-semibold tracking-wide text-black"
               >
                 open map
               </Link>
               <Link
                 to="/docs"
-                className="flex min-h-11 items-center justify-center border border-white/20 px-5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime"
+                className="border border-white/20 px-5 py-2.5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime"
               >
                 read docs
               </Link>
@@ -207,11 +203,11 @@ export default function Cabinet() {
           </div>
         ) : (
           <>
-            <div className="mt-10 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className="mt-10 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setKindFilter('all')}
-                className={`min-h-10 shrink-0 border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                className={`border px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${
                   kindFilter === 'all'
                     ? 'border-lime/50 bg-lime/15 text-lime'
                     : 'border-white/15 text-muted hover:border-lime/30 hover:text-lime'
@@ -224,7 +220,7 @@ export default function Cabinet() {
                   key={k.id}
                   type="button"
                   onClick={() => setKindFilter(k.id)}
-                  className={`min-h-10 shrink-0 border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                  className={`border px-3 py-1.5 text-[10px] uppercase tracking-[0.14em] transition-colors ${
                     kindFilter === k.id
                       ? 'border-lime/50 bg-lime/15 text-lime'
                       : 'border-white/15 text-muted hover:border-lime/30 hover:text-lime'
@@ -236,9 +232,8 @@ export default function Cabinet() {
               ))}
             </div>
 
-            <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.2fr] lg:gap-8">
-              {/* Lot picker: horizontal strip on phone, column on desktop */}
-              <div className="order-2 flex gap-3 overflow-x-auto pb-1 lg:order-1 lg:grid lg:grid-cols-1 lg:overflow-visible sm:grid sm:grid-cols-2 lg:pb-0">
+            <div className="mt-6 grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1">
                 {filtered.length === 0 ? (
                   <p className="text-sm text-muted">no lots of this kind yet.</p>
                 ) : (
@@ -252,19 +247,19 @@ export default function Cabinet() {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.04 }}
                         onClick={() => setSelectedId(lot.constel_id)}
-                        className={`group w-[min(78vw,280px)] shrink-0 border text-left transition-colors sm:w-auto ${
+                        className={`group border text-left transition-colors ${
                           on
                             ? 'border-lime/60 bg-lime/10'
                             : 'border-white/10 bg-black/35 hover:border-lime/35'
                         }`}
                       >
-                        <div className="h-24 border-b border-white/5 sm:h-28 lg:h-32">
+                        <div className="h-28 border-b border-white/5 sm:h-32">
                           <LotFigure lot={lot} animate={on} />
                         </div>
                         <div className="p-3">
                           <div className="flex items-start justify-between gap-2">
-                            <span className="truncate text-sm text-lime">✧ {profile.name}</span>
-                            <span className="shrink-0 text-[10px] uppercase tracking-wider text-muted">
+                            <span className="text-sm text-lime">✧ {profile.name}</span>
+                            <span className="text-[10px] uppercase tracking-wider text-muted">
                               {profile.kindLabel}
                             </span>
                           </div>
@@ -286,9 +281,9 @@ export default function Cabinet() {
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: -8 }}
                     transition={{ duration: 0.35 }}
-                    className="order-1 border border-lime/30 bg-black/50 lg:order-2"
+                    className="border border-lime/30 bg-black/50"
                   >
-                    <div className="relative h-[min(70vw,18rem)] border-b border-lime/15 sm:h-72 lg:h-80">
+                    <div className="relative h-64 border-b border-lime/15 sm:h-80">
                       <LotFigure
                         lot={active.lot}
                         animate
@@ -314,7 +309,7 @@ export default function Cabinet() {
                       </div>
                     </div>
 
-                    <div className="space-y-4 p-4 sm:p-7">
+                    <div className="space-y-4 p-5 sm:p-7">
                       <p className="text-[12px] leading-relaxed text-muted">
                         {active.profile.kindBlurb}
                       </p>
@@ -332,7 +327,7 @@ export default function Cabinet() {
                           </p>
                           <button
                             type="button"
-                            className="mt-3 min-h-11 border border-lime/40 px-3 text-[11px] tracking-wide text-lime"
+                            className="mt-3 border border-lime/40 px-3 py-1.5 text-[11px] tracking-wide text-lime"
                             onClick={() => askMindAboutStar(activeStar, active.profile.name)}
                           >
                             ask mind about this star
@@ -340,13 +335,13 @@ export default function Cabinet() {
                         </div>
                       )}
 
-                      <div className="flex gap-1.5 overflow-x-auto pb-1">
+                      <div className="flex flex-wrap gap-1.5">
                         {active.profile.stars.map((s, i) => (
                           <button
                             key={s.name + i}
                             type="button"
                             onClick={() => setSelectedStar(i)}
-                            className={`min-h-10 shrink-0 border px-2.5 text-[10px] tracking-wide ${
+                            className={`border px-2 py-1 text-[10px] tracking-wide ${
                               selectedStar === i
                                 ? 'border-lime/60 bg-lime/15 text-lime'
                                 : 'border-white/15 text-muted hover:border-lime/35 hover:text-lime'
@@ -379,10 +374,10 @@ export default function Cabinet() {
                         </p>
                       ))}
 
-                      <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:flex-wrap sm:gap-3">
+                      <div className="flex flex-wrap gap-3 pt-2">
                         <Link
                           to="/"
-                          className="inline-flex min-h-11 items-center justify-center bg-lime px-4 text-[11px] font-semibold tracking-wide text-black"
+                          className="bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black"
                           onClick={() => {
                             sessionStorage.setItem('void_focus_lot', active.lot.constel_id)
                           }}
@@ -391,7 +386,7 @@ export default function Cabinet() {
                         </Link>
                         <button
                           type="button"
-                          className="min-h-11 border border-lime/40 px-4 text-[11px] tracking-wide text-lime"
+                          className="border border-lime/40 px-4 py-2 text-[11px] tracking-wide text-lime"
                           onClick={() => askMindAboutLot(active.profile)}
                         >
                           ask the mind the lot story

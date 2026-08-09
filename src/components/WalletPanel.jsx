@@ -89,12 +89,12 @@ export function WalletPanel({ user, onUser }) {
           </p>
         </div>
         {user?.wallet ? (
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          <div className="flex gap-2">
             <button
               type="button"
               disabled={busy}
               onClick={() => refreshBal(user.wallet)}
-              className="min-h-11 border border-white/20 px-4 text-[11px] text-muted hover:border-lime/40 hover:text-lime"
+              className="border border-white/20 px-3 py-1.5 text-[11px] text-muted hover:border-lime/40 hover:text-lime"
             >
               refresh
             </button>
@@ -102,7 +102,7 @@ export function WalletPanel({ user, onUser }) {
               type="button"
               disabled={busy}
               onClick={unlink}
-              className="min-h-11 border border-white/20 px-4 text-[11px] text-muted hover:border-red-400/50 hover:text-red-300"
+              className="border border-white/20 px-3 py-1.5 text-[11px] text-muted hover:border-red-400/50 hover:text-red-300"
             >
               unlink
             </button>
@@ -112,7 +112,7 @@ export function WalletPanel({ user, onUser }) {
             type="button"
             disabled={busy || !canConnect}
             onClick={linkRobinhood}
-            className="min-h-11 w-full bg-lime px-4 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50 sm:w-auto"
+            className="bg-lime px-3 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
             title={
               canConnect
                 ? 'Connect Robinhood Wallet'

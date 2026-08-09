@@ -25,10 +25,8 @@ export function initVoidEngine() {
   const lerp = (a, b, t) => a + (b - a) * t;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  document.getElementById('termX').onclick = () => {
+  document.getElementById('termX').onclick = () =>
     document.getElementById('term').classList.remove('open');
-    document.body.classList.remove('term-open');
-  };
 
   function openTerm(d) {
     document.getElementById('termTitle').textContent = d.title;
@@ -42,7 +40,6 @@ export function initVoidEngine() {
     document.getElementById('tGrav').textContent = d.grav;
     document.getElementById('tNote').textContent = d.note;
     document.getElementById('term').classList.add('open');
-    document.body.classList.add('term-open');
     if (typeof window.__voidSyncTermButtons === 'function') window.__voidSyncTermButtons();
   }
 
