@@ -65,48 +65,48 @@ export function CosmosPanel() {
           <span id="mindMetaBurn">0 $EXO burned</span>
         </div>
         <div className="mind-legend" id="mindLegend">
-          <span className="mind-leg" data-f="empty">
+          <span className="mind-leg" data-f="empty" title="unclaimed">
             <i className="box empty" />
-            unclaimed <b id="cntEmpty">0</b>
+            empty <b id="cntEmpty">0</b>
           </span>
-          <span className="mind-leg" data-f="claimed">
+          <span className="mind-leg" data-f="claimed" title="claimed">
             <i className="box claimed" />
             claimed <b id="cntClaimed">0</b>
           </span>
-          <span className="mind-leg" data-f="fed">
+          <span className="mind-leg" data-f="fed" title="trained">
             <i className="box fed" />
             trained <b id="cntFed">0</b>
           </span>
-          <span className="mind-leg" data-f="yours">
+          <span className="mind-leg" data-f="yours" title="yours">
             <i className="box yours" />
             yours <b id="yoursCnt">0</b>
           </span>
         </div>
         <div className="mind-sep" aria-hidden="true" />
         <div className="mind-actions" id="mindActions">
-          <button type="button" className="mind-btn" data-act="heat" id="actHeat">
+          <button type="button" className="mind-btn mind-btn--tool" data-act="heat" id="actHeat">
             <span className="ico">⚡</span>
             <span className="mind-btn-lab">heat</span>
           </button>
-          <button type="button" className="mind-btn" data-act="standings" id="actStandings">
+          <button type="button" className="mind-btn mind-btn--tool" data-act="standings" id="actStandings">
             <span className="ico">☆</span>
             <span className="mind-btn-lab">standings</span>
           </button>
-          <button type="button" className="mind-btn" data-act="market" id="actMarket">
+          <button type="button" className="mind-btn mind-btn--tool" data-act="market" id="actMarket">
             <span className="ico">⛓</span>
             <span className="mind-btn-lab">market</span>
           </button>
-          <button type="button" className="mind-btn" data-act="what" id="actWhat">
+          <button type="button" className="mind-btn mind-btn--tool" data-act="what" id="actWhat">
             <span className="ico">💬</span>
             <span className="mind-btn-lab">what i am</span>
           </button>
-          <button type="button" className="mind-btn" data-act="personality" id="actPersonality">
+          <button type="button" className="mind-btn mind-btn--tool" data-act="personality" id="actPersonality">
             <span className="ico">▣</span>
             <span className="mind-btn-lab">personality</span>
           </button>
-          <button type="button" className="mind-btn" data-act="ask" id="actAsk">
+          <button type="button" className="mind-btn mind-btn--ask" data-act="ask" id="actAsk">
             <span className="ico">◉</span>
-            <span className="mind-btn-lab">ask me</span>
+            <span className="mind-btn-lab">ask the mind</span>
           </button>
         </div>
       </div>

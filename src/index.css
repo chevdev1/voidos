@@ -59,3 +59,21 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Shared tap targets for Tailwind UI surfaces (matches void.css --tap) */
+@layer utilities {
+  .tap {
+    min-height: 2.75rem; /* 44px */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tap-icon {
+    width: 2.75rem;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    display: inline-grid;
+    place-items: center;
+  }
+}

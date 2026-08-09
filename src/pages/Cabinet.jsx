@@ -211,7 +211,7 @@ export default function Cabinet() {
               <button
                 type="button"
                 onClick={() => setKindFilter('all')}
-                className={`min-h-10 shrink-0 border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                className={`inline-flex min-h-11 shrink-0 items-center border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
                   kindFilter === 'all'
                     ? 'border-lime/50 bg-lime/15 text-lime'
                     : 'border-white/15 text-muted hover:border-lime/30 hover:text-lime'
@@ -224,7 +224,7 @@ export default function Cabinet() {
                   key={k.id}
                   type="button"
                   onClick={() => setKindFilter(k.id)}
-                  className={`min-h-10 shrink-0 border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
+                  className={`inline-flex min-h-11 shrink-0 items-center border px-3 text-[10px] uppercase tracking-[0.14em] transition-colors ${
                     kindFilter === k.id
                       ? 'border-lime/50 bg-lime/15 text-lime'
                       : 'border-white/15 text-muted hover:border-lime/30 hover:text-lime'
@@ -346,7 +346,7 @@ export default function Cabinet() {
                             key={s.name + i}
                             type="button"
                             onClick={() => setSelectedStar(i)}
-                            className={`min-h-10 shrink-0 border px-2.5 text-[10px] tracking-wide ${
+                            className={`inline-flex min-h-11 shrink-0 items-center border px-2.5 text-[10px] tracking-wide ${
                               selectedStar === i
                                 ? 'border-lime/60 bg-lime/15 text-lime'
                                 : 'border-white/15 text-muted hover:border-lime/35 hover:text-lime'
