@@ -1,4 +1,7 @@
-/* Phone map UX — keep galaxy clear, avoid horizontal drift */
+/* Phone map UX
+   - Demo (hero): keep map controls (explore + zoom/orbit)
+   - Full map (arena): all tools, fit the screen
+*/
 
 .hero-map-actions {
   display: none;
@@ -23,33 +26,57 @@
 
   .hero-right:not(.in-arena) {
     width: 100%;
-    min-height: min(58vh, 480px);
-    height: min(58vh, 480px);
+    min-height: min(52vh, 440px);
+    height: min(52vh, 440px);
     max-height: none;
     margin-right: 0 !important;
   }
 
-  /* No overlays on the preview galaxy */
+  /* Demo: hide heavy chrome, KEEP explore + map controls */
   .hero-right:not(.in-arena) .mind-bar,
   .hero-right:not(.in-arena) .mind-meta,
-  .hero-right:not(.in-arena) .cosmos-explore,
   .hero-right:not(.in-arena) .cosmos-hud,
-  .hero-right:not(.in-arena) .vc,
   .hero-right:not(.in-arena) .minimap {
     display: none !important;
   }
 
+  .hero-right:not(.in-arena) .cosmos-explore {
+    display: inline-flex !important;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .hero-right:not(.in-arena) .vc {
+    display: flex !important;
+    top: 44px;
+    bottom: auto;
+    right: 8px;
+    z-index: 20;
+  }
+
+  .hero-right:not(.in-arena) .vc button {
+    width: 40px;
+    height: 40px;
+    font-size: 15px;
+  }
+
+  .hero-right:not(.in-arena) .cosmos-bar {
+    padding: 8px 10px;
+  }
+
+  /* Actions under the demo map */
   .hero-map-actions {
     display: flex;
     gap: 8px;
     width: 100%;
     box-sizing: border-box;
-    padding: 0;
-    margin: 0;
   }
 
-  .hero-map-actions .btn-lime,
-  .hero-map-actions .btn-ghost {
+  .hero-map-actions > button,
+  .hero-map-actions > .btn-lime,
+  .hero-map-actions > .btn-ghost {
     flex: 1 1 0;
     min-width: 0;
     min-height: 44px;
@@ -59,7 +86,6 @@
     box-sizing: border-box;
     border-radius: 999px;
     font-size: 12px;
-    text-align: center;
   }
 
   .hero-map-actions .btn-ghost {
@@ -71,88 +97,161 @@
     display: none;
   }
 
-  /* Full map: compact 2-row dock, sideways scroll — does not cover the sky */
+  /* ========== FULL MAP ========== */
   body.arena-live .mind-bar,
   .hero-right.in-arena .mind-bar {
-    left: 8px;
-    right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+    left: 0;
+    right: 0;
+    bottom: 0;
     transform: none;
     width: auto;
     max-width: none;
     flex-direction: column;
     flex-wrap: nowrap;
-    gap: 6px;
-    padding: 8px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 10px max(12px, env(safe-area-inset-bottom));
     box-sizing: border-box;
-    overflow: hidden;
-  }
-
-  body.arena-live .mind-legend,
-  body.arena-live .mind-actions,
-  .hero-right.in-arena .mind-legend,
-  .hero-right.in-arena .mind-actions {
-    display: flex;
-    flex-wrap: nowrap;
-    width: 100%;
-    gap: 6px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-  }
-
-  body.arena-live .mind-legend::-webkit-scrollbar,
-  body.arena-live .mind-actions::-webkit-scrollbar,
-  .hero-right.in-arena .mind-legend::-webkit-scrollbar,
-  .hero-right.in-arena .mind-actions::-webkit-scrollbar {
-    display: none;
-  }
-
-  body.arena-live .mind-leg,
-  body.arena-live .mind-btn,
-  .hero-right.in-arena .mind-leg,
-  .hero-right.in-arena .mind-btn {
-    flex: 0 0 auto;
+    overflow: visible;
+    border-radius: 16px 16px 0 0;
+    z-index: 40;
   }
 
   body.arena-live .mind-meta,
   .hero-right.in-arena .mind-meta {
-    left: 10px;
-    right: auto;
-    top: auto;
-    bottom: calc(76px + env(safe-area-inset-bottom));
-    max-width: 70%;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    position: static;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    max-width: 100%;
+    font-size: 9px;
+    opacity: 0.9;
+    text-shadow: none;
+    pointer-events: none;
+  }
+
+  body.arena-live .mind-sep,
+  .hero-right.in-arena .mind-sep {
+    display: none;
+  }
+
+  body.arena-live .mind-legend,
+  .hero-right.in-arena .mind-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    overflow: visible;
+  }
+
+  body.arena-live .mind-leg,
+  .hero-right.in-arena .mind-leg {
+    flex: none;
+    min-height: 40px;
+    justify-content: center;
+    padding: 6px 8px;
+    font-size: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  body.arena-live .mind-actions,
+  .hero-right.in-arena .mind-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    overflow: visible;
+  }
+
+  body.arena-live .mind-btn,
+  .hero-right.in-arena .mind-btn {
+    flex: none;
+    min-height: 44px;
+    min-width: 0;
+    padding: 8px 4px;
+    font-size: 10px;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    line-height: 1.15;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+
+  body.arena-live .mind-btn[data-act='ask'],
+  .hero-right.in-arena .mind-btn[data-act='ask'] {
+    grid-column: 1 / -1;
+    min-height: 46px;
+    border-color: rgba(204, 255, 0, 0.55);
+    background: rgba(204, 255, 0, 0.12);
+    color: var(--lime);
+    font-weight: 700;
   }
 
   body.arena-live .cosmos-hud {
     top: max(52px, env(safe-area-inset-top));
     bottom: auto;
     right: 8px;
-    max-width: 140px;
+    left: auto;
+    transform: none;
+    max-width: min(42%, 150px);
+  }
+
+  body.arena-live .cosmos-hud .pill .sub {
+    display: none;
   }
 
   body.arena-live .vc {
-    top: max(56px, calc(env(safe-area-inset-top) + 48px));
+    top: max(56px, calc(env(safe-area-inset-top) + 52px));
     bottom: auto;
     right: 8px;
   }
 
   body.arena-live .vc button {
-    width: 40px;
-    height: 40px;
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  body.arena-live .cart-dock {
+    bottom: calc(210px + env(safe-area-inset-bottom));
+    width: calc(100vw - 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+  }
+
+  body.arena-live.term-open .cart-dock {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 112;
+  }
+
+  body.arena-live.term-open .term {
+    max-height: min(58vh, calc(100dvh - 8rem));
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
   }
 }
 
 @media (max-width: 560px) {
   .hero-right:not(.in-arena) {
-    min-height: min(62vh, 520px);
-    height: min(62vh, 520px);
+    min-height: min(56vh, 460px);
+    height: min(56vh, 460px);
   }
 
   .hero-map-actions {
     flex-direction: column;
+  }
+
+  body.arena-live .mind-actions,
+  .hero-right.in-arena .mind-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  body.arena-live .mind-btn[data-act='ask'],
+  .hero-right.in-arena .mind-btn[data-act='ask'] {
+    grid-column: 1 / -1;
   }
 }

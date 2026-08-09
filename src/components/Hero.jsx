@@ -127,6 +127,13 @@ export function Hero() {
         <div className="hero-map-actions" aria-label="map actions">
           <button
             type="button"
+            className="btn-ghost"
+            onClick={() => document.getElementById('cosmosExploreBtn')?.click()}
+          >
+            Explore map
+          </button>
+          <button
+            type="button"
             className="btn-lime"
             onClick={() => {
               if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
