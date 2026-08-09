@@ -85,22 +85,28 @@ export function CosmosPanel() {
         <div className="mind-sep" aria-hidden="true" />
         <div className="mind-actions" id="mindActions">
           <button type="button" className="mind-btn" data-act="heat" id="actHeat">
-            <span className="ico">⚡</span> heat
+            <span className="ico">⚡</span>
+            <span className="mind-btn-lab">heat</span>
           </button>
           <button type="button" className="mind-btn" data-act="standings" id="actStandings">
-            <span className="ico">☆</span> standings
+            <span className="ico">☆</span>
+            <span className="mind-btn-lab">standings</span>
           </button>
           <button type="button" className="mind-btn" data-act="market" id="actMarket">
-            <span className="ico">⛓</span> market
+            <span className="ico">⛓</span>
+            <span className="mind-btn-lab">market</span>
           </button>
           <button type="button" className="mind-btn" data-act="what" id="actWhat">
-            <span className="ico">💬</span> what i am
+            <span className="ico">💬</span>
+            <span className="mind-btn-lab">what i am</span>
           </button>
           <button type="button" className="mind-btn" data-act="personality" id="actPersonality">
-            <span className="ico">▣</span> personality
+            <span className="ico">▣</span>
+            <span className="mind-btn-lab">personality</span>
           </button>
           <button type="button" className="mind-btn" data-act="ask" id="actAsk">
-            <span className="ico">◉</span> ask me
+            <span className="ico">◉</span>
+            <span className="mind-btn-lab">ask me</span>
           </button>
         </div>
       </div>
