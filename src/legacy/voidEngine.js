@@ -655,26 +655,20 @@ export function initVoidEngine() {
         if (lastTermConstel) {
           const owned = constelOwned(lastTermConstel);
           const inStack = selectedConstels.has(lastTermConstel.id);
-          addConstelBtn.classList.toggle('is-in-stack', inStack && !owned);
           addConstelBtn.textContent = owned
             ? '✓ already yours'
             : inStack
-              ? '✓ in stack · tap to remove'
-              : '+ add to stack';
+              ? '✓ in stack — tap again to remove'
+              : '+ add constellation to stack';
           addConstelBtn.disabled = owned;
-        } else {
-          addConstelBtn.classList.remove('is-in-stack');
         }
       }
       if (buyBtn) {
-        const inStack = lastTermConstel && selectedConstels.has(lastTermConstel.id);
-        // When already stacked, claim happens from the cart dock — avoid double CTAs.
-        buyBtn.hidden = Boolean(inStack);
         buyBtn.textContent = lastTermConstel
           ? constelOwned(lastTermConstel)
             ? 'already claimed'
-            : 'claim constellation · test'
-          : 'claim constellation';
+            : 'connect · claim constellation'
+          : 'connect · claim';
         buyBtn.disabled = !lastTermConstel || constelOwned(lastTermConstel);
       }
     }
