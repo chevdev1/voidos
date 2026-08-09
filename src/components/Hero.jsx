@@ -120,22 +120,6 @@ export function Hero() {
         id="heroCosmosSlot"
       >
         <CosmosPanel />
-        <div className="hero-map-actions">
-          <button
-            type="button"
-            className="btn-lime"
-            onClick={() => {
-              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-              else if (window.__openFullMap) window.__openFullMap()
-              else window.__voidCosmosPendingEnter = true
-            }}
-          >
-            Open full map
-          </button>
-          <button type="button" className="btn-ghost" onClick={() => window.__openMindChat?.()}>
-            Ask the mind
-          </button>
-        </div>
       </motion.div>
 
       <div className="scroll-cue">
