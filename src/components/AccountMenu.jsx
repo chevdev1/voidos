@@ -35,7 +35,7 @@ export function AccountMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-11 min-h-11 max-w-[7.5rem] items-center gap-2 rounded-full border border-white/15 px-3 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime sm:max-w-[10rem] sm:px-3.5"
+        className="flex max-w-[7.5rem] items-center gap-2 rounded-full border border-white/15 px-2.5 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime sm:max-w-[10rem] sm:px-3"
         title={loadGuestKey() ? `id ${loadGuestKey().slice(0, 10)}…` : 'account'}
       >
         {user?.avatarUrl ? (
@@ -127,7 +127,7 @@ export function AccountMenu() {
                 <Link
                   to="/cabinet"
                   onClick={() => setOpen(false)}
-                  className="flex min-h-11 items-center justify-center text-center text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-lime"
+                  className="flex min-h-10 items-center justify-center text-center text-[10px] uppercase tracking-[0.18em] text-muted transition-colors hover:text-lime"
                 >
                   cabinet as visitor →
                 </Link>

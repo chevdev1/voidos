@@ -84,7 +84,10 @@ export function Hero() {
             Claim a sector ↗
           </a>
 
-          <MagneticButton onClick={() => goTo('#concept')} className="btn-lime">
+          <MagneticButton
+            onClick={() => goTo('#concept')}
+            className="rounded-full bg-lime px-5 py-2.5 text-[13px] font-bold text-black shadow-[0_0_0_rgba(204,255,0,0)] transition-shadow duration-300 ease-out hover:shadow-[0_0_28px_rgba(204,255,0,0.5)]"
+          >
             What is this?
           </MagneticButton>
 

@@ -13,22 +13,6 @@
   --muted:rgba(255,255,255,.58);
   --muted2:rgba(255,255,255,.35);
   --line:rgba(204,255,0,.18);
-  /* Adaptive tap scale — one language across map + marketing chrome */
-  --tap:40px;
-  --tap-lg:44px;
-  --chip:32px;
-  --chip-lg:36px;
-  --btn-fs:13px;
-  --btn-fs-sm:12px;
-}
-@media (max-width:960px){
-  :root{
-    --tap:44px;
-    --chip:36px;
-    --chip-lg:40px;
-    --btn-fs:12px;
-    --btn-fs-sm:12px;
-  }
 }
 body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;overflow-x:hidden;-webkit-font-smoothing:antialiased}
 ::selection{background:var(--lime);color:#000}
@@ -36,10 +20,9 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .void button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
 
 .btn-lime{
-  background:var(--lime);color:#000;font-weight:700;font-size:var(--btn-fs);
-  padding:0 18px;border-radius:999px;transition:.2s;
-  display:inline-flex;align-items:center;justify-content:center;
-  min-height:var(--tap);box-sizing:border-box;
+  background:var(--lime);color:#000;font-weight:700;font-size:13px;
+  padding:9px 16px;border-radius:999px;transition:.2s;
+  display:inline-block;
 }
 .btn-lime:hover{box-shadow:0 0 24px rgba(204,255,0,.45);transform:translateY(-1px)}
 
@@ -82,9 +65,8 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .cta{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center}
 .btn-ghost{
   background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.14);
-  color:#fff;font-size:var(--btn-fs-sm);padding:0 16px;border-radius:999px;
-  display:inline-flex;align-items:center;justify-content:center;
-  min-height:var(--tap);box-sizing:border-box;
+  color:#fff;font-size:12.5px;padding:11px 14px;border-radius:999px;
+  display:inline-block;
 }
 .btn-ghost:hover{border-color:var(--lime);color:var(--lime)}
 .price-note{color:var(--muted2);font-size:11px;line-height:1.5;max-width:360px;margin-top:12px}
@@ -220,10 +202,9 @@ body.arena-live .cosmos-map-pop .vc{
 /* Claim drawer + stack stay above the map popup */
 
 .btn-ghost-term{
-  display:flex;align-items:center;justify-content:center;width:100%;
-  min-height:var(--tap-lg);padding:0 12px;margin-top:8px;
+  display:block;width:100%;text-align:center;padding:10px;margin-top:8px;
   background:transparent;border:1px solid rgba(255,255,255,.18);color:var(--muted);
-  border-radius:0;box-sizing:border-box;font-size:var(--btn-fs-sm);
+  border-radius:0;
 }
 .btn-ghost-term:disabled{
   opacity:.45;cursor:default;border-color:rgba(255,255,255,.1);color:var(--muted2);
@@ -240,17 +221,13 @@ body.arena-live .cosmos-map-pop .vc{
 .cart-dock[hidden]{display:none}
 .cart-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .cart-head b{color:var(--lime);font-size:12px;letter-spacing:.08em}
-.cart-clear{
-  color:var(--muted2);font-size:11px;background:transparent;border:none;
-  min-height:var(--chip-lg);padding:0 10px;display:inline-flex;align-items:center;
-}
+.cart-clear{color:var(--muted2);font-size:11px;background:transparent;border:none}
 .cart-clear:hover{color:var(--lime)}
 .cart-list{display:flex;flex-wrap:wrap;gap:6px;max-height:72px;overflow:auto;margin-bottom:8px}
 .cart-chip{
-  font-size:10px;padding:0 10px;border-radius:7px;
-  min-height:var(--chip-lg);display:inline-flex;align-items:center;
+  font-size:10px;padding:5px 8px;border-radius:7px;
   border:1px solid rgba(204,255,0,.35);background:rgba(204,255,0,.08);color:var(--lime);
-  cursor:pointer;box-sizing:border-box;
+  cursor:pointer;
 }
 .cart-chip.constel{
   border-color:rgba(204,255,0,.65);background:rgba(204,255,0,.14);
@@ -262,11 +239,7 @@ body.arena-live .cart-dock{bottom:78px}
   margin-bottom:8px;
 }
 .cart-totals b{color:var(--lime)}
-.cart-claim{
-  display:flex;align-items:center;justify-content:center;width:100%;
-  min-height:var(--tap-lg);padding:0 12px;box-sizing:border-box;
-  font-size:var(--btn-fs-sm);font-weight:700;
-}
+.cart-claim{display:block;width:100%;text-align:center;padding:10px}
 
 @media(max-width:960px){
   .hero-cosmos-slot{order:2;margin-right:0}
@@ -346,20 +319,12 @@ body.arena-live .cart-dock{bottom:78px}
 .cosmos-explore{
   pointer-events:auto;flex-shrink:0;
   display:none;
-  padding:0 14px;border-radius:999px;font-size:11px;font-weight:700;
-  min-height:var(--tap);box-sizing:border-box;
-  align-items:center;justify-content:center;
+  padding:6px 10px;border-radius:999px;font-size:10px;
   border:1px solid rgba(204,255,0,.45);background:rgba(0,0,0,.65);color:var(--lime);
 }
 .cosmos-explore.on{background:var(--lime);color:#000;border-color:var(--lime)}
 @media(max-width:960px){
-  .cosmos-explore{
-    display:inline-flex;
-    min-height:var(--tap-lg);
-    padding:0 16px;
-    font-size:var(--btn-fs-sm);
-    letter-spacing:.06em;
-  }
+  .cosmos-explore{display:inline-block}
   .cosmos-bar{gap:8px}
   .cosmos-bar span{display:none}
 }
@@ -404,9 +369,8 @@ body.arena-live .cart-dock{bottom:78px}
   display:flex;flex-direction:column;border:1px solid var(--line);border-radius:8px;overflow:hidden;
 }
 .vc button{
-  width:var(--tap);height:var(--tap);background:rgba(0,0,0,.8);border-bottom:1px solid var(--line);
-  color:var(--muted);font-size:14px;
-  display:grid;place-items:center;
+  width:30px;height:30px;background:rgba(0,0,0,.8);border-bottom:1px solid var(--line);
+  color:var(--muted);font-size:13px;
 }
 .vc button:last-child{border:none}
 .vc button:hover,.vc button.on{color:var(--lime);background:rgba(204,255,0,.08)}
@@ -462,12 +426,11 @@ body.arena-live .cart-dock{bottom:78px}
 .mind-actions{display:flex;align-items:center;gap:6px;flex-shrink:0}
 .mind-btn{
   display:inline-flex;align-items:center;gap:5px;
-  padding:0 10px;
-  min-height:var(--chip-lg);
+  padding:5px 9px;
   border:1px solid rgba(255,255,255,.18);
   background:transparent;color:var(--muted);
   font-size:10px;text-transform:lowercase;white-space:nowrap;
-  cursor:pointer;box-sizing:border-box;
+  cursor:pointer;
 }
 .mind-btn .ico{font-size:11px;opacity:.9}
 .mind-btn:hover,.mind-btn.on{
@@ -528,69 +491,66 @@ body.arena-live .cart-dock{bottom:78px}
 .mp-row em{color:var(--muted2);font-style:normal;font-size:10px}
 @media(max-width:960px){
   .mind-bar{
-    left:8px;right:8px;
-    bottom:max(8px, env(safe-area-inset-bottom));
+    left:0;right:0;
+    bottom:0;
     transform:none;
     max-width:none;
     flex-direction:column;
     flex-wrap:nowrap;
     align-items:stretch;
-    gap:6px;
-    padding:8px 10px;
+    gap:8px;
+    padding:8px 8px max(10px, env(safe-area-inset-bottom));
     overflow:visible;
-    border-radius:14px;
-    border:1px solid rgba(204,255,0,.22);
-    background:rgba(4,6,0,.92);
-    box-shadow:0 -8px 40px rgba(0,0,0,.55);
+    border-left:none;border-right:none;border-bottom:none;
+    border-radius:0;
   }
   .mind-meta{
     position:static;
     flex-direction:row;
-    flex-wrap:nowrap;
-    gap:8px;
+    flex-wrap:wrap;
+    gap:4px 8px;
     font-size:9px;
     text-shadow:none;
-    opacity:.9;
-    overflow:hidden;
+    opacity:.95;
+    overflow:visible;
     max-width:100%;
-    white-space:nowrap;
+    white-space:normal;
     pointer-events:none;
   }
   .mind-meta span{
-    overflow:hidden;
-    text-overflow:ellipsis;
-    white-space:nowrap;
+    overflow:visible;
+    text-overflow:unset;
+    white-space:normal;
     min-width:0;
   }
   .mind-meta #mindMetaBurn{flex-shrink:0;color:var(--lime)}
   .mind-sep{display:none}
+  /* All filters + actions visible — no off-screen horizontal scroll */
   .mind-legend{
-    display:flex;
-    flex-wrap:nowrap;
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:4px;
     width:100%;
-    overflow-x:auto;
-    -webkit-overflow-scrolling:touch;
-    scrollbar-width:none;
-  }
-  .mind-legend::-webkit-scrollbar{display:none}
-  .mind-leg{
-    flex:0 0 auto;
-    min-height:32px;
-    padding:5px 8px;
-    font-size:9px;
-    border:1px solid rgba(255,255,255,.12);
-    border-radius:999px;
+    overflow:visible;
   }
   .mind-actions{
     display:grid;
+    grid-template-columns:repeat(3, minmax(0, 1fr));
     gap:6px;
     width:100%;
     overflow:visible;
   }
+  .mind-leg{
+    flex:none;
+    min-height:36px;
+    padding:6px 8px;
+    font-size:10px;
+    justify-content:flex-start;
+    border:1px solid rgba(255,255,255,.12);
+  }
   .mind-btn{
     flex:none;
-    min-height:44px;
+    min-height:42px;
     min-width:0;
     padding:8px 6px;
     font-size:10px;
@@ -599,90 +559,22 @@ body.arena-live .cart-dock{bottom:78px}
     white-space:normal;
     text-align:center;
     line-height:1.15;
-    border-radius:10px;
   }
-  .mind-btn .ico{flex-shrink:0;font-size:13px}
+  .mind-btn .ico{flex-shrink:0}
   .mind-btn-lab{
-    display:block;
+    display:inline;
     overflow:hidden;
     text-overflow:ellipsis;
     max-width:100%;
   }
-  .mind-btn--ask{
-    border-color:rgba(204,255,0,.55);
-    background:rgba(204,255,0,.12);
-    color:var(--lime);
-  }
-  .mind-btn--ask .mind-btn-lab{font-weight:700;letter-spacing:.04em}
   .minimap{display:none}
   .filters{display:none !important}
-
-  /* —— Hero preview: keep galaxy clear, only essentials —— */
-  .hero-right:not(.in-arena) .mind-btn--tool{display:none !important}
-  .hero-right:not(.in-arena) .vc{display:none !important}
-  .hero-right:not(.in-arena) .mind-meta{display:none}
-  .hero-right:not(.in-arena) .mind-actions{
-    grid-template-columns:1fr;
-  }
-  .hero-right:not(.in-arena) .mind-btn--ask{
-    min-height:var(--tap-lg);
-    background:var(--lime);
-    color:#000;
-    border-color:var(--lime);
-    font-size:var(--btn-fs-sm);
-    letter-spacing:.06em;
-  }
-  .hero-right:not(.in-arena) .mind-btn--ask .ico{color:#000;opacity:1}
-  .hero-right:not(.in-arena) .mind-legend{
-    justify-content:space-between;
-  }
-  .hero-right:not(.in-arena) .mind-leg{
-    flex:1 1 0;
-    justify-content:center;
-    min-width:0;
-    padding:5px 4px;
-    min-height:var(--chip-lg);
-  }
-
-  /* —— Full map: tools as compact icon tiles —— */
-  body.arena-live .mind-bar,
-  .hero-right.in-arena .mind-bar{
-    left:0;right:0;bottom:0;
-    border-radius:16px 16px 0 0;
-    padding:10px 10px max(12px, env(safe-area-inset-bottom));
-  }
-  body.arena-live .mind-actions,
-  .hero-right.in-arena .mind-actions{
-    grid-template-columns:repeat(3, minmax(0, 1fr));
-  }
-  body.arena-live .mind-btn,
-  .hero-right.in-arena .mind-btn{
-    flex-direction:column;
-    min-height:var(--tap-lg);
-    padding:6px 4px;
-  }
-  body.arena-live .mind-btn--ask,
-  .hero-right.in-arena .mind-btn--ask{
-    grid-column:1 / -1;
-    flex-direction:row;
-    min-height:var(--tap-lg);
-    background:var(--lime);
-    color:#000;
-    border-color:var(--lime);
-  }
-  body.arena-live .mind-btn--ask .ico,
-  .hero-right.in-arena .mind-btn--ask .ico{color:#000;opacity:1}
-  body.arena-live .mind-btn--ask .mind-btn-lab,
-  .hero-right.in-arena .mind-btn--ask .mind-btn-lab{
-    color:#000;font-weight:800;font-size:var(--btn-fs-sm);
-  }
 }
 @media(max-width:380px){
-  body.arena-live .mind-actions,
-  .hero-right.in-arena .mind-actions{
-    grid-template-columns:repeat(3, minmax(0, 1fr));
+  .mind-actions{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
   }
-  .mind-btn-lab{font-size:9px}
+  .mind-btn{font-size:10px;padding:8px 4px}
 }
 body.arena-live .mind-bar{
   z-index:40;
@@ -764,11 +656,10 @@ body.arena-live .cart-dock{
   display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;max-height:72px;overflow:auto;
 }
 .mind-chat-chip{
-  font-size:10px;padding:0 10px;min-height:var(--chip-lg);
-  display:inline-flex;align-items:center;
+  font-size:10px;padding:8px 10px;min-height:36px;
   border:1px solid rgba(204,255,0,.35);color:var(--lime);
   background:rgba(204,255,0,.06);
-  cursor:pointer;font:inherit;box-sizing:border-box;
+  cursor:pointer;font:inherit;
 }
 .mind-chat-chip:hover{border-color:rgba(204,255,0,.7);background:rgba(204,255,0,.12)}
 .mind-chat-chip:disabled{opacity:.5;cursor:default}
@@ -872,10 +763,9 @@ body.arena-live .cart-dock{
 /* Brutalist outline treatment for the sector "claim" action specifically —
    base .btn-lime elsewhere (hero CTA) stays solid-fill on purpose. */
 .term .btn-lime{
-  display:flex;align-items:center;justify-content:center;width:100%;
-  min-height:var(--tap-lg);padding:0 12px;margin-top:8px;
+  display:block;width:100%;text-align:center;padding:12px;margin-top:8px;
   background:transparent;border:1px solid var(--lime);color:var(--lime);
-  box-shadow:none;border-radius:0;font-size:var(--btn-fs-sm);
+  box-shadow:none;
 }
 .term .btn-lime:hover{
   background:var(--lime);color:#000;
@@ -898,11 +788,7 @@ body.arena-live .cart-dock{
   }
   .hero h1{font-size:clamp(36px,12vw,56px)}
   .cta{gap:8px}
-  .btn-lime,.btn-ghost{
-    padding:0 14px;
-    font-size:var(--btn-fs-sm);
-    min-height:var(--tap-lg);
-  }
+  .btn-lime,.btn-ghost{padding:10px 12px;font-size:12px}
   .btn-lime{color:#000}
   /* Burned HUD duplicates mind-meta — hide on compact hero map */
   .hero-right:not(.in-arena) .cosmos-hud{display:none}
@@ -919,20 +805,19 @@ body.arena-live .cart-dock{
   .minimap{width:96px;bottom:8px;right:8px}
   .minimap canvas{height:64px}
   .filters{max-width:70%;bottom:8px;left:8px;gap:4px}
-  .fchip{padding:4px 7px;font-size:9px;min-height:var(--chip-lg)}
+  .fchip{padding:4px 7px;font-size:9px}
   /* Zoom controls clear of bottom dock */
   .vc{
     top:40px;
     bottom:auto;
     right:8px;
   }
-  .vc button{width:var(--tap-lg);height:var(--tap-lg);font-size:15px}
+  .vc button{width:40px;height:40px;font-size:14px}
   .term{width:100vw}
   .cart-dock{bottom:10px;width:calc(100vw - 16px);padding:10px}
   .arena-hud{padding-top:64px;max-width:100%}
   .m-stats{grid-template-columns:1fr 1fr}
   .cosmos-scan{opacity:.12}
-  .mind-chat-chip{min-height:var(--tap-lg);padding:0 12px}
 }
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr}
@@ -943,12 +828,9 @@ body.arena-live .cart-dock{
   }
   .hero{min-height:auto;padding-bottom:12px}
   .cta{flex-direction:column;align-items:stretch}
-  .cta > *{
-    width:100%;
-    min-height:var(--tap-lg);
-    justify-content:center;
-    box-sizing:border-box;
-  }
+  .cta .btn-lime,
+  .cta > a,
+  .cta > button{width:100%;min-height:44px;justify-content:center}
   .cta .btn-lime{color:#000}
 }
 
@@ -961,7 +843,7 @@ body.arena-live .cart-dock{
     -webkit-overflow-scrolling:touch;
   }
   body.arena-live .cart-dock{
-    bottom:calc(200px + env(safe-area-inset-bottom));
+    bottom:calc(220px + env(safe-area-inset-bottom));
   }
   body.arena-live.term-open .mind-bar,
   body.mind-open .mind-bar{

@@ -209,7 +209,7 @@ function DocumentationContent() {
           </Link>
           <Link
             to="/"
-            className="inline-flex min-h-11 shrink-0 items-center rounded-full border border-white/15 px-4 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime"
+            className="inline-flex min-h-10 shrink-0 items-center rounded-full border border-white/15 px-4 text-xs text-muted transition-colors duration-150 ease-out hover:border-lime/50 hover:text-lime"
           >
             ← Back
           </Link>
@@ -231,7 +231,7 @@ function DocumentationContent() {
                 onClick={() =>
                   lenisRef?.current?.scrollTo(`#${s.id}`, { offset: -90, duration: 1.1 })
                 }
-                className={`inline-flex min-h-11 shrink-0 items-center border px-3 text-[11px] tracking-wide ${
+                className={`min-h-10 shrink-0 border px-3 text-[11px] tracking-wide ${
                   active === s.id
                     ? 'border-lime/50 bg-lime/15 text-lime'
                     : 'border-white/15 text-muted'
