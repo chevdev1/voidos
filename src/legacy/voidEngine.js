@@ -505,11 +505,16 @@ export function initVoidEngine() {
     }
     function fitHomeScale() {
       if (!W || !H || !g0) return 0.85;
-      // Fit full disk into the frame with margin — smaller screens → smaller scale
       const span = g0.R * 2.1;
-      // Full map: fill the viewport. Hero demo: stay compact.
-      const pad = arenaMode ? 0.92 : 0.74;
-      const cap = arenaMode ? 2.4 : 1.0;
+      let phone = false;
+      try {
+        phone = matchMedia('(max-width:960px)').matches;
+      } catch (_) {
+        /* ignore */
+      }
+      // Phone hero: fill the frame so the galaxy is actually readable
+      const pad = arenaMode ? 0.92 : phone ? 0.88 : 0.74;
+      const cap = arenaMode ? 2.4 : phone ? 1.35 : 1.0;
       return clamp(Math.min((W * pad) / span, (H * pad) / span), MIN_S, cap);
     }
 

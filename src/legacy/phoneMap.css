@@ -1,0 +1,158 @@
+/* Phone map UX — keep galaxy clear, avoid horizontal drift */
+
+.hero-map-actions {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .hero,
+  .hero-cosmos-slot,
+  .hero-right {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .hero-cosmos-slot {
+    margin-right: 0 !important;
+    min-height: 0;
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .hero-right:not(.in-arena) {
+    width: 100%;
+    min-height: min(58vh, 480px);
+    height: min(58vh, 480px);
+    max-height: none;
+    margin-right: 0 !important;
+  }
+
+  /* No overlays on the preview galaxy */
+  .hero-right:not(.in-arena) .mind-bar,
+  .hero-right:not(.in-arena) .mind-meta,
+  .hero-right:not(.in-arena) .cosmos-explore,
+  .hero-right:not(.in-arena) .cosmos-hud,
+  .hero-right:not(.in-arena) .vc,
+  .hero-right:not(.in-arena) .minimap {
+    display: none !important;
+  }
+
+  .hero-map-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  .hero-map-actions .btn-lime,
+  .hero-map-actions .btn-ghost {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 999px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .hero-map-actions .btn-ghost {
+    border-color: rgba(204, 255, 0, 0.4);
+    color: var(--lime);
+  }
+
+  .hero-left .cta .btn-ghost {
+    display: none;
+  }
+
+  /* Full map: compact 2-row dock, sideways scroll — does not cover the sky */
+  body.arena-live .mind-bar,
+  .hero-right.in-arena .mind-bar {
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+    max-width: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  body.arena-live .mind-legend,
+  body.arena-live .mind-actions,
+  .hero-right.in-arena .mind-legend,
+  .hero-right.in-arena .mind-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    width: 100%;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  body.arena-live .mind-legend::-webkit-scrollbar,
+  body.arena-live .mind-actions::-webkit-scrollbar,
+  .hero-right.in-arena .mind-legend::-webkit-scrollbar,
+  .hero-right.in-arena .mind-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  body.arena-live .mind-leg,
+  body.arena-live .mind-btn,
+  .hero-right.in-arena .mind-leg,
+  .hero-right.in-arena .mind-btn {
+    flex: 0 0 auto;
+  }
+
+  body.arena-live .mind-meta,
+  .hero-right.in-arena .mind-meta {
+    left: 10px;
+    right: auto;
+    top: auto;
+    bottom: calc(76px + env(safe-area-inset-bottom));
+    max-width: 70%;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+
+  body.arena-live .cosmos-hud {
+    top: max(52px, env(safe-area-inset-top));
+    bottom: auto;
+    right: 8px;
+    max-width: 140px;
+  }
+
+  body.arena-live .vc {
+    top: max(56px, calc(env(safe-area-inset-top) + 48px));
+    bottom: auto;
+    right: 8px;
+  }
+
+  body.arena-live .vc button {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-right:not(.in-arena) {
+    min-height: min(62vh, 520px);
+    height: min(62vh, 520px);
+  }
+
+  .hero-map-actions {
+    flex-direction: column;
+  }
+}

@@ -5,6 +5,7 @@ import { MagneticButton } from './MagneticButton'
 import { ScrambleText } from './ScrambleText'
 import { CosmosPanel } from './CosmosPanel'
 import '../legacy/void.css'
+import '../legacy/phoneMap.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
 const CA = '0xEXO…VOID0000000000000000000DEAD'
@@ -123,6 +124,22 @@ export function Hero() {
         id="heroCosmosSlot"
       >
         <CosmosPanel />
+        <div className="hero-map-actions" aria-label="map actions">
+          <button
+            type="button"
+            className="btn-lime"
+            onClick={() => {
+              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+              else if (window.__openFullMap) window.__openFullMap()
+              else window.__voidCosmosPendingEnter = true
+            }}
+          >
+            Open full map
+          </button>
+          <button type="button" className="btn-ghost" onClick={() => window.__openMindChat?.()}>
+            Ask the mind
+          </button>
+        </div>
       </motion.div>
 
       <div className="scroll-cue">
