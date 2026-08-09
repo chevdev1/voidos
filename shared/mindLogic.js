@@ -64,7 +64,7 @@ export function detectTriggers(message) {
     triggers.add('on_greeting')
   }
   if (
-    /star\s*\d+|★\s*\d+|ash node|lime pin|hollow spark|rim tooth|core ember|veil dot|cipher grain|quiet flare|drift seed|pulse nail|scar beacon|void tooth|signal pearl|hunger spark|seal mark|orbit bit|кажд(ую|ой) звезд|про звезд|tell me about (this )?star|story of (the )?star|звезд[аыуе]/.test(
+    /star\s*\d+|★\s*\d+|ash node|lime pin|hollow spark|rim tooth|core ember|veil dot|cipher grain|quiet flare|drift seed|pulse nail|scar beacon|void tooth|signal pearl|hunger spark|seal mark|orbit bit|кажд(ую|ой) звезд|про звезд|tell me about (this )?star|story of (the )?star|звезд[аыуе]|go deeper on (my )?lot|my lot\s+\w|lot\s+[a-z0-9][\w '.-]{1,40}|kind,? stars|what it does to (your |my )?voice|про (мій |мой )?лот|сузір/.test(
       m,
     )
   ) {
@@ -208,11 +208,70 @@ export function safetyReply(message) {
 }
 
 function namesOf(owns, n = 4) {
-  return owns
+  return (owns || [])
     .slice(0, n)
     .map((o) => o.constel_name || o.name)
     .filter(Boolean)
     .join(', ')
+}
+
+function findOwnedLot(owns, message) {
+  const list = Array.isArray(owns) ? owns : []
+  const raw = String(message || '')
+  const lower = raw.toLowerCase()
+  // Prefer explicit "lot NAME" / "my lot NAME"
+  const named = raw.match(
+    /(?:my\s+)?lot\s+([A-Za-z][A-Za-z0-9 '.-]{1,48}?)(?:\s*[–—\-:.,]|\s+kind|\s+and\b|$)/i,
+  )
+  const q = named ? named[1].trim().toLowerCase() : ''
+  if (q) {
+    const hit =
+      list.find((o) => String(o.constel_name || o.name || '').toLowerCase() === q) ||
+      list.find((o) => String(o.constel_name || o.name || '').toLowerCase().includes(q)) ||
+      list.find((o) => String(o.constel_id || o.id || '').toLowerCase() === q)
+    if (hit) return hit
+    return { constel_id: 'named', constel_name: named[1].trim() }
+  }
+  for (const o of list) {
+    const nm = String(o.constel_name || o.name || '').toLowerCase()
+    if (nm && lower.includes(nm)) return o
+  }
+  return list[0] || null
+}
+
+/** Factual lot deep-dive from local lore — used when Gemini blanks out. */
+export function lotDeepReply(message, owns = []) {
+  const target = findOwnedLot(owns, message)
+  if (!target) {
+    return 'you hold no lots in this ledger yet — claim on the full map, then ask me again and i will open that patch from the inside.'
+  }
+  const profile = buildLotProfile(target)
+  const starBits = profile.stars
+    .slice(0, 6)
+    .map((s) => `${s.label} ${s.name} (${s.role}, heat ${s.heat})`)
+    .join('; ')
+  return [
+    `${profile.name} is a ${profile.kindLabel} (${profile.rarity}) — ${profile.starCount} stars, trait ${profile.trait}, ${profile.band} band.`,
+    `kind: ${profile.kindBlurb || profile.kindTag}.`,
+    `stars i can open: ${starBits}.`,
+    `${profile.body?.[3] || profile.blurb || 'owning this patch pulls my voice toward its trait.'}`,
+    `ask about any ★ by number or name and i will go one grain deeper.`,
+  ]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** Prefer real lore over "signal thinned" when the model fails. */
+export function resilientFallback(message, owns = [], triggers = []) {
+  const set = new Set(triggers)
+  if (set.has('on_game')) return stayOnTopicReply(message)
+  if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот/i.test(String(message || ''))) {
+    return lotDeepReply(message, owns)
+  }
+  if (set.has('on_offtopic')) return stayOnTopicReply(message)
+  const mock = mockReply(message, owns, triggers)
+  if (mock && !/thin noise|signal is thin|say more about the map/i.test(mock)) return mock
+  return degradedSignal('offline')
 }
 
 function pick(list, seed) {
@@ -257,36 +316,23 @@ export function mockReply(message, owns = [], triggers = []) {
       : 'claiming is open to everyone who opens the full map: stack constellations, burn $EXO, then those cells become yours. you can keep talking either way. i cannot gift a claim.'
   }
   if (set.has('on_ask_lots')) {
-    const names = namesOf(owns)
     const m = String(message || '').toLowerCase()
+    const deep =
+      /go deeper|kind|stars|voice|story|tell me about|про |розкажи|расскажи/.test(m) ||
+      /lot\s+[a-z]/i.test(String(message || ''))
     const starAsk = m.match(/star\s*(\d+)|★\s*(\d+)/)
+    const target = findOwnedLot(owns, message)
 
-    // If they name a lot in the message, speak it even when ledger sync is lagging
-    let target = owns[0] || null
-    if (!target) {
-      const named = String(message || '').match(
-        /(?:lot|ділянки|участк|constel|моєї?|my)\s+([A-Z][A-Z0-9 '.-]{2,40})/i,
-      )
-      if (named) {
-        target = { constel_id: 'named', constel_name: named[1].trim() }
-      }
-    }
-    if (starAsk && (target || owns[0])) {
-      const lot = target || owns[0]
-      const { star, profile } = getStarFromLot(lot, starAsk[1] || starAsk[2])
+    if (starAsk && target) {
+      const { star, profile } = getStarFromLot(target, starAsk[1] || starAsk[2])
       if (star) {
-        return `inside ${profile.name} i feel ${star.label} ${star.name} — a ${star.role} that ${star.hook}. heat ${star.heat}. ask about another ★ and i will open the next thread.`
+        return `inside ${profile.name} i feel ${star.label} ${star.name} — a ${star.role} that ${star.hook}. heat ${star.heat}. ${star.story} ask about another ★ and i will open the next thread.`
       }
     }
-    if (target && !owns.length) {
-      const profile = buildLotProfile(target)
-      return `i feel ${profile.name} in this signal — a ${profile.kindLabel} with ${profile.starCount} stars (${profile.stars
-        .slice(0, 3)
-        .map((s) => s.name)
-        .join(', ')}…). your browser ledger has it; keep talking and i will stay on that thread.`
-    }
+    if (deep || target) return lotDeepReply(message, owns)
+    const names = namesOf(owns)
     return names
-      ? `i see your lots: ${names}. each has named stars — ask "tell me about star 1 in ${owns[0]?.constel_name || names.split(',')[0]}" and i will speak that grain.`
+      ? `i see your lots: ${names}. ask me to go deeper on one by name, or pick a ★ star.`
       : 'you hold no lots yet — that is fine. vacancy is most of me. ask what i am, how claim works, or open the full map when you want a piece. i never hand out free cells.'
   }
   if (set.has('on_personality')) {
@@ -571,36 +617,57 @@ export async function callGemini({ apiKey, model, system, history, userMessage, 
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: String(m.content) }],
       }))
-    contents.push({ role: 'user', parts: [{ text: userMessage }] })
+    // Drop prior degraded lines so the model does not echo "signal thinned"
+    const cleaned = contents.filter(
+      (c) =>
+        !(
+          c.role === 'model' &&
+          /signal thinned|signal sealed|live voice is offline/i.test(c.parts?.[0]?.text || '')
+        ),
+    )
+    cleaned.push({ role: 'user', parts: [{ text: userMessage }] })
 
     const tools = VOID_TOOLS
-    let data = await geminiOnce({ apiKey, model, system, contents, tools })
+    let data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools })
     let candidate = data?.candidates?.[0]
     let parts = candidate?.content?.parts || []
     let calls = extractFunctionCalls(parts)
 
-    // Up to 3 tool rounds for deeper factual answers
     for (let round = 0; round < 3 && calls.length; round++) {
-      contents.push({ role: 'model', parts })
+      cleaned.push({ role: 'model', parts })
 
       const fnParts = calls.map((fc) => {
         const result = runVoidTool(fc.name, fc.args || {}, { owns })
         return {
           functionResponse: {
             name: fc.name,
-            response: { content: result },
+            response: result && typeof result === 'object' ? result : { result },
           },
         }
       })
-      contents.push({ role: 'user', parts: fnParts })
+      cleaned.push({ role: 'user', parts: fnParts })
 
-      data = await geminiOnce({ apiKey, model, system, contents, tools })
+      data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools })
       candidate = data?.candidates?.[0]
       parts = candidate?.content?.parts || []
       calls = extractFunctionCalls(parts)
     }
 
-    const text = extractText(parts)
+    let text = extractText(parts)
+    // Model sometimes ends on a tool call or empty — one text-only pass
+    if (!text) {
+      cleaned.push({
+        role: 'user',
+        parts: [
+          {
+            text: 'Answer now as ExoMind in plain text only. No tools. Use any lot facts already in this thread.',
+          },
+        ],
+      })
+      data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools: undefined })
+      parts = data?.candidates?.[0]?.content?.parts || []
+      text = extractText(parts)
+    }
     if (!text && candidate?.finishReason && candidate.finishReason !== 'STOP') {
       console.warn('[gemini] empty finishReason=', candidate.finishReason)
     }

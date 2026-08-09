@@ -6,8 +6,7 @@ import {
   buildSystemPrompt,
   callGemini,
   safetyReply,
-  degradedSignal,
-  stayOnTopicReply,
+  resilientFallback,
   DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
@@ -31,6 +30,38 @@ const promptsPack = JSON.parse(
   readFileSync(join(process.cwd(), 'shared', 'mind-prompts.json'), 'utf8'),
 )
 
+function normalizeClientOwn(o) {
+  const id = String(o?.constel_id || o?.id || '').trim()
+  if (!id) return null
+  return {
+    constel_id: id,
+    constel_name: String(o.constel_name || o.name || id),
+    claimed_at: o.claimed_at || null,
+    trained: Boolean(o.trained || o.trained_at),
+    trained_at: o.trained_at || null,
+  }
+}
+
+function mergeOwnsForChat(dbList, clientList) {
+  const map = new Map()
+  for (const raw of [...(dbList || []), ...(clientList || []).map(normalizeClientOwn)]) {
+    if (!raw) continue
+    const id = String(raw.constel_id || raw.id || '').trim()
+    if (!id) continue
+    const prev = map.get(id)
+    map.set(id, {
+      ...prev,
+      ...raw,
+      constel_id: id,
+      constel_name: raw.constel_name || raw.name || prev?.constel_name || id,
+      claimed_at: raw.claimed_at || prev?.claimed_at || null,
+      trained: Boolean(prev?.trained || raw.trained || raw.trained_at),
+      trained_at: raw.trained_at || prev?.trained_at || null,
+    })
+  }
+  return [...map.values()]
+}
+
 export default async function handler(req, res) {
   cors(req, res)
   if (req.method === 'OPTIONS') return res.status(204).end()
@@ -51,7 +82,9 @@ export default async function handler(req, res) {
       await upsertOwnerships(user.id, clientOwns)
     }
 
-    const owns = await listOwnerships(user.id)
+    const dbOwns = await listOwnerships(user.id)
+    // Prefer merged ledger so named lots like "VEIN DRIFT 100" resolve even if DB lagged
+    const owns = mergeOwnsForChat(dbOwns, clientOwns)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
     const history = await loadHistory(conv.id, 40)
@@ -88,11 +121,10 @@ export default async function handler(req, res) {
     const model = process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL
     let reply = null
     let live = false
-    const wantsGame = triggers.includes('on_game')
 
     if (!apiKey) {
-      reply = wantsGame ? stayOnTopicReply(message) : degradedSignal('no_key')
-      live = wantsGame
+      reply = resilientFallback(message, owns, triggers)
+      live = false
     } else {
       try {
         reply = await callGemini({
@@ -108,14 +140,8 @@ export default async function handler(req, res) {
         console.warn('[chat] gemini failed', err?.message || err)
       }
       if (!reply) {
-        // Empty/blocked model or transport fail: stay in dialogue, never look like a crash on games/offtopic
-        if (wantsGame || triggers.includes('on_offtopic')) {
-          reply = stayOnTopicReply(message)
-          live = true
-        } else {
-          reply = degradedSignal('offline')
-          live = false
-        }
+        reply = resilientFallback(message, owns, triggers)
+        live = /lot|★|star|kind|vein|coil|spire|crown|lattice|halo|train/i.test(message)
       }
     }
 

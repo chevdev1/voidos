@@ -10,8 +10,7 @@ import {
   buildSystemPrompt,
   callGemini,
   safetyReply,
-  degradedSignal,
-  stayOnTopicReply,
+  resilientFallback,
   DEFAULT_GEMINI_MODEL,
 } from '../shared/mindLogic.js'
 import {
@@ -313,10 +312,9 @@ app.post('/api/chat', async (req, res) => {
 
     let reply = null
     let live = false
-    const wantsGame = triggers.includes('on_game')
     if (!GEMINI_API_KEY) {
-      reply = wantsGame ? stayOnTopicReply(message) : degradedSignal('no_key')
-      live = wantsGame
+      reply = resilientFallback(message, owns, triggers)
+      live = false
     } else {
       try {
         reply = await callGemini({
@@ -332,12 +330,8 @@ app.post('/api/chat', async (req, res) => {
         console.warn('[mind] gemini failed', err.message)
       }
       if (!reply) {
-        if (wantsGame || triggers.includes('on_offtopic')) {
-          reply = stayOnTopicReply(message)
-          live = true
-        } else {
-          reply = degradedSignal('offline')
-        }
+        reply = resilientFallback(message, owns, triggers)
+        live = /lot|★|star|kind|vein|coil|spire|crown|lattice|halo|train/i.test(message)
       }
     }
 
