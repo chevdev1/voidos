@@ -332,11 +332,11 @@ export function initVoidEngine() {
       const sectors = [];
       for (const c of constels) {
         const rng = mulberry32(hashStr(c.id) ^ 0x91a2b3c4);
-        const nStars = 3 + Math.floor(rng() * 3); // 3–5
+        const nStars = 3; // tight mini-figures — less web clutter
         for (let i = 0; i < nStars; i++) {
           const mass = rollSeededMass(rng);
           const ang = rng() * Math.PI * 2;
-          const rad = (0.006 + rng() * 0.022) * R * (0.85 + c.spread);
+          const rad = (0.0035 + rng() * 0.012) * R * (0.7 + c.spread * 0.6);
           const x = c.x + Math.cos(ang) * rad;
           const y = c.y + Math.sin(ang) * rad;
           const r = Math.max(1.5, Math.hypot(x, y));
@@ -2272,22 +2272,21 @@ export function initVoidEngine() {
         const sectorStep =
           scale < 1.2
             ? quality === 'low'
-              ? 18
+              ? 22
               : quality === 'medium'
-                ? 12
-                : 8
+                ? 16
+                : 10
             : scale < 2.5
               ? quality === 'low'
-                ? 8
+                ? 10
                 : quality === 'medium'
-                  ? 4
-                  : 2
+                  ? 6
+                  : 3
               : quality === 'high'
-                ? 1
+                ? 2
                 : quality === 'medium'
-                  ? 2
-                  : 3;
-        const drawLabels = quality === 'high' && scale > 6;
+                  ? 3
+                  : 5;
         for (let si = 0; si < g.sectors.length; si += sectorStep) {
           const s = g.sectors[si];
           if (!sectorVisible(s)) continue;
@@ -2298,7 +2297,7 @@ export function initVoidEngine() {
           sx = L[0];
           sy = L[1];
           if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
-          const grainR = s.viz || 2.1;
+          const grainR = Math.max(0.65, (s.viz || 2.1) * 0.4);
           let col = s.cCol;
           if (heatMode) {
             // Live heat: trained yours > yours > reserved by others > free
@@ -2318,41 +2317,31 @@ export function initVoidEngine() {
           const empty = s.kind === 'empty' && !heatMode;
           const inConstelSel = selectedConstels.has(s.constel);
           const selected = selectedSet.has(s.id) || inConstelSel;
-          ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
+          ctx.fillStyle = empty ? rgba([70, 82, 48], 0.4) : rgba(col, 0.65);
           ctx.beginPath();
           ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
           ctx.fill();
-          if (s.tier === 'MEGA' || s.tier === 'LARGE') {
-            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.55 : 0.28);
-            ctx.lineWidth = s.tier === 'MEGA' ? 1.4 : 1;
+          if ((s.tier === 'MEGA' || s.tier === 'LARGE') && scale > 2) {
+            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.28 : 0.14);
+            ctx.lineWidth = 0.6;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 3.2 : 1.6), 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 1.6 : 0.9), 0, Math.PI * 2);
             ctx.stroke();
           }
           if (selected) {
             ctx.strokeStyle = inConstelSel && !selectedSet.has(s.id)
-              ? 'rgba(204,255,0,.7)'
-              : 'rgba(204,255,0,.95)';
-            ctx.lineWidth = inConstelSel ? 2 : 1.6;
-            ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (inConstelSel ? 5 : 4), 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (s.hover > 0.2) {
-            ctx.strokeStyle = rgba(col, 0.75);
+              ? 'rgba(204,255,0,.5)'
+              : 'rgba(204,255,0,.8)';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 2.5, 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + (inConstelSel ? 2.8 : 2.1), 0, Math.PI * 2);
             ctx.stroke();
-          }
-          if (drawLabels && (s.hover > 0.25 || selected || scale > 10 || s.tier === 'MEGA')) {
-            ctx.fillStyle = rgba(col, 0.85);
-            ctx.font = '9px IBM Plex Mono';
-            ctx.textAlign = 'center';
-            ctx.fillText('#' + s.id, sx, sy - grainR - 6);
-            if (s.hover > 0.45 || selected) {
-              ctx.fillText(s.tier + ' · ' + s.size + 'c', sx, sy + grainR + 10);
-              ctx.fillText(formatUsd(s.usd), sx, sy + grainR + 20);
-            }
+          } else if (s.hover > 0.28) {
+            ctx.strokeStyle = rgba(col, 0.5);
+            ctx.lineWidth = 0.7;
+            ctx.beginPath();
+            ctx.arc(sx, sy, grainR + 1.4, 0, Math.PI * 2);
+            ctx.stroke();
           }
         }
       }
@@ -2360,26 +2349,30 @@ export function initVoidEngine() {
       // Constellation = connected LINE figures (stripes), not just dots.
       // Always draw — even on low quality — or the map reads as only points.
       {
-        const vis = scale < 1.1 ? 0.7 : scale < 3 ? 0.95 : 1;
-        const maxStars = quality === 'low' ? 4 : quality === 'medium' ? 5 : 6;
-        // Dense 10k map: aggressive subsample when zoomed out; full detail when close.
+        const vis = scale < 1.1 ? 0.45 : scale < 3 ? 0.7 : 0.85;
+        const maxStars = quality === 'low' ? 3 : quality === 'medium' ? 3 : 4;
+        // Sparse figures — far zoom is dots only; mid zoom samples hard.
         const constelStep =
-          scale < 1.0
+          scale < 1.2
             ? quality === 'low'
-              ? 14
+              ? 22
               : quality === 'medium'
-                ? 10
-                : 7
-            : scale < 2.2
+                ? 16
+                : 12
+            : scale < 2.5
               ? quality === 'low'
-                ? 5
+                ? 10
                 : quality === 'medium'
-                  ? 3
-                  : 2
-              : quality === 'low'
-                ? 2
-                : 1;
-        const farSparkOnly = scale < 1.35;
+                  ? 7
+                  : 5
+              : scale < 4
+                ? quality === 'low'
+                  ? 4
+                  : 3
+                : quality === 'low'
+                  ? 2
+                  : 1;
+        const farSparkOnly = scale < 2.1;
 
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
@@ -2427,17 +2420,13 @@ export function initVoidEngine() {
         }
 
         function spark(x, y, col, a) {
-          ctx.strokeStyle = rgba(col, a * 0.9);
-          ctx.lineWidth = 0.8;
+          ctx.fillStyle = rgba([255, 255, 240], a * 0.95);
           ctx.beginPath();
-          ctx.moveTo(x - 3.5, y);
-          ctx.lineTo(x + 3.5, y);
-          ctx.moveTo(x, y - 3.5);
-          ctx.lineTo(x, y + 3.5);
-          ctx.stroke();
-          ctx.fillStyle = rgba([255, 255, 240], a);
+          ctx.arc(x, y, 1.05, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = rgba(col, a * 0.55);
           ctx.beginPath();
-          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+          ctx.arc(x, y, 2.1, 0, Math.PI * 2);
           ctx.fill();
         }
 
@@ -2452,7 +2441,7 @@ export function initVoidEngine() {
           if (!picked && (cx0 < -50 || cy0 < -50 || cx0 > W + 50 || cy0 > H + 50)) continue;
 
           if (farSparkOnly && !picked) {
-            spark(cx0, cy0, c.col, 0.4 * vis);
+            spark(cx0, cy0, c.col, 0.28 * vis);
             continue;
           }
 
@@ -2473,27 +2462,27 @@ export function initVoidEngine() {
             });
           }
           if (raw.length < 2) {
-            if (picked) spark(cx0, cy0, LIME, 0.9);
+            if (picked) spark(cx0, cy0, LIME, 0.85);
             continue;
           }
           raw.sort((a, b) => b.br - a.br);
           const stars = raw.slice(0, Math.min(raw.length, maxStars));
 
-          const hot = picked || c.hover > 0.15 || stars.some((p) => p.s.hover > 0.2);
-          const pulse = 0.85 + 0.15 * Math.sin(t * 1.6 + c.a0 * 3);
-          // Bright enough that lines read as constellation stripes, not noise
-          const aMain = (picked ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
+          const hot = picked || c.hover > 0.2 || stars.some((p) => p.s.hover > 0.25);
+          const pulse = 0.92 + 0.08 * Math.sin(t * 1.2 + c.a0 * 3);
+          const aMain = (picked ? 0.85 : hot ? 0.48 : 0.28 * vis) * pulse;
           const strokeCol = picked ? LIME : c.col;
-          const glowCol = picked ? LIME : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
 
           const edges = mstEdges(stars);
           for (const [a, b] of edges) {
-            strokePath([a, b], false, glowCol, aMain * 0.22, picked ? 5.5 : 3.6);
-            strokePath([a, b], false, strokeCol, aMain, picked ? 2.1 : hot ? 1.55 : 1.25);
+            if (picked || hot) {
+              strokePath([a, b], false, strokeCol, aMain * 0.18, picked ? 2.4 : 1.6);
+            }
+            strokePath([a, b], false, strokeCol, aMain, picked ? 1.15 : hot ? 0.75 : 0.55);
           }
 
-          // Extra figure outline when zoomed into constellation scale
-          if (stars.length >= 3 && (picked || scale > 1.6)) {
+          // Closed ring only for selected / hovered — keeps the field quiet
+          if (stars.length >= 3 && picked) {
             let cx = 0,
               cy = 0;
             for (const p of stars) {
@@ -2508,7 +2497,7 @@ export function initVoidEngine() {
                 return p;
               })
               .sort((a, b) => a.ang - b.ang);
-            strokePath(ring, true, strokeCol, aMain * 0.35, picked ? 1.2 : 0.7);
+            strokePath(ring, true, strokeCol, aMain * 0.22, 0.7);
           }
 
           if (picked) {
@@ -2520,49 +2509,45 @@ export function initVoidEngine() {
             }
             hx /= stars.length;
             hy /= stars.length;
-            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, 56);
-            halo.addColorStop(0, 'rgba(204,255,0,.28)');
+            const halo = ctx.createRadialGradient(hx, hy, 3, hx, hy, 28);
+            halo.addColorStop(0, 'rgba(204,255,0,.18)');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(hx, hy, 56, 0, Math.PI * 2);
+            ctx.arc(hx, hy, 28, 0, Math.PI * 2);
             ctx.fill();
           }
 
           for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked ? 1 : hot ? 0.95 : 0.7) * vis * pulse);
+            spark(p.sx, p.sy, strokeCol, (picked ? 0.9 : hot ? 0.55 : 0.35) * vis * pulse);
           }
         }
       }
 
-      if (scale > 1.6 && scale < 9) {
-        const step = (scale < 2.4 ? 8 : scale < 4 ? 3 : 1) * (quality === 'low' ? 2 : 1);
+      // Names only when close / selected / hovered — no wallpaper of text
+      if (scale > 3.2) {
+        const step = (scale < 4.5 ? 14 : scale < 6 ? 6 : 2) * (quality === 'low' ? 2 : 1);
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
-          if (!picked && idx % step) return;
+          const hot = picked || c.hover > 0.35;
+          if (!picked && !hot && idx % step) return;
+          if (!hot && scale < 4.2) return;
           if (!constelVisible(c) && !picked) return;
           if (c.grains.length < 2 && !picked) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
-          if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
-          const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
-          const a = clamp(
-            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
-            0,
-            0.98,
-          );
-          const fs = scale < 2.2 ? 8 : scale < 3.5 ? 10 : 9;
-          ctx.font = `600 ${fs}px IBM Plex Mono`;
+          if (sx < 24 || sy < 24 || sx > W - 24 || sy > H - 24) return;
+          const a = clamp(picked ? 0.9 : hot ? 0.7 : 0.32, 0, 0.95);
+          const short = String(c.name || '')
+            .replace(/\s+\d+$/, '')
+            .slice(0, 14);
+          const fs = hot ? 9 : 7;
+          ctx.font = `${hot ? 600 : 500} ${fs}px IBM Plex Mono`;
           ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
-          ctx.fillText(c.name, sx + 1, sy + 1);
+          ctx.fillStyle = `rgba(0,0,0,${a * 0.4})`;
+          ctx.fillText(short, sx + 1, sy + 1);
           ctx.fillStyle = rgba(picked ? LIME : c.col, a);
-          ctx.fillText(c.name, sx, sy);
-          if (picked || scale > 2.8) {
-            ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
-            ctx.font = '7px IBM Plex Mono';
-            ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);
-          }
+          ctx.fillText(short, sx, sy);
         });
       }
 
