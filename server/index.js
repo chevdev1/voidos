@@ -28,7 +28,6 @@ import {
   registerUser,
   loginUser,
   newGuestKey,
-  linkGoogleAccount,
   linkWallet,
   unlinkWallet,
 } from '../shared/voidDb.js'
@@ -105,36 +104,11 @@ app.post('/api/login', async (req, res) => {
   }
 })
 
-app.post('/api/auth-google', async (req, res) => {
-  try {
-    const idToken = req.body?.idToken || req.body?.credential
-    const clientId = process.env.GOOGLE_CLIENT_ID || process.env.VITE_GOOGLE_CLIENT_ID || ''
-    const tres = await fetch(
-      `https://oauth2.googleapis.com/tokeninfo?id_token=${encodeURIComponent(idToken || '')}`,
-    )
-    if (!tres.ok) return res.status(401).json({ error: 'invalid google token' })
-    const data = await tres.json()
-    if (clientId && data.aud !== clientId) {
-      return res.status(401).json({ error: 'google audience mismatch' })
-    }
-    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
-    const user = await linkGoogleAccount(guestKey, {
-      sub: data.sub,
-      email: data.email,
-      name: data.name,
-      picture: data.picture,
-    })
-    const conv = await getOrCreateConversation(user.id)
-    res.json({
-      ok: true,
-      guestKey: user.guest_key,
-      user: publicUser(user),
-      ownerships: await listOwnerships(user.id),
-      history: await loadHistory(conv.id, 40),
-    })
-  } catch (err) {
-    res.status(401).json({ error: err.message || 'google auth failed' })
-  }
+app.post('/api/auth-google', (_req, res) => {
+  res.status(410).json({
+    error: 'google auth removed — guest session only',
+    guestOnly: true,
+  })
 })
 
 app.post('/api/wallet-link', async (req, res) => {

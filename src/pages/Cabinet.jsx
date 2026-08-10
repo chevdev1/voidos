@@ -6,7 +6,6 @@ import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
 import { WalletPanel } from '../components/WalletPanel'
-import { GoogleSignIn } from '../components/GoogleSignIn'
 
 /**
  * Personal cabinet — owned constellation lots by kind, rotatable viewer + full lore.
@@ -72,7 +71,9 @@ export default function Cabinet() {
     if (!still) setSelectedId(filtered[0].lot.constel_id)
   }, [filtered, selectedId])
 
-  const who = user?.displayName || user?.email || (user?.google ? 'google' : 'visitor')
+  const who = user?.wallet
+    ? `${user.wallet.slice(0, 6)}…${user.wallet.slice(-4)}`
+    : 'wallet not linked'
   const activeStar =
     active && selectedStar != null ? active.profile.stars[selectedStar] : null
 
@@ -150,34 +151,23 @@ export default function Cabinet() {
             your <span className="text-lime">lots</span>
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            signed as <span className="text-lime">{who}</span>
-            {user?.email ? <span className="text-muted"> · {user.email}</span> : null}
+            wallet <span className="text-lime">{who}</span>
             {ownerships.length
               ? ` · ${ownerships.length} constellation${ownerships.length === 1 ? '' : 's'} · 6 kinds`
-              : ' · no claims yet — open the map and claim (free while $EXO mint is off)'}
+              : ' · no claims yet — connect wallet, open map, claim'}
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
-            $EXO not live yet — claims, Google login, Robinhood link and lot viewer all work in{' '}
-            <span className="text-lime">test</span>. No real burn. When mint is set, burns become
-            real.
+            No Google — identity is your <span className="text-lime">Robinhood Wallet</span>. Connect
+            below, then claim on the map. $EXO not live → test claim / train until token + contract
+            are set.
           </p>
         </motion.div>
 
         <div className="mt-8 space-y-4">
-          {!user?.google && (
-            <div className="border border-lime/35 bg-black/50 p-5">
-              <p className="mb-1 font-display text-lg font-extrabold tracking-tight">
-                enter via <span className="text-lime">google</span>
-              </p>
-              <p className="mb-4 text-[11px] text-muted">
-                register and login in one click — only Google.
-              </p>
-              <GoogleSignIn
-                onDone={(data) => {
-                  setUser(data.user || null)
-                  if (data.ownerships) setOwnerships(data.ownerships)
-                }}
-              />
+          {!user?.wallet && (
+            <div className="border border-lime/35 bg-black/50 p-4 text-[12px] text-muted">
+              <span className="text-lime">Step 1:</span> connect Robinhood below →{' '}
+              <span className="text-lime">Step 2:</span> claim lots on the map.
             </div>
           )}
           <WalletPanel user={user} onUser={setUser} />

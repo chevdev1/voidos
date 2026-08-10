@@ -208,7 +208,9 @@ export function MindChat() {
           <div>
             <div className="mind-chat-title">ask the mind</div>
             <div className="mind-chat-sub">
-              {account?.registered ? `${account.displayName}` : 'visitor'}
+              {account?.wallet
+                ? `${account.wallet.slice(0, 6)}…${account.wallet.slice(-4)}`
+                : 'connect wallet'}
               {ownerships.length
                 ? ` · ${ownerships.length} lots yours`
                 : ' · talk freely'}
