@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import {
   getOrCreateUser,
   listOwnerships,
-  upsertOwnerships,
+  syncOwnedLotNames,
   publicUser,
   resolveGuestKey,
   sidCookie,
@@ -30,7 +30,7 @@ export default async function handler(req, res) {
 
     const clientOwns = Array.isArray(body.ownerships) ? body.ownerships : []
     if (clientOwns.length) {
-      await upsertOwnerships(user.id, clientOwns)
+      await syncOwnedLotNames(user.id, clientOwns)
     }
 
     const ownerships = await listOwnerships(user.id)

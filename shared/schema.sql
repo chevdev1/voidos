@@ -35,6 +35,11 @@ CREATE TABLE IF NOT EXISTS ownerships (
   UNIQUE(user_id, constel_id)
 );
 
+-- Global exclusive lot lock (one owner worldwide). Applied in migrate() for existing DBs too.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ownerships_constel ON ownerships(constel_id);
+
+CREATE INDEX IF NOT EXISTS idx_ownerships_user ON ownerships(user_id);
+
 CREATE TABLE IF NOT EXISTS prompts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   slug TEXT NOT NULL UNIQUE,
@@ -55,5 +60,4 @@ CREATE TABLE IF NOT EXISTS memories (
 );
 
 CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, id);
-CREATE INDEX IF NOT EXISTS idx_ownerships_user ON ownerships(user_id);
 CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);

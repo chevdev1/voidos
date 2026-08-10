@@ -73,6 +73,25 @@ export async function migrate() {
     }
   }
 
+  // Exclusive lots: drop duplicate constel_id rows (keep earliest claim), then unique index
+  try {
+    await db.execute(`
+      DELETE FROM ownerships
+      WHERE id NOT IN (
+        SELECT MIN(id) FROM ownerships GROUP BY constel_id
+      )
+    `)
+  } catch (err) {
+    console.warn('[voidDb] ownerships dedupe:', err?.message || err)
+  }
+  try {
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_ownerships_constel ON ownerships(constel_id)',
+    )
+  } catch (err) {
+    console.warn('[voidDb] idx_ownerships_constel:', err?.message || err)
+  }
+
   _migrated = true
   return db
 }
@@ -176,22 +195,129 @@ export async function listOwnerships(userId) {
   )
 }
 
+/** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */
+export const TOTAL_MAP_LOTS = 200
+
+/**
+ * Claim lots for a user. One constel_id → one owner worldwide.
+ * One wallet may own many lots. Re-claiming your own lot is idempotent.
+ * If ANY lot in the batch is owned by someone else, the whole batch fails
+ * (no partial claim of a stack/series).
+ */
 export async function upsertOwnerships(userId, lots) {
   await migrate()
   const db = getDb()
+  const prepared = []
   for (const l of lots || []) {
-    const id = String(l.constel_id || l.id || '').trim()
+    const id = String(l.constel_id || l.id || '').trim().slice(0, 64)
     if (!id) continue
     const name = String(l.constel_name || l.name || id).slice(0, 80)
+    prepared.push({ id, name })
+  }
+
+  // Pre-check entire stack first — reject all if any lot is taken by another user
+  for (const { id } of prepared) {
+    const existing = row(
+      await db.execute({
+        sql: 'SELECT id, user_id FROM ownerships WHERE constel_id = ?',
+        args: [id],
+      }),
+    )
+    if (existing && Number(existing.user_id) !== Number(userId)) {
+      const err = new Error('lot already reserved')
+      err.code = 'LOT_RESERVED'
+      err.constelId = id
+      throw err
+    }
+  }
+
+  for (const { id, name } of prepared) {
+    try {
+      await db.execute({
+        sql: `INSERT INTO ownerships (user_id, constel_id, constel_name, claimed_at)
+              VALUES (?, ?, ?, datetime('now'))
+              ON CONFLICT(user_id, constel_id) DO UPDATE SET
+                constel_name = excluded.constel_name`,
+        args: [userId, id, name],
+      })
+    } catch (e) {
+      if (/UNIQUE|unique|constraint/i.test(String(e?.message || e))) {
+        const err = new Error('lot already reserved')
+        err.code = 'LOT_RESERVED'
+        err.constelId = id
+        throw err
+      }
+      throw e
+    }
+  }
+  return listOwnerships(userId)
+}
+
+/**
+ * Session/chat sync: only refresh names for lots this user already owns.
+ * Does not create new claims (claim goes through /api/claim-sync).
+ */
+export async function syncOwnedLotNames(userId, lots) {
+  await migrate()
+  const mine = await listOwnerships(userId)
+  const mineIds = new Set(mine.map((o) => String(o.constel_id)))
+  const db = getDb()
+  for (const l of lots || []) {
+    const id = String(l.constel_id || l.id || '').trim().slice(0, 64)
+    if (!id || !mineIds.has(id)) continue
+    const name = String(l.constel_name || l.name || id).slice(0, 80)
     await db.execute({
-      sql: `INSERT INTO ownerships (user_id, constel_id, constel_name, claimed_at)
-            VALUES (?, ?, ?, datetime('now'))
-            ON CONFLICT(user_id, constel_id) DO UPDATE SET
-              constel_name = excluded.constel_name`,
-      args: [userId, id.slice(0, 64), name],
+      sql: 'UPDATE ownerships SET constel_name = ? WHERE user_id = ? AND constel_id = ?',
+      args: [name, userId, id],
     })
   }
   return listOwnerships(userId)
+}
+
+/** Public map ledger: all reserved lots + top wallets. */
+export async function listMapOwnerships() {
+  await migrate()
+  const lotRows = rows(
+    await getDb().execute({
+      sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, u.wallet_pubkey AS wallet
+            FROM ownerships o
+            LEFT JOIN users u ON u.id = o.user_id
+            ORDER BY o.claimed_at ASC`,
+    }),
+  )
+  const lots = lotRows.map((r) => ({
+    constel_id: String(r.constel_id),
+    constel_name: String(r.constel_name || r.constel_id),
+    wallet: r.wallet ? String(r.wallet) : null,
+    claimed_at: r.claimed_at || null,
+  }))
+
+  const leaderRows = rows(
+    await getDb().execute({
+      sql: `SELECT u.wallet_pubkey AS wallet, COUNT(*) AS count
+            FROM ownerships o
+            JOIN users u ON u.id = o.user_id
+            WHERE u.wallet_pubkey IS NOT NULL AND u.wallet_pubkey != ''
+            GROUP BY u.wallet_pubkey
+            ORDER BY count DESC
+            LIMIT 20`,
+    }),
+  )
+  const leaders = leaderRows.map((r) => ({
+    wallet: String(r.wallet),
+    count: Number(r.count) || 0,
+  }))
+
+  const claimed = lots.length
+  return {
+    lots,
+    leaders,
+    totals: {
+      claimed,
+      available: Math.max(0, TOTAL_MAP_LOTS - claimed),
+      total: TOTAL_MAP_LOTS,
+    },
+  }
 }
 
 export async function loadMemories(userId) {

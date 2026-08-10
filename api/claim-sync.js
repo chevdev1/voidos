@@ -37,6 +37,13 @@ export default async function handler(req, res) {
     })
   } catch (err) {
     console.error('[claim-sync]', err)
+    if (err?.code === 'LOT_RESERVED' || /already reserved/i.test(err?.message || '')) {
+      return res.status(409).json({
+        error: err.message || 'lot already reserved',
+        code: 'LOT_RESERVED',
+        constelId: err.constelId || null,
+      })
+    }
     return res.status(500).json({ error: 'claim sync failed' })
   }
 }

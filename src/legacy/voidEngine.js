@@ -11,7 +11,7 @@
  * because it's invoked from an effect in App.jsx, after the full tree has
  * committed to the DOM.
  */
-import { mindClaimSync, mindClaimVerify, loadOwnerships, loadUser, mindSession } from '../lib/mindClient.js'
+import { mindClaimSync, mindClaimVerify, mindMapOwnerships, loadOwnerships, loadUser, mindSession } from '../lib/mindClient.js'
 import { isClaimLiveClient, claimOnChain } from '../lib/rhWallets.js'
 import { getLotKind } from '../../shared/lotLore.js'
 
@@ -646,6 +646,70 @@ export function initVoidEngine() {
       return c.grains.length > 0 && c.grains.every((s) => yoursSet.has(s.id));
     }
 
+    /** Public reserved lots: constel_id → { wallet, name } */
+    const takenMap = new Map();
+    let mapLeaders = [];
+    let mapTotals = { claimed: 0, available: 200, total: 200 };
+
+    function shortWallet(w) {
+      const s = String(w || '').trim();
+      if (!s) return 'unlinked';
+      if (s.length < 12) return s;
+      return s.slice(0, 6) + '…' + s.slice(-4);
+    }
+
+    function constelTakenInfo(c) {
+      if (!c) return null;
+      return takenMap.get(String(c.id)) || null;
+    }
+
+    function constelReserved(c) {
+      if (!c || constelOwned(c)) return false;
+      return takenMap.has(String(c.id));
+    }
+
+    function applyTakenVisuals() {
+      if (!g0?.constels) return;
+      for (const [cid] of takenMap) {
+        const c = g0.constels.find((x) => String(x.id) === String(cid));
+        if (!c) continue;
+        const mine = c.grains.length > 0 && c.grains.every((s) => yoursSet.has(s.id));
+        if (mine) continue;
+        for (const s of c.grains) {
+          if (yoursSet.has(s.id)) continue;
+          if (s.kind === 'empty') s.kind = 'claimed';
+        }
+      }
+      refreshCounts();
+    }
+
+    function hydrateTakenFromPublic(data) {
+      takenMap.clear();
+      mapLeaders = Array.isArray(data?.leaders) ? data.leaders : [];
+      mapTotals = data?.totals || mapTotals;
+      for (const o of data?.lots || []) {
+        const id = String(o.constel_id || o.id || '');
+        if (!id) continue;
+        takenMap.set(id, {
+          wallet: o.wallet || null,
+          name: o.constel_name || id,
+          claimed_at: o.claimed_at || null,
+        });
+      }
+      applyTakenVisuals();
+    }
+
+    window.__voidHydrateTaken = hydrateTakenFromPublic;
+
+    async function refreshMapOwnerships() {
+      try {
+        const data = await mindMapOwnerships({ force: true });
+        hydrateTakenFromPublic(data);
+      } catch {
+        /* ignore offline */
+      }
+    }
+
     function syncTermButtons() {
       const addBtn = document.getElementById('termAdd');
       const addConstelBtn = document.getElementById('termAddConstel');
@@ -656,28 +720,38 @@ export function initVoidEngine() {
         addConstelBtn.hidden = !lastTermConstel;
         if (lastTermConstel) {
           const owned = constelOwned(lastTermConstel);
+          const reserved = constelReserved(lastTermConstel);
           const inStack = selectedConstels.has(lastTermConstel.id);
           addConstelBtn.textContent = owned
             ? '✓ already yours'
-            : inStack
-              ? '✓ in stack — tap again to remove'
-              : '+ add constellation to stack';
-          addConstelBtn.disabled = owned;
+            : reserved
+              ? 'RESERVED — cannot stack'
+              : inStack
+                ? '✓ in stack — tap again to remove'
+                : '+ add constellation to stack';
+          addConstelBtn.disabled = owned || reserved;
         }
       }
       if (buyBtn) {
         const hasWallet = Boolean(loadUser()?.wallet);
         const live = isClaimLiveClient();
+        const reserved = lastTermConstel && constelReserved(lastTermConstel);
+        const taken = lastTermConstel ? constelTakenInfo(lastTermConstel) : null;
         buyBtn.textContent = lastTermConstel
           ? constelOwned(lastTermConstel)
-            ? 'already claimed'
-            : !hasWallet
-              ? 'connect wallet to claim'
-              : live
-                ? 'claim on Robinhood Chain'
-                : 'claim constellation · test'
+            ? 'already yours'
+            : reserved
+              ? 'RESERVED · ' + shortWallet(taken?.wallet)
+              : !hasWallet
+                ? 'connect wallet to claim'
+                : live
+                  ? 'claim on Robinhood Chain'
+                  : 'claim constellation · test'
           : 'connect wallet to claim';
-        buyBtn.disabled = !lastTermConstel || constelOwned(lastTermConstel);
+        buyBtn.disabled =
+          !lastTermConstel ||
+          constelOwned(lastTermConstel) ||
+          Boolean(reserved);
       }
     }
     window.__voidSyncTermButtons = syncTermButtons;
@@ -697,7 +771,7 @@ export function initVoidEngine() {
         burn = 0;
       for (const cid of selectedConstels) {
         const c = g0.constels.find((x) => x.id === cid);
-        if (!c || constelOwned(c)) continue;
+        if (!c || constelOwned(c) || constelReserved(c)) continue;
         for (const s of c.grains) {
           items.push(s);
           mass += s.size;
@@ -734,7 +808,7 @@ export function initVoidEngine() {
     }
 
     function addConstelToStack(c) {
-      if (!c || constelOwned(c)) return false;
+      if (!c || constelOwned(c) || constelReserved(c)) return false;
       if (selectedConstels.has(c.id)) return false;
       selectedConstels.add(c.id);
       refreshCartDock();
@@ -742,61 +816,100 @@ export function initVoidEngine() {
     }
 
     function toggleConstel(c) {
-      if (!c || constelOwned(c)) return;
+      if (!c || constelOwned(c) || constelReserved(c)) return;
       if (selectedConstels.has(c.id)) selectedConstels.delete(c.id);
       else selectedConstels.add(c.id);
       refreshCartDock();
     }
 
     function syncClaimedLots(lots) {
-      if (!lots?.length) return
-      mindClaimSync(lots).catch(() => {})
+      if (!lots?.length) return;
+      mindClaimSync(lots)
+        .then(() => refreshMapOwnerships())
+        .catch(() => {});
     }
 
     function requireWalletForClaim() {
-      const wallet = loadUser()?.wallet
-      if (wallet) return wallet
-      toast('connect Robinhood wallet to claim · open CABINET')
+      const wallet = loadUser()?.wallet;
+      if (wallet) return wallet;
+      toast('connect Robinhood wallet to claim · open CABINET');
       try {
-        window.location.assign('/cabinet')
+        window.location.assign('/cabinet');
       } catch {
         /* ignore */
       }
-      return null
+      return null;
     }
 
     async function executeClaim(items, toastMsg) {
-      if (!items?.length) return false
-      if (!requireWalletForClaim()) return false
+      if (!items?.length) return false;
+      if (!requireWalletForClaim()) return false;
 
       const previewLots = (() => {
-        const touched = new Set()
-        for (const s of items) if (s.constel) touched.add(s.constel)
+        const touched = new Set();
+        for (const s of items) if (s.constel) touched.add(s.constel);
         return [...touched]
           .map((cid) => g0.constels.find((x) => x.id === cid))
           .filter(Boolean)
-          .map((c) => ({ id: c.id, name: c.name }))
-      })()
+          .map((c) => ({ id: c.id, name: c.name }));
+      })();
+
+      const blockedList = previewLots.filter((l) => {
+        const c = g0.constels.find((x) => x.id === l.id);
+        return c && constelReserved(c);
+      });
+      if (blockedList.length) {
+        const info = takenMap.get(String(blockedList[0].id));
+        toast(
+          blockedList.length > 1
+            ? 'stack blocked · ' +
+                blockedList.length +
+                ' lots already RESERVED (e.g. ' +
+                shortWallet(info?.wallet) +
+                ')'
+            : 'RESERVED · ' + shortWallet(info?.wallet) + ' already owns this lot',
+        );
+        await refreshMapOwnerships();
+        return false;
+      }
 
       if (isClaimLiveClient()) {
         try {
-          toast('confirm claim tx in Robinhood…')
-          const { hash } = await claimOnChain(previewLots.map((l) => l.id))
-          await mindClaimVerify({ txHash: hash, lots: previewLots })
-          claimSectors(items)
-          toast((toastMsg || 'claimed') + ' · on-chain')
-          return true
+          toast('confirm claim tx in Robinhood…');
+          const { hash } = await claimOnChain(previewLots.map((l) => l.id));
+          await mindClaimVerify({ txHash: hash, lots: previewLots });
+          claimSectors(items, { skipSync: true });
+          await refreshMapOwnerships();
+          toast((toastMsg || 'claimed') + ' · on-chain');
+          return true;
         } catch (e) {
-          const msg = e?.message || String(e)
-          if (/reject|cancel|denied/i.test(msg)) toast('claim cancelled')
-          else toast(msg.slice(0, 120) || 'claim failed')
-          return false
+          const msg = e?.message || String(e);
+          if (e?.status === 409 || e?.data?.code === 'LOT_RESERVED') {
+            toast('RESERVED · already taken');
+            await refreshMapOwnerships();
+          } else if (/reject|cancel|denied/i.test(msg)) toast('claim cancelled');
+          else toast(msg.slice(0, 120) || 'claim failed');
+          return false;
         }
       }
 
-      claimSectors(items)
-      toast((toastMsg || 'claimed') + ' · test')
-      return true
+      try {
+        await mindClaimSync(previewLots);
+        claimSectors(items, { skipSync: true });
+        await refreshMapOwnerships();
+        toast((toastMsg || 'claimed') + ' · yours alone');
+        return true;
+      } catch (e) {
+        if (e?.status === 409 || e?.data?.code === 'LOT_RESERVED') {
+          toast('RESERVED · already taken by another wallet');
+          await refreshMapOwnerships();
+          return false;
+        }
+        // Offline: still mark local
+        claimSectors(items, { skipSync: true });
+        toast((toastMsg || 'claimed') + ' · local');
+        return true;
+      }
     }
 
     function toast(msg) {
@@ -813,7 +926,7 @@ export function initVoidEngine() {
       el._t = setTimeout(() => el.classList.remove('show'), 2800)
     }
 
-    function claimSectors(list) {
+    function claimSectors(list, opts = {}) {
       const touched = new Set();
       for (const s of list) {
         yoursSet.add(s.id);
@@ -832,6 +945,7 @@ export function initVoidEngine() {
       refreshCounts();
       refreshCartDock();
 
+      if (opts.skipSync) return;
       const lots = [...touched]
         .map((cid) => g0.constels.find((x) => x.id === cid))
         .filter((c) => c && constelOwned(c))
@@ -884,6 +998,7 @@ export function initVoidEngine() {
     onCleanup(() => {
       if (window.__voidHydrateOwns === hydrateOwnsFromLedger) delete window.__voidHydrateOwns;
       if (window.__voidTrainLot === trainLotOnMap) delete window.__voidTrainLot;
+      if (window.__voidHydrateTaken === hydrateTakenFromPublic) delete window.__voidHydrateTaken;
     });
 
     function focusLotFromStorage() {
@@ -901,8 +1016,13 @@ export function initVoidEngine() {
       }
     }
 
-    // Pull durable ownerships on boot (cache + server)
+    // Pull durable ownerships on boot (cache + server) + public reserved map
     hydrateOwnsFromLedger(loadOwnerships())
+    refreshMapOwnerships()
+    const takenPoll = setInterval(() => {
+      mindMapOwnerships().then(hydrateTakenFromPublic).catch(() => {})
+    }, 45000)
+    onCleanup(() => clearInterval(takenPoll))
     mindSession()
       .then((data) => {
         if (data?.ownerships) hydrateOwnsFromLedger(data.ownerships)
@@ -917,7 +1037,7 @@ export function initVoidEngine() {
       const grainIds = new Set();
       for (const cid of selectedConstels) {
         const c = g0.constels.find((x) => x.id === cid);
-        if (!c || constelOwned(c)) continue;
+        if (!c || constelOwned(c) || constelReserved(c)) continue;
         for (const s of c.grains) grainIds.add(s.id);
       }
       return [...grainIds].map((id) => g0.sectors.find((s) => s.id === id)).filter(Boolean);
@@ -981,27 +1101,40 @@ export function initVoidEngine() {
       const burn = c.grains.reduce((a, s) => a + s.usd, 0);
       const yours = c.grains.filter((s) => yoursSet.has(s.id)).length;
       const owned = yours === c.grains.length && c.grains.length > 0;
+      const reserved = !owned && constelReserved(c);
+      const taken = constelTakenInfo(c);
       const kind = getLotKind(typeof c.figure === 'number' ? c.figure : c.id);
       openTerm({
         title: 'CONSTEL · ' + c.name,
         sub: c.id + ' · ' + kind.label + ' · ' + c.grains.length + ' stars',
-        status: owned ? 'yours' : yours ? 'partial' : 'unclaimed',
-        ring: 'kind · ' + kind.label,
+        status: owned ? 'yours' : reserved ? 'RESERVED' : yours ? 'partial' : 'unclaimed',
+        ring: reserved
+          ? 'owner · ' + shortWallet(taken?.wallet)
+          : 'kind · ' + kind.label,
         tier: kind.tag + ' · ' + kind.rarity,
-        price: isClaimLiveClient()
-          ? '$' + burn.toFixed(2) + ' · burn $EXO on Robinhood Chain'
-          : '$' + burn.toFixed(2) + ' · test claim (connect wallet · no real $EXO yet)',
+        price: reserved
+          ? 'RESERVED · one owner only'
+          : isClaimLiveClient()
+            ? '$' + burn.toFixed(2) + ' · burn $EXO on Robinhood Chain'
+            : '$' + burn.toFixed(2) + ' · test claim (connect wallet · no real $EXO yet)',
         size: fmt(mass) + ' cells',
-        grav: yours + '/' + c.grains.length + ' owned',
+        grav: owned
+          ? yours + '/' + c.grains.length + ' owned'
+          : reserved
+            ? 'taken · ' + shortWallet(taken?.wallet)
+            : yours + '/' + c.grains.length + ' owned',
         note: owned
-          ? 'Yours. Open CABINET (nav) to rotate this ' +
+          ? 'Yours alone. Open CABINET to rotate this ' +
             kind.label +
             ' and read full lot info.'
-          : kind.blurb +
-            (isClaimLiveClient()
-              ? ' Claim burns $EXO on Robinhood Chain. Connect wallet in CABINET first.'
-              : ' Connect Robinhood Wallet in CABINET to claim (test until contract + token go live).'),
+          : reserved
+            ? 'Already reserved by ' +
+              shortWallet(taken?.wallet) +
+              '. One constellation = one wallet. Open standings for top holders.'
+            : kind.blurb +
+              ' One buyer only — after claim this lot is reserved for everyone else.',
       });
+      syncTermButtons();
     }
 
     let pendingTouch = null
@@ -1492,29 +1625,39 @@ export function initVoidEngine() {
       if (!panel || !title || !body) return;
 
       if (act === 'standings') {
-        title.textContent = 'who taught me the most';
-        const ranked = g0.constels
-          .map((c) => {
-            const mass = c.grains.reduce((a, s) => a + s.size, 0);
-            const trained = c.grains.filter((s) => s.kind === 'fed').length;
-            const impact = trained * 3 + mass * 0.002 + (selectedConstels.has(c.id) ? 5 : 0);
-            return { c, mass, trained, impact };
-          })
-          .sort((a, b) => b.impact - a.impact)
-          .slice(0, 10);
+        title.textContent = 'who owns the most';
+        const leaders = mapLeaders.length
+          ? mapLeaders
+          : [];
+        const claimed = mapTotals.claimed || takenMap.size;
+        const total = mapTotals.total || 200;
+        const pct = total ? ((claimed / total) * 100).toFixed(1) : '0';
         body.innerHTML =
-          '<p class="mp-cap">top ten by training impact — paid in stock when live</p>' +
-          ranked
-            .map(
-              (r, i) =>
-                `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>#${i + 1}</b> <span>${r.c.name}</span> <em>${r.trained} trained · ${fmt(r.mass)}c</em></button>`,
-            )
-            .join('');
+          `<p class="mp-cap">${claimed} / ${total} lots reserved · ${pct}% of the map · one lot = one wallet</p>` +
+          (leaders.length
+            ? leaders
+                .slice(0, 10)
+                .map(
+                  (r, i) =>
+                    `<div class="mp-row"><b>#${i + 1}</b> <span>${shortWallet(r.wallet)}</span> <em>${r.count} lot${r.count === 1 ? '' : 's'}</em></div>`,
+                )
+                .join('')
+            : '<p class="mp-note">no wallet-linked claims yet — connect Robinhood and claim a lot.</p>') +
+          (takenMap.size
+            ? '<p class="mp-cap" style="margin-top:12px">recent reserved</p>' +
+              [...takenMap.entries()]
+                .slice(-8)
+                .reverse()
+                .map(
+                  ([cid, info]) =>
+                    `<button type="button" class="mp-row" data-cid="${cid}"><b>✧</b> <span>${info.name || cid}</span> <em>${shortWallet(info.wallet)}</em></button>`,
+                )
+                .join('')
+            : '');
         body.querySelectorAll('.mp-row[data-cid]').forEach((btn) => {
           btn.onclick = () => {
             const c = g0.constels.find((x) => x.id === btn.dataset.cid);
             if (!c) return;
-            toggleConstel(c);
             openConstelTerm(c);
             focusOn(constelWorld(c, g0).x, constelWorld(c, g0).y, 3.2);
             panel.hidden = true;
@@ -1523,7 +1666,7 @@ export function initVoidEngine() {
       } else if (act === 'market') {
         title.textContent = 'lots for sale';
         const lots = g0.constels
-          .filter((c) => !constelOwned(c))
+          .filter((c) => !constelOwned(c) && !constelReserved(c))
           .map((c) => {
             const burn = c.grains.reduce((a, s) => a + s.usd, 0);
             const mass = c.grains.reduce((a, s) => a + s.size, 0);
@@ -1532,7 +1675,7 @@ export function initVoidEngine() {
           .sort((a, b) => a.burn - b.burn)
           .slice(0, 12);
         body.innerHTML =
-          '<p class="mp-cap">buy a constellation lot — takes the whole linked figure</p>' +
+          '<p class="mp-cap">open lots only — reserved constellations stay locked</p>' +
           lots
             .map(
               (r) =>

@@ -158,8 +158,8 @@ export default function Cabinet() {
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
             No Google — identity is your <span className="text-lime">Robinhood Wallet</span>. Connect
-            below, then claim on the map. $EXO not live → test claim / train until token + contract
-            are set.
+            below, then claim on the map. One lot = one owner (others see RESERVED). $EXO not live →
+            test claim / train until token + contract are set.
           </p>
         </motion.div>
 

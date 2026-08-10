@@ -44,6 +44,8 @@ export function migrate() {
       UNIQUE(user_id, constel_id)
     );
 
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_ownerships_constel ON ownerships(constel_id);
+
     CREATE TABLE IF NOT EXISTS prompts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       slug TEXT NOT NULL UNIQUE,

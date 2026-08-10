@@ -267,24 +267,6 @@ export async function mindChat(message) {
 
 export async function mindClaimSync(lots) {
   if (!lots?.length) return loadOwnerships()
-  const mapped = lots.map((l) => ({
-    constel_id: String(l.id),
-    constel_name: String(l.name || l.id),
-    claimed_at: new Date().toISOString(),
-  }))
-  const map = new Map(loadOwnerships().map((o) => [o.constel_id, o]))
-  for (const o of mapped) {
-    const prev = map.get(o.constel_id)
-    map.set(o.constel_id, {
-      ...prev,
-      ...o,
-      trained: Boolean(prev?.trained),
-      trained_at: prev?.trained_at || null,
-    })
-  }
-  const merged = [...map.values()]
-  saveOwnerships(merged)
-  notifyOwnershipHydrate(merged)
 
   try {
     const data = await api('/api/claim-sync', {
@@ -293,8 +275,40 @@ export async function mindClaimSync(lots) {
     })
     const state = applyServerState(data)
     notifyOwnershipHydrate(state.ownerships)
+    try {
+      await mindMapOwnerships({ force: true })
+    } catch {
+      /* ignore */
+    }
     return state.ownerships
-  } catch {
+  } catch (err) {
+    if (err?.status === 409 || err?.data?.code === 'LOT_RESERVED') {
+      try {
+        await mindMapOwnerships({ force: true })
+      } catch {
+        /* ignore */
+      }
+      throw err
+    }
+    // Offline fallback: keep optimistic local ledger
+    const mapped = lots.map((l) => ({
+      constel_id: String(l.id),
+      constel_name: String(l.name || l.id),
+      claimed_at: new Date().toISOString(),
+    }))
+    const map = new Map(loadOwnerships().map((o) => [o.constel_id, o]))
+    for (const o of mapped) {
+      const prev = map.get(o.constel_id)
+      map.set(o.constel_id, {
+        ...prev,
+        ...o,
+        trained: Boolean(prev?.trained),
+        trained_at: prev?.trained_at || null,
+      })
+    }
+    const merged = [...map.values()]
+    saveOwnerships(merged)
+    notifyOwnershipHydrate(merged)
     return merged
   }
 }
@@ -302,14 +316,65 @@ export async function mindClaimSync(lots) {
 /** After on-chain claim: verify RH receipt then upsert ownerships. */
 export async function mindClaimVerify({ txHash, lots }) {
   if (!lots?.length) return loadOwnerships()
-  const data = await api('/api/claim-verify', {
-    guestKey: loadGuestKey(),
-    txHash,
-    lots,
+  try {
+    const data = await api('/api/claim-verify', {
+      guestKey: loadGuestKey(),
+      txHash,
+      lots,
+    })
+    const state = applyServerState(data)
+    notifyOwnershipHydrate(state.ownerships)
+    try {
+      await mindMapOwnerships({ force: true })
+    } catch {
+      /* ignore */
+    }
+    return state.ownerships
+  } catch (err) {
+    if (err?.status === 409 || err?.data?.code === 'LOT_RESERVED') {
+      try {
+        await mindMapOwnerships({ force: true })
+      } catch {
+        /* ignore */
+      }
+    }
+    throw err
+  }
+}
+
+let _mapOwnsCache = null
+let _mapOwnsAt = 0
+
+/** Public reserved lots + leaders. Cached ~45s. */
+export async function mindMapOwnerships({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && _mapOwnsCache && now - _mapOwnsAt < 45000) {
+    return _mapOwnsCache
+  }
+  const res = await fetch(url('/api/map-ownerships'), {
+    method: 'GET',
+    credentials: 'include',
   })
-  const state = applyServerState(data)
-  notifyOwnershipHydrate(state.ownerships)
-  return state.ownerships
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.error || `map ownerships failed ${res.status}`)
+  }
+  _mapOwnsCache = {
+    lots: Array.isArray(data.lots) ? data.lots : [],
+    leaders: Array.isArray(data.leaders) ? data.leaders : [],
+    totals: data.totals || { claimed: 0, available: 200, total: 200 },
+  }
+  _mapOwnsAt = now
+  try {
+    window.__voidHydrateTaken?.(_mapOwnsCache)
+  } catch {
+    /* ignore */
+  }
+  return _mapOwnsCache
+}
+
+export function peekMapOwnerships() {
+  return _mapOwnsCache
 }
 
 /** Mark a claimed lot as trained (test mode — no real $EXO burn). */

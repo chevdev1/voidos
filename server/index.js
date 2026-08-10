@@ -30,6 +30,8 @@ import {
   newGuestKey,
   linkWallet,
   unlinkWallet,
+  syncOwnedLotNames,
+  listMapOwnerships,
 } from '../shared/voidDb.js'
 import { getAddress } from 'viem'
 import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt } from '../shared/rhVerify.js'
@@ -59,7 +61,7 @@ app.post('/api/session', async (req, res) => {
     const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
     const user = await getOrCreateUser(guestKey)
     const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
-    if (clientOwns.length) await upsertOwnerships(user.id, clientOwns)
+    if (clientOwns.length) await syncOwnedLotNames(user.id, clientOwns)
     const conv = await getOrCreateConversation(user.id)
     const history = await loadHistory(conv.id, 40)
     res.json({
@@ -193,6 +195,13 @@ app.post('/api/claim-sync', async (req, res) => {
     res.json({ ok: true, guestKey: user.guest_key, user: publicUser(user), ownerships })
   } catch (err) {
     console.error(err)
+    if (err?.code === 'LOT_RESERVED' || /already reserved/i.test(err?.message || '')) {
+      return res.status(409).json({
+        error: err.message || 'lot already reserved',
+        code: 'LOT_RESERVED',
+        constelId: err.constelId || null,
+      })
+    }
     res.status(500).json({ error: 'claim sync failed' })
   }
 })
@@ -228,7 +237,34 @@ app.post('/api/claim-verify', async (req, res) => {
     })
   } catch (err) {
     console.error(err)
+    if (err?.code === 'LOT_RESERVED' || /already reserved/i.test(err?.message || '')) {
+      return res.status(409).json({
+        error: err.message || 'lot already reserved',
+        code: 'LOT_RESERVED',
+        constelId: err.constelId || null,
+      })
+    }
     res.status(400).json({ error: err.message || 'claim verify failed' })
+  }
+})
+
+app.get('/api/map-ownerships', async (_req, res) => {
+  try {
+    const data = await listMapOwnerships()
+    res.json({ ok: true, ...data })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'map ownerships failed' })
+  }
+})
+
+app.post('/api/map-ownerships', async (_req, res) => {
+  try {
+    const data = await listMapOwnerships()
+    res.json({ ok: true, ...data })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'map ownerships failed' })
   }
 })
 
@@ -241,7 +277,7 @@ app.post('/api/chat', async (req, res) => {
     const user = await getOrCreateUser(guestKey)
     const clientOwns = Array.isArray(req.body?.ownerships) ? req.body.ownerships : []
     if (clientOwns.length) {
-      await upsertOwnerships(user.id, clientOwns)
+      await syncOwnedLotNames(user.id, clientOwns)
     }
     const owns = await listOwnerships(user.id)
     const memories = await loadMemories(user.id)

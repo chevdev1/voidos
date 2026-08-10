@@ -8,7 +8,7 @@ const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 const FAQS = [
   {
     q: 'How do I claim a constellation lot?',
-    a: 'Connect Robinhood Wallet in CABINET (no Google). Open the full map, select lots, then claim. Until the claim contract + $EXO go live, claim is free test mode. After claim, open CABINET to rotate the lot and read each ★ star.',
+    a: 'Connect Robinhood Wallet in CABINET (no Google). Open the full map, select lots, then claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Until the claim contract + $EXO go live, claim is free test mode. Check standings for top holders.',
   },
   {
     q: 'What happens if I sell my $EXO?',

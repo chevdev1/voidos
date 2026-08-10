@@ -11,7 +11,7 @@ import {
 } from '../shared/mindLogic.js'
 import {
   getOrCreateUser,
-  upsertOwnerships,
+  syncOwnedLotNames,
   listOwnerships,
   loadMemories,
   saveMemory,
@@ -79,7 +79,7 @@ export default async function handler(req, res) {
     // Push client ledger into DB so Mind sees claimed lots (esp. without durable Turso)
     const clientOwns = Array.isArray(body.ownerships) ? body.ownerships : []
     if (clientOwns.length) {
-      await upsertOwnerships(user.id, clientOwns)
+      await syncOwnedLotNames(user.id, clientOwns)
     }
 
     const dbOwns = await listOwnerships(user.id)
