@@ -14,6 +14,8 @@
 import { mindClaimSync, mindClaimVerify, mindMapOwnerships, loadOwnerships, loadUser, mindSession } from '../lib/mindClient.js'
 import { isClaimLiveClient, claimOnChain } from '../lib/rhWallets.js'
 import { getLotKind } from '../../shared/lotLore.js'
+import { applyLotBookToConstels, formatUsd } from '../../shared/lotPricing.js'
+import { MAP_ARMS, TOTAL_MAP_LOTS, lotDefMeta } from '../../shared/mapLayout.js'
 
 export function initVoidEngine() {
   'use strict';
@@ -52,19 +54,7 @@ export function initVoidEngine() {
     if (r < 0.55) return { size: ri(110, 239), tier: 'MID', viz: rnd(1.9, 2.9) };
     return { size: ri(32, 109), tier: 'MICRO', viz: rnd(1.15, 1.85) };
   }
-  function priceForGrain(dist, maxR, size) {
-    const base = priceFromDist(dist, maxR);
-    // Mass premium on top of core proximity — megas aren't "just bigger dots".
-    const massMul = 0.65 + Math.pow(size / 220, 0.85) * 0.9;
-    return base * massMul;
-  }
-
-  /* price from distance to galaxy core: closer = more expensive */
-  function priceFromDist(dist, maxR) {
-    const t = clamp(1 - dist / maxR, 0, 1); // 1 at core, 0 at edge
-    const usd = 0.04 + Math.pow(t, 1.55) * 2.46;
-    return usd;
-  }
+  /* Per-grain USD is assigned later from the $1M lot book (applyLotBookToConstels). */
   function ringName(dist, maxR) {
     const t = dist / maxR;
     if (t < 0.18) return 'core ring';
@@ -126,7 +116,7 @@ export function initVoidEngine() {
       s: 4.6,
       name: 'ExoMind',
       kind: 'spiral',
-      arms: 4,
+      arms: MAP_ARMS,
       twist: 5.2,
       tilt: 1.05,
       roll: 0.15,
@@ -152,28 +142,21 @@ export function initVoidEngine() {
       const t = (i % 20) / 19;
       return [Math.floor(100 + t * 155), Math.floor(150 + t * 105), Math.floor(15 + t * 55)];
     }
-    /* dense constellation grid — ~200 across the disk */
+    /* dense constellation grid — TOTAL_MAP_LOTS across the disk */
     const CONSTEL_DEFS = [];
     {
-      let n = 0;
-      const arms = 4,
-        perArm = 50;
-      for (let arm = 0; arm < arms; arm++) {
-        for (let k = 0; k < perArm; k++) {
-          const u = 0.04 + k * (0.94 / (perArm - 1)) + (((arm * 5 + k * 3) % 7) - 3) * 0.006;
-          const name = NAME_A[n % NAME_A.length] + ' ' + NAME_B[(n * 5 + arm * 2) % NAME_B.length];
-          const tag = n > NAME_A.length ? ' ' + (n + 1) : '';
-          CONSTEL_DEFS.push({
-            id: 'c' + n,
-            name: (name + tag).toUpperCase(),
-            col: limeShade(n + arm * 2),
-            arm,
-            u: clamp(u, 0.03, 0.97),
-            spread: 0.22 + (n % 7) * 0.035,
-            figure: n % 6,
-          });
-          n++;
-        }
+      for (let n = 0; n < TOTAL_MAP_LOTS; n++) {
+        const meta = lotDefMeta(n);
+        const name = NAME_A[n % NAME_A.length] + ' ' + NAME_B[(n * 5 + meta.arm * 2) % NAME_B.length];
+        CONSTEL_DEFS.push({
+          id: meta.id,
+          name: (name + ' ' + (n + 1)).toUpperCase(),
+          col: limeShade(n + meta.arm * 2),
+          arm: meta.arm,
+          u: meta.u,
+          spread: meta.spread,
+          figure: meta.figure,
+        });
       }
     }
 
@@ -318,72 +301,72 @@ export function initVoidEngine() {
         });
       }
 
-      function nearestConstel(r, a0) {
-        const x = r * Math.cos(a0),
-          y = r * Math.sin(a0);
-        let best = constels[0],
-          bd = 1e9;
-        for (const c of constels) {
-          const d = Math.hypot(x - c.x, y - c.y) / (c.spread * R * 0.35 + 20);
-          if (d < bd) {
-            bd = d;
-            best = c;
-          }
+      function hashStr(s) {
+        let h = 2166136261;
+        const str = String(s || '');
+        for (let i = 0; i < str.length; i++) {
+          h ^= str.charCodeAt(i);
+          h = Math.imul(h, 16777619);
         }
-        return best;
+        return h >>> 0;
       }
-
-      const sectors = [];
-      let tries = 0;
-      while (sectors.length < 2800 && tries++ < 90000) {
-        const mass = rollGrainMass();
-        const r = rnd(R * 0.04, R * 0.98);
-        const arm = ri(0, m.arms - 1);
-        const a0 = (arm / m.arms) * Math.PI * 2 + (r / R) * m.twist + rnd(-0.28, 0.28);
-        const off = rnd(-14, 14);
-        const minDist = 4.0 + mass.viz * 0.95;
-        let ok = true;
-        for (const s of sectors) {
-          if (
-            Math.hypot(r * Math.cos(a0) - s.r * Math.cos(s.a0), r * Math.sin(a0) - s.r * Math.sin(s.a0)) <
-            minDist
-          ) {
-            ok = false;
-            break;
-          }
-        }
-        if (!ok) continue;
-        const c = nearestConstel(r, a0);
-        const usd = priceForGrain(r, R, mass.size);
-        const sec = {
-          id: 1000 + sectors.length,
-          r,
-          a0,
-          off,
-          u: r / R,
-          radius: mass.viz,
-          viz: mass.viz,
-          size: mass.size,
-          tier: mass.tier,
-          kind: Math.random() < 0.14 ? 'fed' : Math.random() < 0.22 ? 'empty' : 'claimed',
-          usd,
-          ring: ringName(r, R),
-          grav: (100 * (1 - r / R)).toFixed(0) + '%',
-          hover: 0,
-          gx: m.x,
-          gy: m.y,
-          gName: m.name,
-          maxR: R,
-          constel: c.id,
-          cName: c.name,
-          cCol: c.col,
+      function mulberry32(seed) {
+        let a = seed >>> 0;
+        return () => {
+          a |= 0;
+          a = (a + 0x6d2b79f5) | 0;
+          let t = Math.imul(a ^ (a >>> 15), 1 | a);
+          t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+          return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
         };
-        sectors.push(sec);
-        c.grains.push(sec);
+      }
+      function rollSeededMass(rng) {
+        const r = rng();
+        if (r < 0.035) return { size: 480 + Math.floor(rng() * 500), tier: 'MEGA', viz: 4.4 + rng() * 2.1 };
+        if (r < 0.14) return { size: 240 + Math.floor(rng() * 239), tier: 'LARGE', viz: 3.0 + rng() * 1.2 };
+        if (r < 0.55) return { size: 110 + Math.floor(rng() * 129), tier: 'MID', viz: 1.9 + rng() * 1.0 };
+        return { size: 32 + Math.floor(rng() * 77), tier: 'MICRO', viz: 1.15 + rng() * 0.7 };
       }
 
+      // One small star cluster per lot — every lot is claimable; no O(n²) packing.
+      const sectors = [];
       for (const c of constels) {
-        if (!c.grains.length) continue;
+        const rng = mulberry32(hashStr(c.id) ^ 0x91a2b3c4);
+        const nStars = 3 + Math.floor(rng() * 3); // 3–5
+        for (let i = 0; i < nStars; i++) {
+          const mass = rollSeededMass(rng);
+          const ang = rng() * Math.PI * 2;
+          const rad = (0.006 + rng() * 0.022) * R * (0.85 + c.spread);
+          const x = c.x + Math.cos(ang) * rad;
+          const y = c.y + Math.sin(ang) * rad;
+          const r = Math.max(1.5, Math.hypot(x, y));
+          const a0 = Math.atan2(y, x);
+          const sec = {
+            id: 1000 + sectors.length,
+            r,
+            a0,
+            off: (rng() - 0.5) * 10,
+            u: clamp(r / R, 0, 1),
+            radius: mass.viz,
+            viz: mass.viz,
+            size: mass.size,
+            tier: mass.tier,
+            kind: 'empty',
+            usd: 0,
+            ring: ringName(r, R),
+            grav: (100 * (1 - r / R)).toFixed(0) + '%',
+            hover: 0,
+            gx: m.x,
+            gy: m.y,
+            gName: m.name,
+            maxR: R,
+            constel: c.id,
+            cName: c.name,
+            cCol: c.col,
+          };
+          sectors.push(sec);
+          c.grains.push(sec);
+        }
         let sx = 0,
           sy = 0;
         for (const s of c.grains) {
@@ -395,7 +378,8 @@ export function initVoidEngine() {
         c.r = Math.hypot(c.x, c.y);
         c.a0 = Math.atan2(c.y, c.x);
       }
-      const populated = constels.filter((c) => c.grains.length >= 2);
+
+      applyLotBookToConstels(constels);
 
       return {
         m,
@@ -404,7 +388,7 @@ export function initVoidEngine() {
         comets,
         nebulae,
         sectors,
-        constels: populated,
+        constels,
         spin: 1.05,
         starBucketRanges,
         starBucketRGB,
@@ -414,6 +398,7 @@ export function initVoidEngine() {
 
     const galaxies = [buildMegaGalaxy(GAL)];
     const g0 = galaxies[0];
+    const constelById = new Map(g0.constels.map((c) => [String(c.id), c]));
     // Start map empty — claimed/fed come only from real ledger + public reserved
     for (const s of g0.sectors) s.kind = 'empty';
 
@@ -429,7 +414,7 @@ export function initVoidEngine() {
     function countReservedOthers() {
       let n = 0;
       for (const [cid] of takenMap) {
-        const c = g0.constels.find((x) => String(x.id) === String(cid));
+        const c = constelById.get(String(cid));
         if (c && !constelOwned(c)) n++;
       }
       return n;
@@ -437,7 +422,7 @@ export function initVoidEngine() {
 
     /** Live system stats from Turso ledger + local owns (not decorative seed). */
     function realSystemStats() {
-      const totalLots = mapTotals.total || g0.constels.length || 200;
+      const totalLots = mapTotals.total || g0.constels.length || TOTAL_MAP_LOTS;
       const reservedAll = mapTotals.claimed || takenMap.size;
       const yoursLots = countOwnedConstels();
       const trained = trainedLots.size;
@@ -688,7 +673,7 @@ export function initVoidEngine() {
     /** Public reserved lots: constel_id → { wallet, name } */
     const takenMap = new Map();
     let mapLeaders = [];
-    let mapTotals = { claimed: 0, available: 200, total: 200 };
+    let mapTotals = { claimed: 0, available: TOTAL_MAP_LOTS, total: TOTAL_MAP_LOTS };
 
     function shortWallet(w) {
       const s = String(w || '').trim();
@@ -831,12 +816,12 @@ export function initVoidEngine() {
           if (!c) return '';
           const cm = c.grains.reduce((a, s) => a + s.size, 0);
           const cb = c.grains.reduce((a, s) => a + s.usd, 0);
-          return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${c.name} · ${c.grains.length}g · $${cb.toFixed(2)}</button>`;
+          return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${c.name} · ${c.grains.length}g · ${formatUsd(cb)}</button>`;
         })
         .join('');
       if (title) title.textContent = `STACK · ${selectedConstels.size} constellations`;
       if (massEl) massEl.textContent = fmt(mass);
-      if (burnEl) burnEl.textContent = '$' + burn.toFixed(2);
+      if (burnEl) burnEl.textContent = formatUsd(burn);
       list.querySelectorAll('.cart-chip[data-cid]').forEach((btn) => {
         btn.onclick = () => {
           selectedConstels.delete(btn.dataset.cid);
@@ -1112,13 +1097,16 @@ export function initVoidEngine() {
       // Prefer constellation that owns the nearest grain, else nearest center
       const grain = pickSector(wx, wy);
       if (grain) {
-        const c = g0.constels.find((x) => x.id === grain.s.constel);
+        const c = constelById.get(String(grain.s.constel));
         if (c) return { c, p: constelWorld(c, g0) };
       }
       let best = null,
         bd = 1e9;
-      const hitR = g0.R * (scale < 2 ? 0.22 : scale < 5 ? 0.16 : 0.11);
-      for (const c of g0.constels) {
+      const hitR = g0.R * (scale < 2 ? 0.045 : scale < 5 ? 0.03 : 0.022);
+      // Dense map: prefer nearby lots only — sample when zoomed out
+      const pickStep = scale < 1.4 ? 6 : scale < 3 ? 2 : 1;
+      for (let i = 0; i < g0.constels.length; i += pickStep) {
+        const c = g0.constels[i];
         const p = constelWorld(c, g0);
         const d = Math.hypot(wx - p.x, wy - p.y);
         if (d < hitR && d < bd) {
@@ -1150,8 +1138,8 @@ export function initVoidEngine() {
         price: reserved
           ? 'RESERVED · one owner only'
           : isClaimLiveClient()
-            ? '$' + burn.toFixed(2) + ' · burn $EXO on Robinhood Chain'
-            : '$' + burn.toFixed(2) + ' · test claim (connect wallet · no real $EXO yet)',
+            ? formatUsd(burn) + ' · burn $EXO on Robinhood Chain'
+            : formatUsd(burn) + ' · test claim (connect wallet · no real $EXO yet)',
         size: fmt(mass) + ' cells',
         grav: owned
           ? yours + '/' + c.grains.length + ' owned'
@@ -1516,8 +1504,8 @@ export function initVoidEngine() {
             ' · ' +
             names.slice(0, 4).join(', ') +
             (names.length > 4 ? '…' : '') +
-            ' · $' +
-            burn.toFixed(2),
+            ' · ' +
+            formatUsd(burn),
         );
         if (!ok) return;
         selectedConstels.clear();
@@ -1720,7 +1708,7 @@ export function initVoidEngine() {
             ? lots
                 .map(
                   (r) =>
-                    `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>✧ ${r.c.name}</b> <span>${r.c.grains.length}★</span> <em>$${r.burn.toFixed(2)} · ${fmt(r.mass)}c</em></button>`,
+                    `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>✧ ${r.c.name}</b> <span>${r.c.grains.length}★</span> <em>${formatUsd(r.burn)} · ${fmt(r.mass)}c</em></button>`,
                 )
                 .join('')
             : '<p class="mp-note">no open lots left on this map.</p>');
@@ -1870,26 +1858,23 @@ export function initVoidEngine() {
       const sx = mw / WORLD,
         sy = mh / (WORLD * 0.75);
       let shown = 0;
-      for (const c of g0.constels) {
+      const miniStep = Math.max(1, Math.floor(g0.constels.length / 400));
+      for (let i = 0; i < g0.constels.length; i += miniStep) {
+        const c = g0.constels[i];
         const p = constelWorld(c, g0);
         const x = mw / 2 + p.x * sx,
           y = mh / 2 + p.y * sy;
-        const grd = mctx.createRadialGradient(x, y, 0, x, y, 20);
-        grd.addColorStop(0, rgba(c.col, 0.5));
-        grd.addColorStop(1, 'rgba(0,0,0,0)');
-        mctx.fillStyle = grd;
-        mctx.beginPath();
-        mctx.arc(x, y, 20, 0, Math.PI * 2);
-        mctx.fill();
+        mctx.fillStyle = rgba(c.col, 0.55);
+        mctx.fillRect(x - 0.8, y - 0.8, 1.6, 1.6);
       }
-      for (const s of g0.sectors) {
+      const grainStep = Math.max(1, Math.floor(g0.sectors.length / 800));
+      for (let i = 0; i < g0.sectors.length; i += grainStep) {
+        const s = g0.sectors[i];
         if (!sectorVisible(s)) continue;
         shown++;
         const p = sectorProj(s, g0);
-        mctx.fillStyle = yoursSet.has(s.id) ? '#ccff00' : rgba(s.cCol, 0.9);
-        mctx.beginPath();
-        mctx.arc(mw / 2 + p.x * sx, mh / 2 + p.y * sy, Math.max(0.7, (s.viz || 2) * 0.12), 0, Math.PI * 2);
-        mctx.fill();
+        mctx.fillStyle = yoursSet.has(s.id) ? '#ccff00' : rgba(s.cCol, 0.85);
+        mctx.fillRect(mw / 2 + p.x * sx, mh / 2 + p.y * sy, 1.2, 1.2);
       }
       const vw = (W / scale) * sx,
         vh = (H / scale) * sy;
@@ -1904,7 +1889,9 @@ export function initVoidEngine() {
     function pickSector(wx, wy) {
       let best = null,
         bd = 1e9;
-      for (const s of g0.sectors) {
+      const step = scale < 1.5 ? 8 : scale < 3 ? 3 : 1;
+      for (let i = 0; i < g0.sectors.length; i += step) {
+        const s = g0.sectors[i];
         if (!sectorVisible(s)) continue;
         const p = sectorProj(s, g0);
         const d = Math.hypot(p.x - wx, p.y - wy);
@@ -2001,7 +1988,7 @@ export function initVoidEngine() {
       hover = null;
       let bestH = 0;
       // Hit-test stride mirrors sector draw stride so hover cost tracks quality.
-      const hoverStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      const hoverStep = quality === 'high' ? (scale < 2 ? 6 : 2) : quality === 'medium' ? 8 : 12;
       if (mx != null) {
         for (let si = 0; si < g.sectors.length; si += hoverStep) {
           const s = g.sectors[si];
@@ -2016,10 +2003,12 @@ export function initVoidEngine() {
             hover = { s, wx: p.x, wy: p.y };
           }
         }
-        if (quality !== 'low') {
-          for (const c of g.constels) {
+        if (quality === 'high' && scale > 2) {
+          const hStep = 4;
+          for (let i = 0; i < g.constels.length; i += hStep) {
+            const c = g.constels[i];
             const p = constelWorld(c, g);
-            c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+            c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.04 ? 1 : 0) - c.hover) * 0.12;
           }
         }
       } else {
@@ -2280,7 +2269,24 @@ export function initVoidEngine() {
       }
 
       {
-        const sectorStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+        const sectorStep =
+          scale < 1.2
+            ? quality === 'low'
+              ? 18
+              : quality === 'medium'
+                ? 12
+                : 8
+            : scale < 2.5
+              ? quality === 'low'
+                ? 8
+                : quality === 'medium'
+                  ? 4
+                  : 2
+              : quality === 'high'
+                ? 1
+                : quality === 'medium'
+                  ? 2
+                  : 3;
         const drawLabels = quality === 'high' && scale > 6;
         for (let si = 0; si < g.sectors.length; si += sectorStep) {
           const s = g.sectors[si];
@@ -2345,7 +2351,7 @@ export function initVoidEngine() {
             ctx.fillText('#' + s.id, sx, sy - grainR - 6);
             if (s.hover > 0.45 || selected) {
               ctx.fillText(s.tier + ' · ' + s.size + 'c', sx, sy + grainR + 10);
-              ctx.fillText('$' + s.usd.toFixed(2), sx, sy + grainR + 20);
+              ctx.fillText(formatUsd(s.usd), sx, sy + grainR + 20);
             }
           }
         }
@@ -2355,8 +2361,25 @@ export function initVoidEngine() {
       // Always draw — even on low quality — or the map reads as only points.
       {
         const vis = scale < 1.1 ? 0.7 : scale < 3 ? 0.95 : 1;
-        const maxStars = quality === 'low' ? 5 : quality === 'medium' ? 6 : 8;
-        const constelStep = quality === 'low' ? 2 : 1;
+        const maxStars = quality === 'low' ? 4 : quality === 'medium' ? 5 : 6;
+        // Dense 10k map: aggressive subsample when zoomed out; full detail when close.
+        const constelStep =
+          scale < 1.0
+            ? quality === 'low'
+              ? 14
+              : quality === 'medium'
+                ? 10
+                : 7
+            : scale < 2.2
+              ? quality === 'low'
+                ? 5
+                : quality === 'medium'
+                  ? 3
+                  : 2
+              : quality === 'low'
+                ? 2
+                : 1;
+        const farSparkOnly = scale < 1.35;
 
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
@@ -2424,6 +2447,15 @@ export function initVoidEngine() {
           if (!picked && ci % constelStep) continue;
           if (!constelVisible(c) && !picked) continue;
 
+          const center = constelWorld(c, g);
+          const [cx0, cy0] = w2s(center.x, center.y);
+          if (!picked && (cx0 < -50 || cy0 < -50 || cx0 > W + 50 || cy0 > H + 50)) continue;
+
+          if (farSparkOnly && !picked) {
+            spark(cx0, cy0, c.col, 0.4 * vis);
+            continue;
+          }
+
           const raw = [];
           for (const s of c.grains) {
             if (!sectorVisible(s) && !picked) continue;
@@ -2434,10 +2466,16 @@ export function initVoidEngine() {
               s,
               sx,
               sy,
-              br: s.usd + (s.kind === 'fed' ? 1.2 : 0) + s.hover + (s.tier === 'MEGA' ? 2 : 0),
+              br:
+                (s.tier === 'MEGA' ? 3 : s.tier === 'LARGE' ? 1.6 : s.tier === 'MID' ? 0.4 : 0) +
+                (s.kind === 'fed' ? 1.2 : 0) +
+                s.hover,
             });
           }
-          if (raw.length < 2) continue;
+          if (raw.length < 2) {
+            if (picked) spark(cx0, cy0, LIME, 0.9);
+            continue;
+          }
           raw.sort((a, b) => b.br - a.br);
           const stars = raw.slice(0, Math.min(raw.length, maxStars));
 
@@ -2497,8 +2535,8 @@ export function initVoidEngine() {
         }
       }
 
-      if (scale > 0.7 && scale < 9) {
-        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
+      if (scale > 1.6 && scale < 9) {
+        const step = (scale < 2.4 ? 8 : scale < 4 ? 3 : 1) * (quality === 'low' ? 2 : 1);
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
           if (!picked && idx % step) return;
@@ -2513,14 +2551,14 @@ export function initVoidEngine() {
             0,
             0.98,
           );
-          const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
+          const fs = scale < 2.2 ? 8 : scale < 3.5 ? 10 : 9;
           ctx.font = `600 ${fs}px IBM Plex Mono`;
           ctx.textAlign = 'center';
           ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
           ctx.fillText(c.name, sx + 1, sy + 1);
           ctx.fillStyle = rgba(picked ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (picked || scale > 2) {
+          if (picked || scale > 2.8) {
             ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
             ctx.font = '7px IBM Plex Mono';
             ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);
@@ -2547,7 +2585,7 @@ export function initVoidEngine() {
           const tip2 = document.getElementById('tip2');
           if (tip1) tip1.textContent = `${hover.s.cName} · #${hover.s.id}`;
           if (tip2)
-            tip2.textContent = `${hover.s.tier} · ${hover.s.size}c · $${hover.s.usd.toFixed(2)} · ${
+            tip2.textContent = `${hover.s.tier} · ${hover.s.size}c · ${formatUsd(hover.s.usd)} · ${
               hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
             }`;
         }

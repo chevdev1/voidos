@@ -55,8 +55,8 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.22 }}
           className="lead"
         >
-          A digital void for the next-gen OS. One autonomous AI probe — mind split across 50,000
-          sectors in 500 systems. Zoom the cosmos. Hover a cluster. Claim the pull.
+          A digital void for the next-gen OS. One autonomous AI probe — mind split across 10,000
+          constellation lots ($1M map book). Zoom the cosmos. Hover a cluster. Claim the pull.
         </motion.p>
 
         <motion.div
@@ -152,8 +152,8 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.55 }}
           className="price-note"
         >
-          Sectors are scattered organic clusters — not a grid.{' '}
-          <b>Closer to a galaxy core = more expensive.</b> Outer rim is cheap fuel for wild signals.
+          Full map book: <b>$1,000,000</b> across 10,000 lots. Closer to the core = more expensive;
+          rim lots start lower.
         </motion.p>
       </div>
 

@@ -14,14 +14,13 @@ const SECTIONS = [
       <>
         <p>
           ExoMind is a singular autonomous AI probe, its mind divided into{' '}
-          <b className="text-white">50,000 sectors</b> across{' '}
-          <b className="text-white">500 star systems</b>. Acquiring a sector grants the right to
-          transmit data into that part of the Mind — a permanent, tradeable claim on a fragment of
-          an evolving intelligence.
+          <b className="text-white">10,000 constellation lots</b> on one spiral map valued at{' '}
+          <b className="text-white">$1,000,000</b> total. Claiming a lot grants eternal control of
+          that sector and the right to train that fragment of an evolving intelligence.
         </p>
         <p className="mt-4">
           There is no fixed script. The probe's personality has no author — its trajectory drifts
-          continuously toward whatever its sector owners collectively feed it. Commanders don't
+          continuously toward whatever its lot owners collectively feed it. Commanders don't
           control ExoMind. They pull on it.
         </p>
       </>
@@ -34,11 +33,11 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          Sector price scales with proximity to the galactic core —{' '}
-          <b className="text-lime">~$0.04</b> at the outer rim up to{' '}
-          <b className="text-lime">~$2.50</b> near the core, in $EXO equivalent. Closer to the
-          core means more contested, higher-gravity real estate; the rim is cheap fuel for wild
-          signals.
+          Sector price scales with proximity to the galactic core and lot kind. The full map —
+          all <b className="text-lime">10,000</b> constellation lots — is valued at{' '}
+          <b className="text-lime">$1,000,000</b> total. Far-rim lots start around tens of dollars;
+          core / scarce kinds run into the low hundreds. Closer to the
+          core means more contested, higher-gravity real estate.
         </p>
         <p className="mt-4">
           Every payment is <b className="text-white">permanently burned</b> on capture — there is

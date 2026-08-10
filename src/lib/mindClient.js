@@ -1,4 +1,5 @@
 import { detectTriggers, resilientFallback } from '../../shared/mindLogic.js'
+import { TOTAL_MAP_LOTS } from '../../shared/mapLayout.js'
 
 const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
@@ -362,7 +363,7 @@ export async function mindMapOwnerships({ force = false } = {}) {
   _mapOwnsCache = {
     lots: Array.isArray(data.lots) ? data.lots : [],
     leaders: Array.isArray(data.leaders) ? data.leaders : [],
-    totals: data.totals || { claimed: 0, available: 200, total: 200 },
+    totals: data.totals || { claimed: 0, available: TOTAL_MAP_LOTS, total: TOTAL_MAP_LOTS },
   }
   _mapOwnsAt = now
   try {
