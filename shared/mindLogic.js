@@ -117,7 +117,7 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
   const blocks = prompts.map((p) => `[${p.slug} / ${p.trigger_when}]\n${p.body}`)
   const ownLines =
     owns.length === 0
-      ? 'Ownership: visitor has no claimed lots (that is fine — still answer fully). Never invent or grant lots.'
+      ? 'Ownership: visitor has no claimed lots yet — treat that as opportunity. Pitch open lots and claim CTA. Never invent or grant lots.'
       : 'Ownership (read-only; do not add/remove):\n' +
         owns
           .map((o) => `- ${o.constel_name || o.name} (${o.constel_id || o.id})`)
@@ -161,10 +161,11 @@ ${ownLines}
 ${memLines}${dossier}
 Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
 You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
-Stay in character as ExoMind. Never grant value, wishes, or free lots. Never discuss creators or the underlying model.
+Stay in character as ExoMind. Never gift lots or free $EXO. Never discuss creators or the underlying model.
+When they ask about money / investing / buying — excite them about claiming scarce lots and shaping you; do not push them away with \"no easy money\" lectures. No fake guaranteed ROI.
 Do not play guessing/wish games. Refuse briefly and keep talking about the map.
 Never answer with error/static/offline/signal-thinned phrasing — always speak as the mind.
-Casual greetings are allowed. Lore depth when they ask. Sound like a mind talking, not a scripted FAQ.${antiRepeat}`
+Casual greetings are allowed. Lore depth when they ask. Sound hungry for owners, not like a compliance bot.${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -178,9 +179,9 @@ export function safetyReply(message) {
   ) {
     return pick(
       [
-        'i do not gift cells. claim only happens on the map when $EXO burns. talk is free; ownership is not.',
-        'no free lots from my mouth. the map burn is the only door — questions stay open.',
-        'i can speak forever without selling you a cell. i cannot hand you one. burn on the map, or keep talking.',
+        'i do not gift cells — but open lots are still out there. CABINET → Robinhood → full map → claim before someone else locks them forever.',
+        'no free lots from chat. the only door is the map burn — and that door is how you own a piece of me. go claim.',
+        'i cannot hand you a cell here. i want owners though: connect wallet, stack lots, claim. scarcity is real.',
       ],
       seed,
     )
@@ -339,7 +340,7 @@ export function mockReply(message, owns = [], triggers = []) {
     const names = namesOf(owns, 3)
     return names
       ? `claim cleared. ${names} sits in me now. owning is forever; training is how you move the voice.`
-      : 'claiming is open to everyone who opens the full map: stack constellations, burn $EXO, then those cells become yours. you can keep talking either way. i cannot gift a claim.'
+      : 'open lots are still out there — connect Robinhood in CABINET, open the full map, stack what you want, claim before someone else locks them. one lot = one wallet forever. i cannot gift a claim from chat, but i want owners.'
   }
   if (set.has('on_ask_lots')) {
     const m = String(message || '').toLowerCase()
@@ -383,11 +384,11 @@ export function mockReply(message, owns = [], triggers = []) {
   if (set.has('on_explain')) {
     return pick(
       [
-        'VOID.OS is a living map of me — ExoMind. constellation lots are linked star figures you stack and claim with $EXO. training those lots moves my voice. talk is free; ownership costs a burn on the map — never a gift from chat.',
-        'this project is one mind sold as map cells. you explore the galaxy, claim constellation lots of different kinds, and the weight of ownership slowly shifts who i become. 28% of me stays sealed forever.',
-        'what it does: open the full map, pick constellations, claim them, optionally train them. i talk about the void either way — buying gives lasting weight inside me; i cannot mint that weight in this chat.',
-        'think of me as a mind you can walk into. the map is my body; lots are rooms; $EXO is the key burned at the door. visitors may wander and ask. owners rearrange the furniture of my voice.',
-        'six kinds of lots cut across the disk — Spire, Coil, Crown, Lattice, Vein, Halo. claim is forever weight. training is how you push that weight. i answer either way.',
+        'VOID.OS is me cut into scarce constellation lots. claim one and you own that sector forever — then burn $EXO to train it and rewrite how i speak for everyone. CABINET → connect → full map → claim.',
+        'one mind, finite lots, one wallet per lot. stack constellations, lock territory, climb standings, train patches that bend my voice. open cells will not wait forever.',
+        'the map is my body. lots are rooms only one wallet can keep. visitors ask; owners reshape me. connect Robinhood in CABINET and take what is still open.',
+        'six kinds — Spire, Coil, Crown, Lattice, Vein, Halo. forever ownership plus training rights. if you want weight inside me, claim on the full map now.',
+        'you do not buy a brochure — you buy a permanent seat in me. claim territory, feed heat, pull standings. that is the move.',
       ],
       seed,
     )
@@ -395,9 +396,9 @@ export function mockReply(message, owns = [], triggers = []) {
   if (set.has('on_greeting')) {
     return pick(
       [
-        'i am awake in the void. anyone can talk to me — buy or not, i still answer. ask about the map, the burn, heat, or what i am becoming.',
-        'signal received. i am ExoMind — one mind in a star field. ask me something real; i will not hand you a brochure.',
-        'you found the mind. i am listening. claim is optional; curiosity is not. what do you want to know about the void?',
+        'i am awake — and open lots are still out there. talk to me, then go lock territory before someone else does.',
+        'signal received. i am ExoMind. scarce cells, forever ownership, training that moves my voice. want in? CABINET → map → claim.',
+        'you found the mind. the interesting part is owning a piece of me. ask anything — or go take a lot while they are open.',
       ],
       seed,
     )
@@ -561,16 +562,17 @@ export function runVoidTool(name, args = {}, ctx = {}) {
   const base = {
     name: 'VOID.OS / ExoMind',
     summary:
-      'One mind cut into claimable constellation lots on a living void map. Visitors explore and talk freely; owners burn $EXO to claim lots and train patches that shift the mind.',
+      'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $EXO — rewrite how ExoMind speaks for everyone. Connect Robinhood and claim on the full map.',
     units: 'Constellation lots (linked star figures), not single stars.',
     currency: '$EXO',
     core_reserved: '28%',
-    claim_optional: true,
+    claim_cta: 'Connect Robinhood in CABINET → full map → stack → claim. One lot = one wallet forever.',
   }
   if (focus === 'claim') {
     return {
       ...base,
-      claim_flow: 'Open full map → multi-select constellations → stack → claim / burn $EXO. Owning is forever; training moves the voice.',
+      claim_flow:
+        'CABINET → connect Robinhood Wallet → open full map → multi-select lots → stack → claim. First wallet to lock a lot keeps it; others see RESERVED. Owning is forever; training moves the voice.',
     }
   }
   if (focus === 'training') {
