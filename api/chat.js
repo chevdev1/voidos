@@ -87,7 +87,7 @@ export default async function handler(req, res) {
     const owns = mergeOwnsForChat(dbOwns, clientOwns)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
-    const history = await loadHistory(conv.id, 40)
+    const history = await loadHistory(conv.id, 16)
 
     const blocked = safetyReply(message)
     if (blocked) {
@@ -113,7 +113,10 @@ export default async function handler(req, res) {
     const triggers = detectTriggers(message)
     const selected = pickPrompts(promptList, triggers)
     const lastAssistant = [...history].reverse().find((h) => h.role === 'assistant')?.content || ''
-    const system = buildSystemPrompt(selected, owns, memAfter, { lastAssistant })
+    const system = buildSystemPrompt(selected, owns, memAfter, {
+      lastAssistant,
+      userMessage: message,
+    })
 
     await addMessage(conv.id, 'user', message)
 
@@ -122,10 +125,7 @@ export default async function handler(req, res) {
     let reply = null
     let live = false
 
-    if (!apiKey) {
-      reply = resilientFallback(message, owns, triggers)
-      live = false
-    } else {
+    if (apiKey) {
       try {
         reply = await callGemini({
           apiKey,
@@ -139,10 +139,12 @@ export default async function handler(req, res) {
       } catch (err) {
         console.warn('[chat] gemini failed', err?.message || err)
       }
-      if (!reply) {
-        reply = resilientFallback(message, owns, triggers)
-        live = /lot|★|star|kind|vein|coil|spire|crown|lattice|halo|train/i.test(message)
-      }
+    }
+
+    // Never leave the visitor with signal-thinned — always a mind reply
+    if (!reply) {
+      reply = resilientFallback(message, owns, triggers)
+      live = false
     }
 
     await addMessage(conv.id, 'assistant', reply)

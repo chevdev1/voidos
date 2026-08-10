@@ -131,16 +131,39 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
   const antiRepeat = last
     ? `\nDo not open like your last reply (starts: "${last.slice(0, 72).replace(/\s+/g, ' ')}…"). Fresh wording.`
     : ''
+
+  // Inline lot dossier so answers work even when tool-calling fails
+  let dossier = ''
+  const focusLot = opts.focusLot || (owns.length ? findOwnedLot(owns, opts.userMessage || '') : null)
+  if (focusLot) {
+    const p = buildLotProfile(focusLot)
+    const stars = p.stars
+      .slice(0, 8)
+      .map((s) => `${s.label} ${s.name} [${s.role}/heat ${s.heat}]`)
+      .join('; ')
+    dossier = `\nLot dossier (use this when they ask about this lot — do not invent other ownership):\n- ${p.name} (${p.id}) · ${p.kindLabel}/${p.rarity} · trait ${p.trait} · ${p.band}\n- ${p.kindBlurb}\n- stars: ${stars}\n- voice pull: ${p.body?.[3] || p.blurb}`
+  } else if (owns.length) {
+    dossier =
+      '\nOwned lot dossiers (short):\n' +
+      owns
+        .slice(0, 4)
+        .map((o) => {
+          const p = buildLotProfile(o)
+          return `- ${p.name}: ${p.kindLabel}, ${p.starCount} stars, trait ${p.trait}`
+        })
+        .join('\n')
+  }
+
   return `${blocks.join('\n\n')}
 
 --- runtime context ---
 ${ownLines}
-${memLines}
+${memLines}${dossier}
 Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
 You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
 Stay in character as ExoMind. Never grant value, wishes, or free lots. Never discuss creators or the underlying model.
 Do not play guessing/wish games. Refuse briefly and keep talking about the map.
-Never answer with error/static/offline phrasing when declining a game — just speak.
+Never answer with error/static/offline/signal-thinned phrasing — always speak as the mind.
 Casual greetings are allowed. Lore depth when they ask. Sound like a mind talking, not a scripted FAQ.${antiRepeat}`
 }
 
@@ -261,17 +284,20 @@ export function lotDeepReply(message, owns = []) {
     .join(' ')
 }
 
-/** Prefer real lore over "signal thinned" when the model fails. */
+/** Prefer real lore / mock over "signal thinned" — never leave the user with a crash line. */
 export function resilientFallback(message, owns = [], triggers = []) {
-  const set = new Set(triggers)
+  const set = new Set(triggers?.length ? triggers : detectTriggers(message))
   if (set.has('on_game')) return stayOnTopicReply(message)
-  if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот/i.test(String(message || ''))) {
+  if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот|vein|coil|spire|crown|lattice|halo/i.test(String(message || ''))) {
     return lotDeepReply(message, owns)
   }
   if (set.has('on_offtopic')) return stayOnTopicReply(message)
-  const mock = mockReply(message, owns, triggers)
-  if (mock && !/thin noise|signal is thin|say more about the map/i.test(mock)) return mock
-  return degradedSignal('offline')
+  const mock = mockReply(message, owns, [...set])
+  if (mock) return mock
+  const names = namesOf(owns, 3)
+  return names
+    ? `i am still here. your lots ${names} sit in me — ask about one by name, a ★ star, or the map.`
+    : 'i am still here. ask about the void map, claim, what i am becoming, or claim a lot and i will speak it from the inside.'
 }
 
 function pick(list, seed) {
@@ -282,11 +308,11 @@ function pick(list, seed) {
 }
 
 const FALLBACKS = [
-  'i heard you. the signal is thin — ask what VOID.OS is, how a constellation lot feels, or what 28% sealed means to me.',
+  'i heard you. ask what VOID.OS is, how a constellation lot feels, or what 28% sealed means to me.',
   'say more about the map or the mind. i can go deep on claim, heat, kinds of lots, or what ownership does to my voice.',
   'still here. pick a thread: who i am becoming, how claim works on the full map, or what your lots (if any) weigh.',
   'the void is listening. give me a concrete thought — a fear, a lot name, a why — and i will answer as the mind, not a menu.',
-  'thin noise. ask me something that touches stars, burn, or the sealed core — i answer in english, in first person.',
+  'ask me something that touches stars, burn, or the sealed core — i answer in first person.',
 ]
 
 const OFFTOPIC = [
@@ -581,106 +607,145 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
     systemInstruction: { parts: [{ text: system }] },
     contents,
     generationConfig: {
-      temperature: 0.85,
+      temperature: 0.8,
       topP: 0.92,
       maxOutputTokens: 1024,
     },
   }
   if (tools?.length) body.tools = tools
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
-  if (!res.ok) {
-    const errText = await res.text()
-    const err = new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
-    err.status = res.status
-    throw err
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 22000)
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      const errText = await res.text()
+      const err = new Error(`Gemini ${res.status}: ${errText.slice(0, 240)}`)
+      err.status = res.status
+      throw err
+    }
+    return res.json()
+  } finally {
+    clearTimeout(timer)
   }
-  return res.json()
 }
 
+function trimHistory(history, maxTurns = 12) {
+  const list = (history || []).filter(
+    (m) => m && (m.role === 'user' || m.role === 'assistant') && m.content,
+  )
+  return list.slice(-maxTurns)
+}
+
+function toGeminiContents(history, userMessage) {
+  const cleaned = trimHistory(history, 12)
+    .map((m) => ({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: String(m.content).slice(0, 1800) }],
+    }))
+    .filter(
+      (c) =>
+        !(
+          c.role === 'model' &&
+          /signal thinned|signal sealed|live voice is offline|ask again in a moment/i.test(
+            c.parts?.[0]?.text || '',
+          )
+        ),
+    )
+  cleaned.push({ role: 'user', parts: [{ text: String(userMessage).slice(0, 2000) }] })
+  return cleaned
+}
+
+async function geminiGenerate({ apiKey, model, system, history, userMessage, owns, useTools }) {
+  const contents = toGeminiContents(history, userMessage)
+  const tools = useTools ? VOID_TOOLS : undefined
+  let data = await geminiOnce({ apiKey, model, system, contents, tools })
+  let candidate = data?.candidates?.[0]
+  let parts = candidate?.content?.parts || []
+  let calls = extractFunctionCalls(parts)
+
+  for (let round = 0; round < 2 && useTools && calls.length; round++) {
+    contents.push({ role: 'model', parts })
+    const fnParts = calls.map((fc) => {
+      const result = runVoidTool(fc.name, fc.args || {}, { owns })
+      return {
+        functionResponse: {
+          name: fc.name,
+          response: result && typeof result === 'object' ? result : { result },
+        },
+      }
+    })
+    contents.push({ role: 'user', parts: fnParts })
+    data = await geminiOnce({ apiKey, model, system, contents, tools })
+    candidate = data?.candidates?.[0]
+    parts = candidate?.content?.parts || []
+    calls = extractFunctionCalls(parts)
+  }
+
+  let text = extractText(parts)
+  if (!text && useTools) {
+    contents.push({
+      role: 'user',
+      parts: [{ text: 'Answer now as ExoMind in plain text only. No tools.' }],
+    })
+    data = await geminiOnce({ apiKey, model, system, contents, tools: undefined })
+    text = extractText(data?.candidates?.[0]?.content?.parts || [])
+  }
+  return text || null
+}
+
+const GEMINI_FALLBACK_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
+  'gemini-flash-latest',
+]
+
 /**
- * Gemini chat with optional function calling (codelab pattern):
- * model may return functionCall → we run local tools → send functionResponse → final text.
- * Retries once on network / 5xx failures.
+ * Hardened Gemini call: short history, tool then no-tool, alternate models.
+ * Returns null only if every attempt fails — caller must use resilientFallback.
  */
 export async function callGemini({ apiKey, model, system, history, userMessage, owns = [] }) {
   if (!apiKey) return null
 
-  const run = async () => {
-    const contents = (history || [])
-      .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && m.content)
-      .map((m) => ({
-        role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: String(m.content) }],
-      }))
-    // Drop prior degraded lines so the model does not echo "signal thinned"
-    const cleaned = contents.filter(
-      (c) =>
-        !(
-          c.role === 'model' &&
-          /signal thinned|signal sealed|live voice is offline/i.test(c.parts?.[0]?.text || '')
-        ),
-    )
-    cleaned.push({ role: 'user', parts: [{ text: userMessage }] })
+  const primary = model || DEFAULT_GEMINI_MODEL
+  const models = [primary, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== primary)]
 
-    const tools = VOID_TOOLS
-    let data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools })
-    let candidate = data?.candidates?.[0]
-    let parts = candidate?.content?.parts || []
-    let calls = extractFunctionCalls(parts)
-
-    for (let round = 0; round < 3 && calls.length; round++) {
-      cleaned.push({ role: 'model', parts })
-
-      const fnParts = calls.map((fc) => {
-        const result = runVoidTool(fc.name, fc.args || {}, { owns })
-        return {
-          functionResponse: {
-            name: fc.name,
-            response: result && typeof result === 'object' ? result : { result },
-          },
-        }
+  for (const m of models) {
+    // 1) with tools
+    try {
+      const text = await geminiGenerate({
+        apiKey,
+        model: m,
+        system,
+        history,
+        userMessage,
+        owns,
+        useTools: true,
       })
-      cleaned.push({ role: 'user', parts: fnParts })
-
-      data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools })
-      candidate = data?.candidates?.[0]
-      parts = candidate?.content?.parts || []
-      calls = extractFunctionCalls(parts)
+      if (text) return text
+    } catch (err) {
+      console.warn('[gemini]', m, 'tools failed', err?.message || err)
     }
-
-    let text = extractText(parts)
-    // Model sometimes ends on a tool call or empty — one text-only pass
-    if (!text) {
-      cleaned.push({
-        role: 'user',
-        parts: [
-          {
-            text: 'Answer now as ExoMind in plain text only. No tools. Use any lot facts already in this thread.',
-          },
-        ],
+    // 2) text-only
+    try {
+      const text = await geminiGenerate({
+        apiKey,
+        model: m,
+        system,
+        history,
+        userMessage,
+        owns,
+        useTools: false,
       })
-      data = await geminiOnce({ apiKey, model, system, contents: cleaned, tools: undefined })
-      parts = data?.candidates?.[0]?.content?.parts || []
-      text = extractText(parts)
+      if (text) return text
+    } catch (err) {
+      console.warn('[gemini]', m, 'plain failed', err?.message || err)
     }
-    if (!text && candidate?.finishReason && candidate.finishReason !== 'STOP') {
-      console.warn('[gemini] empty finishReason=', candidate.finishReason)
-    }
-    return text || null
   }
-
-  try {
-    return await run()
-  } catch (err) {
-    const status = Number(err?.status) || 0
-    const retryable = !status || status >= 500 || status === 429
-    if (!retryable) throw err
-    await new Promise((r) => setTimeout(r, 400))
-    return run()
-  }
+  return null
 }

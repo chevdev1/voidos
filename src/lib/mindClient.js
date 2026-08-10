@@ -1,4 +1,4 @@
-import { degradedSignal } from '../../shared/mindLogic.js'
+import { detectTriggers, resilientFallback } from '../../shared/mindLogic.js'
 
 const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
@@ -254,8 +254,9 @@ export async function mindChat(message) {
     }
     return { ...state, reply: data.reply, live: data.live !== false }
   } catch (err) {
-    // Do not fake a smart FAQ mind offline — thin signal only.
-    const reply = degradedSignal('offline')
+    // Client-side safety net: never show signal-thinned if /api is down
+    const owns = loadOwnerships()
+    const reply = resilientFallback(message, owns, detectTriggers(message))
     const history = loadHistory()
     const next = [
       ...history,
@@ -267,7 +268,7 @@ export async function mindChat(message) {
       reply,
       live: false,
       guestKey: guestKey || loadGuestKey(),
-      ownerships: loadOwnerships(),
+      ownerships: owns,
       user: loadUser(),
       history: next,
       error: err?.message || 'chat unreachable',

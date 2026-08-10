@@ -281,7 +281,7 @@ app.post('/api/chat', async (req, res) => {
     const owns = await listOwnerships(user.id)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
-    const history = await loadHistory(conv.id, 40)
+    const history = await loadHistory(conv.id, 16)
 
     const blocked = safetyReply(message)
     if (blocked) {
@@ -306,16 +306,16 @@ app.post('/api/chat', async (req, res) => {
     const triggers = detectTriggers(message)
     const selected = pickPrompts(promptList, triggers)
     const lastAssistant = [...history].reverse().find((h) => h.role === 'assistant')?.content || ''
-    const system = buildSystemPrompt(selected, owns, memAfter, { lastAssistant })
+    const system = buildSystemPrompt(selected, owns, memAfter, {
+      lastAssistant,
+      userMessage: message,
+    })
 
     await addMessage(conv.id, 'user', message)
 
     let reply = null
     let live = false
-    if (!GEMINI_API_KEY) {
-      reply = resilientFallback(message, owns, triggers)
-      live = false
-    } else {
+    if (GEMINI_API_KEY) {
       try {
         reply = await callGemini({
           apiKey: GEMINI_API_KEY,
@@ -329,10 +329,10 @@ app.post('/api/chat', async (req, res) => {
       } catch (err) {
         console.warn('[mind] gemini failed', err.message)
       }
-      if (!reply) {
-        reply = resilientFallback(message, owns, triggers)
-        live = /lot|★|star|kind|vein|coil|spire|crown|lattice|halo|train/i.test(message)
-      }
+    }
+    if (!reply) {
+      reply = resilientFallback(message, owns, triggers)
+      live = false
     }
 
     await addMessage(conv.id, 'assistant', reply)
