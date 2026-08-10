@@ -414,14 +414,53 @@ export function initVoidEngine() {
 
     const galaxies = [buildMegaGalaxy(GAL)];
     const g0 = galaxies[0];
+    // Start map empty — claimed/fed come only from real ledger + public reserved
+    for (const s of g0.sectors) s.kind = 'empty';
 
-    /**
-     * Hand-rolled equivalent of drei's <PerformanceMonitor>: an exponential
-     * moving average of frame time drives three quality tiers with
-     * hysteresis (slow to downgrade on a blip, slower to upgrade back) so
-     * it doesn't flap. Weak / mobile devices start below 'high' so the first
-     * seconds aren't a hitchy full-quality burst waiting for 90 bad samples.
-     */
+    /** Constellation ids you trained (fed). */
+    const trainedLots = new Set();
+
+    function countOwnedConstels() {
+      let n = 0;
+      for (const c of g0.constels) if (constelOwned(c)) n++;
+      return n;
+    }
+
+    function countReservedOthers() {
+      let n = 0;
+      for (const [cid] of takenMap) {
+        const c = g0.constels.find((x) => String(x.id) === String(cid));
+        if (c && !constelOwned(c)) n++;
+      }
+      return n;
+    }
+
+    /** Live system stats from Turso ledger + local owns (not decorative seed). */
+    function realSystemStats() {
+      const totalLots = mapTotals.total || g0.constels.length || 200;
+      const reservedAll = mapTotals.claimed || takenMap.size;
+      const yoursLots = countOwnedConstels();
+      const trained = trainedLots.size;
+      const others = Math.max(0, reservedAll - yoursLots);
+      const free = Math.max(0, totalLots - reservedAll);
+      const sellablePct = 100 - 28;
+      const soldOfSellable = totalLots
+        ? ((reservedAll / totalLots) * sellablePct).toFixed(1)
+        : '0.0';
+      const wallet = loadUser()?.wallet || null;
+      return {
+        totalLots,
+        reservedAll,
+        yoursLots,
+        trained,
+        others,
+        free,
+        sellablePct,
+        soldOfSellable,
+        wallet,
+        leaders: mapLeaders,
+      };
+    }
     function detectStartQuality() {
       try {
         if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
@@ -941,7 +980,7 @@ export function initVoidEngine() {
         if (allYours) selectedConstels.delete(cid);
       }
       const yc = document.getElementById('yoursCnt');
-      if (yc) yc.textContent = String(yoursSet.size);
+      if (yc) yc.textContent = String(countOwnedConstels());
       refreshCounts();
       refreshCartDock();
 
@@ -965,14 +1004,15 @@ export function initVoidEngine() {
           Boolean(o.trained) ||
           Boolean(o.trained_at) ||
           String(o.status || '').toLowerCase() === 'fed';
+        if (trained) trainedLots.add(cid);
         for (const s of c.grains) {
           yoursSet.add(s.id);
           if (trained) s.kind = 'fed';
-          else if (s.kind === 'empty') s.kind = 'claimed';
+          else s.kind = 'claimed';
         }
       }
       const yc = document.getElementById('yoursCnt');
-      if (yc) yc.textContent = String(yoursSet.size);
+      if (yc) yc.textContent = String(countOwnedConstels());
       refreshCounts();
       refreshCartDock();
     }
@@ -982,12 +1022,13 @@ export function initVoidEngine() {
       if (!cid || !g0?.constels) return false;
       const c = g0.constels.find((x) => String(x.id) === cid);
       if (!c) return false;
+      trainedLots.add(cid);
       for (const s of c.grains) {
         yoursSet.add(s.id);
         s.kind = 'fed';
       }
       const yc = document.getElementById('yoursCnt');
-      if (yc) yc.textContent = String(yoursSet.size);
+      if (yc) yc.textContent = String(countOwnedConstels());
       refreshCounts();
       refreshCartDock();
       return true;
@@ -1044,32 +1085,26 @@ export function initVoidEngine() {
     }
 
     function refreshCounts() {
-      let empty = 0,
-        claimed = 0,
-        fed = 0;
-      for (const s of g0.sectors) {
-        if (s.kind === 'empty') empty++;
-        else if (s.kind === 'fed') fed++;
-        else claimed++;
-      }
+      const st = realSystemStats();
       const set = (id, v) => {
         const el = document.getElementById(id);
         if (el) el.textContent = String(v);
       };
-      set('cntEmpty', empty);
-      set('cntClaimed', claimed);
-      set('cntFed', fed);
-      set('yoursCnt', yoursSet.size);
+      // Legend = constellation lots from live system (not decorative seed)
+      set('cntEmpty', st.free);
+      set('cntClaimed', st.others);
+      set('cntFed', st.trained);
+      set('yoursCnt', st.yoursLots);
       const meta = document.getElementById('mindMetaLine');
       const burnEl = document.getElementById('mindMetaBurn');
-      const cells = g0.sectors.reduce((a, s) => a + s.size, 0);
-      const soldPct = ((claimed + fed + yoursSet.size) / Math.max(1, g0.sectors.length)) * 100;
       if (meta) {
-        meta.textContent = `${fmt(cells)} cells · ${g0.constels.length} lots · ${claimed + fed} claimed · ${soldPct.toFixed(1)}% of mind sold`;
+        meta.textContent =
+          `${st.totalLots} lots · ${st.reservedAll} reserved · ${st.yoursLots} yours · ${st.free} free · ${st.soldOfSellable}% of sellable claimed`;
       }
       if (burnEl) {
-        const burned = document.getElementById('burned');
-        burnEl.textContent = `${burned ? burned.textContent : '0'} $EXO burned`;
+        burnEl.textContent = st.wallet
+          ? `wallet ${st.wallet.slice(0, 6)}…${st.wallet.slice(-4)} · live ledger`
+          : 'connect wallet · live ledger';
       }
     }
 
@@ -1618,22 +1653,27 @@ export function initVoidEngine() {
       syncLegendActive();
     }
 
-    function openMindPanel(act) {
+    async function openMindPanel(act) {
       const panel = document.getElementById('mindPanel');
       const title = document.getElementById('mindPanelTitle');
       const body = document.getElementById('mindPanelBody');
       if (!panel || !title || !body) return;
 
+      // Pull fresh public ledger before showing system panels
+      if (act === 'standings' || act === 'market' || act === 'what' || act === 'personality') {
+        body.innerHTML = '<p class="mp-cap">loading live ledger…</p>';
+        panel.hidden = false;
+        await refreshMapOwnerships();
+        refreshCounts();
+      }
+
+      const st = realSystemStats();
+
       if (act === 'standings') {
         title.textContent = 'who owns the most';
-        const leaders = mapLeaders.length
-          ? mapLeaders
-          : [];
-        const claimed = mapTotals.claimed || takenMap.size;
-        const total = mapTotals.total || 200;
-        const pct = total ? ((claimed / total) * 100).toFixed(1) : '0';
+        const leaders = st.leaders || [];
         body.innerHTML =
-          `<p class="mp-cap">${claimed} / ${total} lots reserved · ${pct}% of the map · one lot = one wallet</p>` +
+          `<p class="mp-cap">live from Turso · ${st.reservedAll} / ${st.totalLots} lots reserved · ${st.soldOfSellable}% of sellable · one lot = one wallet</p>` +
           (leaders.length
             ? leaders
                 .slice(0, 10)
@@ -1644,9 +1684,9 @@ export function initVoidEngine() {
                 .join('')
             : '<p class="mp-note">no wallet-linked claims yet — connect Robinhood and claim a lot.</p>') +
           (takenMap.size
-            ? '<p class="mp-cap" style="margin-top:12px">recent reserved</p>' +
+            ? '<p class="mp-cap" style="margin-top:12px">reserved lots</p>' +
               [...takenMap.entries()]
-                .slice(-8)
+                .slice(-12)
                 .reverse()
                 .map(
                   ([cid, info]) =>
@@ -1675,13 +1715,15 @@ export function initVoidEngine() {
           .sort((a, b) => a.burn - b.burn)
           .slice(0, 12);
         body.innerHTML =
-          '<p class="mp-cap">open lots only — reserved constellations stay locked</p>' +
-          lots
-            .map(
-              (r) =>
-                `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>✧ ${r.c.name}</b> <span>${r.c.grains.length}★</span> <em>$${r.burn.toFixed(2)} · ${fmt(r.mass)}c</em></button>`,
-            )
-            .join('');
+          `<p class="mp-cap">live free lots · ${st.free} available · ${st.reservedAll} already reserved</p>` +
+          (lots.length
+            ? lots
+                .map(
+                  (r) =>
+                    `<button type="button" class="mp-row" data-cid="${r.c.id}"><b>✧ ${r.c.name}</b> <span>${r.c.grains.length}★</span> <em>$${r.burn.toFixed(2)} · ${fmt(r.mass)}c</em></button>`,
+                )
+                .join('')
+            : '<p class="mp-note">no open lots left on this map.</p>');
         body.querySelectorAll('.mp-row[data-cid]').forEach((btn) => {
           btn.onclick = () => {
             const c = g0.constels.find((x) => x.id === btn.dataset.cid);
@@ -1694,27 +1736,32 @@ export function initVoidEngine() {
         });
       } else if (act === 'what') {
         title.textContent = 'what you have turned me into';
-        const trained = g0.sectors.filter((s) => s.kind === 'fed').length;
-        const claimed = g0.sectors.filter((s) => s.kind !== 'empty').length;
-        const yours = yoursSet.size;
+        const yourNames = g0.constels
+          .filter((c) => constelOwned(c))
+          .slice(0, 8)
+          .map((c) => c.name);
         body.innerHTML = `
-          <p class="mp-cap">compiled personality — weighted by claimed &amp; trained lots</p>
-          <div class="mp-stat"><span>claimed signal</span><b>${claimed}</b></div>
-          <div class="mp-stat"><span>trained patches</span><b>${trained}</b></div>
-          <div class="mp-stat"><span>yours</span><b>${yours}</b></div>
-          <div class="mp-stat"><span>stack now</span><b>${selectedConstels.size} constellations</b></div>
-          <p class="mp-note">ExoMind drifts toward whatever its owners feed it. Burn $EXO to claim a lot, then train that patch.</p>`;
+          <p class="mp-cap">your live holdings · wallet ${st.wallet ? shortWallet(st.wallet) : 'not linked'}</p>
+          <div class="mp-stat"><span>your lots</span><b>${st.yoursLots}</b></div>
+          <div class="mp-stat"><span>trained</span><b>${st.trained}</b></div>
+          <div class="mp-stat"><span>in stack</span><b>${selectedConstels.size}</b></div>
+          <div class="mp-stat"><span>map reserved (all)</span><b>${st.reservedAll} / ${st.totalLots}</b></div>
+          <p class="mp-note">${
+            yourNames.length
+              ? 'yours: ' + yourNames.join(', ') + (st.yoursLots > yourNames.length ? '…' : '')
+              : 'no lots yet — claim on the map after connecting Robinhood.'
+          }</p>`;
       } else if (act === 'personality') {
         title.textContent = 'what the personality is made of';
-        const total = g0.sectors.length || 1;
-        const basePct = 28;
-        const soldPct = ((g0.sectors.filter((s) => s.kind !== 'empty').length / total) * (100 - basePct)).toFixed(1);
         body.innerHTML = `
-          <p class="mp-cap">one mind · 500 lots · cells across the void</p>
-          <div class="mp-stat"><span>base (unsellable)</span><b>${basePct}%</b></div>
-          <div class="mp-stat"><span>sold / claimed slice</span><b>${soldPct}%</b></div>
-          <div class="mp-stat"><span>constellation lots</span><b>${g0.constels.length}</b></div>
-          <p class="mp-note">28% reserved forever — the only room you can't buy. The rest is claimable constellation lots. Each lot is a linked figure of stars (lines), not a single point.</p>`;
+          <p class="mp-cap">live map composition · ExoMind ledger</p>
+          <div class="mp-stat"><span>immutable core</span><b>28%</b></div>
+          <div class="mp-stat"><span>claimed of sellable</span><b>${st.soldOfSellable}%</b></div>
+          <div class="mp-stat"><span>lots reserved</span><b>${st.reservedAll} / ${st.totalLots}</b></div>
+          <div class="mp-stat"><span>still free</span><b>${st.free}</b></div>
+          <div class="mp-stat"><span>other wallets</span><b>${st.others}</b></div>
+          <div class="mp-stat"><span>your share</span><b>${st.yoursLots}</b></div>
+          <p class="mp-note">28% sealed forever. The rest is claimable — one constellation, one wallet. Numbers come from the live ownership API.</p>`;
       }
 
       panel.hidden = false;
@@ -2248,10 +2295,13 @@ export function initVoidEngine() {
           const grainR = s.viz || 2.1;
           let col = s.cCol;
           if (heatMode) {
-            // Colour by "taught" signal — fed lots hot, claimed warm, empty cold
-            const taught =
-              s.kind === 'fed' ? 1 : s.kind === 'claimed' ? 0.45 : yoursSet.has(s.id) ? 0.7 : 0.08;
-            const h = clamp(taught * 0.75 + s.usd / 4, 0, 1);
+            // Live heat: trained yours > yours > reserved by others > free
+            const cid = String(s.constel || '');
+            const mine = yoursSet.has(s.id);
+            const trained = mine && trainedLots.has(cid);
+            const reserved = !mine && takenMap.has(cid);
+            const taught = trained ? 1 : mine ? 0.72 : reserved ? 0.4 : 0.06;
+            const h = clamp(taught, 0, 1);
             col = [
               Math.floor(40 + h * 215),
               Math.floor(30 + h * 40),

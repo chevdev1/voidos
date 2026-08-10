@@ -72,11 +72,11 @@ export function CosmosPanel() {
         <div className="mind-legend" id="mindLegend">
           <span className="mind-leg" data-f="empty">
             <i className="box empty" />
-            unclaimed <b id="cntEmpty">0</b>
+            free <b id="cntEmpty">0</b>
           </span>
           <span className="mind-leg" data-f="claimed">
             <i className="box claimed" />
-            claimed <b id="cntClaimed">0</b>
+            others <b id="cntClaimed">0</b>
           </span>
           <span className="mind-leg" data-f="fed">
             <i className="box fed" />
@@ -110,8 +110,8 @@ export function CosmosPanel() {
         </div>
       </div>
       <div className="mind-meta" id="mindMeta">
-        <span id="mindMetaLine">0 cells · 0 lots · 0 claimed · 0% of mind sold</span>
-        <span id="mindMetaBurn">0 $EXO burned</span>
+        <span id="mindMetaLine">loading live ledger…</span>
+        <span id="mindMetaBurn">connect wallet · live ledger</span>
       </div>
       <div className="mind-panel" id="mindPanel" hidden>
         <div className="mind-panel-card" role="dialog" aria-modal="true">
