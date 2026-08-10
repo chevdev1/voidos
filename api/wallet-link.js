@@ -1,5 +1,3 @@
-import nacl from 'tweetnacl'
-import bs58 from 'bs58'
 import {
   resolveGuestKey,
   getOrCreateUser,
@@ -10,26 +8,9 @@ import {
   sidCookie,
 } from '../shared/voidDb.js'
 import { cors, readBody, isSecureReq } from './_http.js'
-
-function verifySolanaSignature({ pubkey, message, signature }) {
-  const msg = new TextEncoder().encode(String(message || ''))
-  let sigBytes
-  let pubBytes
-  try {
-    sigBytes = bs58.decode(String(signature || ''))
-    pubBytes = bs58.decode(String(pubkey || ''))
-  } catch {
-    // Some wallets return uint8 array as JSON — accept base64 too
-    try {
-      sigBytes = Buffer.from(String(signature), 'base64')
-      pubBytes = bs58.decode(String(pubkey || ''))
-    } catch {
-      return false
-    }
-  }
-  if (sigBytes.length !== 64 || pubBytes.length !== 32) return false
-  return nacl.sign.detached.verify(msg, sigBytes, pubBytes)
-}
+import { verifyEvmLinkSignature } from '../shared/rhVerify.js'
+import { isEvmAddress } from '../shared/rhChain.js'
+import { getAddress } from 'viem'
 
 export default async function handler(req, res) {
   cors(req, res)
@@ -56,21 +37,24 @@ export default async function handler(req, res) {
     const message = String(body.message || '')
     const signature = body.signature
 
+    if (!isEvmAddress(pubkey)) {
+      return res.status(400).json({ error: 'invalid EVM wallet address' })
+    }
     if (!message.includes('VOID.OS link wallet') || !message.includes(guestKey)) {
       return res.status(400).json({ error: 'bad link message' })
     }
-    // nonce freshness: 10 minutes
     const tsMatch = message.match(/ts:(\d+)/)
     const ts = tsMatch ? Number(tsMatch[1]) : 0
     if (!ts || Math.abs(Date.now() - ts) > 10 * 60 * 1000) {
       return res.status(400).json({ error: 'link message expired' })
     }
 
-    if (!verifySolanaSignature({ pubkey, message, signature })) {
+    const ok = await verifyEvmLinkSignature({ address: pubkey, message, signature })
+    if (!ok) {
       return res.status(401).json({ error: 'invalid wallet signature' })
     }
 
-    const next = await linkWallet(user.id, pubkey)
+    const next = await linkWallet(user.id, getAddress(pubkey))
     res.setHeader('Set-Cookie', sidCookie(next.guest_key, { secure: isSecureReq(req) }))
     return res.status(200).json({
       ok: true,

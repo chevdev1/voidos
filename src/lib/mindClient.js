@@ -310,6 +310,19 @@ export async function mindClaimSync(lots) {
   }
 }
 
+/** After on-chain claim: verify RH receipt then upsert ownerships. */
+export async function mindClaimVerify({ txHash, lots }) {
+  if (!lots?.length) return loadOwnerships()
+  const data = await api('/api/claim-verify', {
+    guestKey: loadGuestKey(),
+    txHash,
+    lots,
+  })
+  const state = applyServerState(data)
+  notifyOwnershipHydrate(state.ownerships)
+  return state.ownerships
+}
+
 /** Mark a claimed lot as trained (test mode — no real $EXO burn). */
 export function mindTrainLot(constelId) {
   const id = String(constelId || '').trim()

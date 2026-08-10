@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
-import { connectAndSignLink, hasWalletConnectProject, getRobinhoodInjected } from '../lib/solanaWallets'
+import { connectAndSignLink, hasWalletConnectProject, getRobinhoodInjected } from '../lib/rhWallets'
 
 /**
- * Robinhood Wallet link (WalletConnect / in-app); shows SOL / $EXO balances.
+ * Robinhood Chain wallet link (WalletConnect / in-app); shows ETH / $EXO balances.
  */
 export function WalletPanel({ user, onUser }) {
   const [busy, setBusy] = useState(false)
@@ -69,7 +69,7 @@ export function WalletPanel({ user, onUser }) {
   }
 
   const short = user?.wallet
-    ? `${user.wallet.slice(0, 4)}…${user.wallet.slice(-4)}`
+    ? `${user.wallet.slice(0, 6)}…${user.wallet.slice(-4)}`
     : null
 
   return (
@@ -79,13 +79,13 @@ export function WalletPanel({ user, onUser }) {
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
             <span className="border border-white/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted">
-              robinhood
+              robinhood chain
             </span>
           </div>
           <p className="mt-1 text-sm text-lime">{short || 'not linked'}</p>
           <p className="mt-1 text-[11px] text-muted">
-            Robinhood Wallet only — WalletConnect QR or in-app Web3 browser. SOL live; $EXO mint TBA
-            until the coin is set.
+            Robinhood Wallet on Robinhood Chain — WalletConnect QR or in-app Web3. ETH live; $EXO
+            when token address is set.
           </p>
         </div>
         {user?.wallet ? (
@@ -144,24 +144,27 @@ export function WalletPanel({ user, onUser }) {
       {user?.wallet && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="border border-white/10 bg-void/60 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted">SOL</p>
+            <p className="text-[10px] uppercase tracking-wider text-muted">ETH</p>
             <p className="mt-1 font-display text-xl text-ink">
-              {balances?.sol == null ? '—' : balances.sol}
+              {balances?.eth == null ? '—' : balances.eth}
             </p>
           </div>
           <div className="border border-white/10 bg-void/60 p-3">
             <p className="text-[10px] uppercase tracking-wider text-muted">$EXO</p>
             <p className="mt-1 font-display text-xl text-lime">
               {balances?.exo == null
-                ? balances?.exoMint
+                ? balances?.exoToken
                   ? '0'
-                  : 'mint TBA'
+                  : 'token TBA'
                 : balances.exo}
             </p>
           </div>
           <div className="border border-white/10 bg-void/60 p-3 sm:col-span-1 col-span-2">
             <p className="text-[10px] uppercase tracking-wider text-muted">network</p>
-            <p className="mt-1 text-sm text-muted">{balances?.rpc || 'mainnet'}</p>
+            <p className="mt-1 text-sm text-muted">
+              {balances?.network || 'Robinhood Chain'}
+              {balances?.chainId ? ` · ${balances.chainId}` : ''}
+            </p>
           </div>
         </div>
       )}

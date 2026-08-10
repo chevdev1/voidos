@@ -364,7 +364,8 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
 export async function linkWallet(userId, pubkey) {
   await migrate()
   const key = String(pubkey || '').trim()
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(key)) throw new Error('invalid wallet')
+  // Robinhood Chain EVM (0x…) — Solana base58 no longer accepted
+  if (!/^0x[a-fA-F0-9]{40}$/.test(key)) throw new Error('invalid wallet')
   const clash = row(
     await getDb().execute({
       sql: 'SELECT id FROM users WHERE wallet_pubkey = ? AND id != ?',

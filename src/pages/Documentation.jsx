@@ -46,8 +46,9 @@ const SECTIONS = [
           the total $EXO supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Live site status: claim runs in <b>test mode</b> (free, no real burn) until{' '}
-          <code className="text-white">EXO_MINT</code> / CA is set and burn rails go live.
+          Live site status: claim runs in <b>test mode</b> (free after Robinhood connect, no real
+          burn) until <code className="text-white">VITE_CLAIM_CONTRACT</code> +{' '}
+          <code className="text-white">VITE_EXO_TOKEN</code> are set on Robinhood Chain.
         </p>
       </>
     ),

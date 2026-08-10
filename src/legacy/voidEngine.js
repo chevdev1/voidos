@@ -11,7 +11,8 @@
  * because it's invoked from an effect in App.jsx, after the full tree has
  * committed to the DOM.
  */
-import { mindClaimSync, loadOwnerships, mindSession } from '../lib/mindClient.js'
+import { mindClaimSync, mindClaimVerify, loadOwnerships, loadUser, mindSession } from '../lib/mindClient.js'
+import { isClaimLiveClient, claimOnChain } from '../lib/rhWallets.js'
 import { getLotKind } from '../../shared/lotLore.js'
 
 export function initVoidEngine() {
@@ -665,11 +666,17 @@ export function initVoidEngine() {
         }
       }
       if (buyBtn) {
+        const hasWallet = Boolean(loadUser()?.wallet);
+        const live = isClaimLiveClient();
         buyBtn.textContent = lastTermConstel
           ? constelOwned(lastTermConstel)
             ? 'already claimed'
-            : 'connect · claim constellation'
-          : 'connect · claim';
+            : !hasWallet
+              ? 'connect wallet to claim'
+              : live
+                ? 'claim on Robinhood Chain'
+                : 'claim constellation · test'
+          : 'connect wallet to claim';
         buyBtn.disabled = !lastTermConstel || constelOwned(lastTermConstel);
       }
     }
@@ -744,6 +751,52 @@ export function initVoidEngine() {
     function syncClaimedLots(lots) {
       if (!lots?.length) return
       mindClaimSync(lots).catch(() => {})
+    }
+
+    function requireWalletForClaim() {
+      const wallet = loadUser()?.wallet
+      if (wallet) return wallet
+      toast('connect Robinhood wallet to claim · open CABINET')
+      try {
+        window.location.assign('/cabinet')
+      } catch {
+        /* ignore */
+      }
+      return null
+    }
+
+    async function executeClaim(items, toastMsg) {
+      if (!items?.length) return false
+      if (!requireWalletForClaim()) return false
+
+      const previewLots = (() => {
+        const touched = new Set()
+        for (const s of items) if (s.constel) touched.add(s.constel)
+        return [...touched]
+          .map((cid) => g0.constels.find((x) => x.id === cid))
+          .filter(Boolean)
+          .map((c) => ({ id: c.id, name: c.name }))
+      })()
+
+      if (isClaimLiveClient()) {
+        try {
+          toast('confirm claim tx in Robinhood…')
+          const { hash } = await claimOnChain(previewLots.map((l) => l.id))
+          await mindClaimVerify({ txHash: hash, lots: previewLots })
+          claimSectors(items)
+          toast((toastMsg || 'claimed') + ' · on-chain')
+          return true
+        } catch (e) {
+          const msg = e?.message || String(e)
+          if (/reject|cancel|denied/i.test(msg)) toast('claim cancelled')
+          else toast(msg.slice(0, 120) || 'claim failed')
+          return false
+        }
+      }
+
+      claimSectors(items)
+      toast((toastMsg || 'claimed') + ' · test')
+      return true
     }
 
     function toast(msg) {
@@ -935,7 +988,9 @@ export function initVoidEngine() {
         status: owned ? 'yours' : yours ? 'partial' : 'unclaimed',
         ring: 'kind · ' + kind.label,
         tier: kind.tag + ' · ' + kind.rarity,
-        price: '$' + burn.toFixed(2) + ' · test claim (no real $EXO yet)',
+        price: isClaimLiveClient()
+          ? '$' + burn.toFixed(2) + ' · burn $EXO on Robinhood Chain'
+          : '$' + burn.toFixed(2) + ' · test claim (connect wallet · no real $EXO yet)',
         size: fmt(mass) + ' cells',
         grav: yours + '/' + c.grains.length + ' owned',
         note: owned
@@ -943,7 +998,9 @@ export function initVoidEngine() {
             kind.label +
             ' and read full lot info.'
           : kind.blurb +
-            ' Test mode: claim is free until $EXO mint is live. Then open CABINET to rotate.',
+            (isClaimLiveClient()
+              ? ' Claim burns $EXO on Robinhood Chain. Connect wallet in CABINET first.'
+              : ' Connect Robinhood Wallet in CABINET to claim (test until contract + token go live).'),
       });
     }
 
@@ -1249,21 +1306,19 @@ export function initVoidEngine() {
         openConstelTerm(lastTermConstel);
       };
     }
-    document.getElementById('termBuy').onclick = () => {
+    document.getElementById('termBuy').onclick = async () => {
       if (!lastTermConstel || constelOwned(lastTermConstel)) return;
       const items = lastTermConstel.grains.slice();
       const name = lastTermConstel.name;
-      claimSectors(items);
+      const kindLabel = getLotKind(lastTermConstel.figure ?? lastTermConstel.id).label;
+      const ok = await executeClaim(
+        items,
+        'claimed · ' + name + ' · ' + kindLabel + ' · open CABINET to rotate',
+      );
+      if (!ok) return;
       selectedConstels.delete(lastTermConstel.id);
       refreshCartDock();
       openConstelTerm(lastTermConstel);
-      toast(
-        'claimed · ' +
-          name +
-          ' · ' +
-          getLotKind(lastTermConstel.figure ?? lastTermConstel.id).label +
-          ' · open CABINET to rotate',
-      );
     };
     const cartClear = document.getElementById('cartClear');
     if (cartClear) {
@@ -1275,7 +1330,7 @@ export function initVoidEngine() {
     }
     const cartClaim = document.getElementById('cartClaim');
     if (cartClaim) {
-      cartClaim.onclick = () => {
+      cartClaim.onclick = async () => {
         const nConst = selectedConstels.size;
         if (!nConst) return;
         const names = [...selectedConstels]
@@ -1283,12 +1338,9 @@ export function initVoidEngine() {
           .filter(Boolean);
         const items = stackGrainList();
         if (!items.length) return;
-        const mass = items.reduce((a, s) => a + s.size, 0);
         const burn = items.reduce((a, s) => a + s.usd, 0);
-        claimSectors(items);
-        selectedConstels.clear();
-        refreshCartDock();
-        toast(
+        const ok = await executeClaim(
+          items,
           'claimed · ' +
             nConst +
             ' lot' +
@@ -1299,6 +1351,9 @@ export function initVoidEngine() {
             ' · $' +
             burn.toFixed(2),
         );
+        if (!ok) return;
+        selectedConstels.clear();
+        refreshCartDock();
       };
     }
 

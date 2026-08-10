@@ -7,7 +7,9 @@ import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
-const CA = String(import.meta.env.VITE_EXO_CA || import.meta.env.VITE_EXO_MINT || '').trim()
+const CA = String(
+  import.meta.env.VITE_EXO_CA || import.meta.env.VITE_EXO_TOKEN || import.meta.env.VITE_EXO_MINT || '',
+).trim()
 const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
 const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()
 const caLive = Boolean(CA)

@@ -13,16 +13,13 @@
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
-    "@solana/wallet-adapter-base": "^0.9.27",
-    "@solana/web3.js": "^1.98.4",
-    "@walletconnect/solana-adapter": "^0.0.9",
-    "bs58": "^6.0.0",
+    "@walletconnect/ethereum-provider": "^2.23.10",
     "framer-motion": "^12.43.0",
     "lenis": "^1.3.25",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "7.18.2",
-    "tweetnacl": "^1.0.3"
+    "viem": "^2.55.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

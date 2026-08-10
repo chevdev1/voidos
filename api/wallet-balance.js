@@ -4,24 +4,8 @@ import {
   publicUser,
 } from '../shared/voidDb.js'
 import { cors, readBody } from './_http.js'
-
-const RPC =
-  process.env.SOLANA_RPC_URL ||
-  process.env.NEXT_PUBLIC_SOLANA_RPC ||
-  'https://api.mainnet-beta.solana.com'
-
-const EXO_MINT = process.env.EXO_MINT || process.env.VITE_EXO_MINT || ''
-
-async function rpc(method, params) {
-  const res = await fetch(RPC, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
-  })
-  const data = await res.json()
-  if (data.error) throw new Error(data.error.message || 'rpc error')
-  return data.result
-}
+import { readRhBalances } from '../shared/rhVerify.js'
+import { isEvmAddress } from '../shared/rhChain.js'
 
 export default async function handler(req, res) {
   cors(req, res)
@@ -41,43 +25,21 @@ export default async function handler(req, res) {
         ok: true,
         user: publicUser(user),
         wallet: null,
-        balances: { sol: null, exo: null },
+        balances: { eth: null, exo: null },
       })
     }
 
-    const lamports = await rpc('getBalance', [pubkey, { commitment: 'confirmed' }])
-    const sol = (lamports?.value ?? lamports ?? 0) / 1e9
-
-    let exo = null
-    if (EXO_MINT) {
-      try {
-        const tok = await rpc('getTokenAccountsByOwner', [
-          pubkey,
-          { mint: EXO_MINT },
-          { encoding: 'jsonParsed' },
-        ])
-        const accounts = tok?.value || []
-        let amount = 0
-        for (const a of accounts) {
-          const info = a?.account?.data?.parsed?.info?.tokenAmount
-          if (info?.uiAmount != null) amount += Number(info.uiAmount)
-        }
-        exo = amount
-      } catch {
-        exo = null
-      }
+    if (!isEvmAddress(pubkey)) {
+      return res.status(400).json({ error: 'invalid EVM address' })
     }
+
+    const balances = await readRhBalances(pubkey)
 
     return res.status(200).json({
       ok: true,
       user: publicUser(user),
       wallet: pubkey,
-      balances: {
-        sol: Number(sol.toFixed(6)),
-        exo: exo == null ? null : Number(exo),
-        exoMint: EXO_MINT || null,
-        rpc: RPC.includes('mainnet') ? 'mainnet' : 'custom',
-      },
+      balances,
     })
   } catch (err) {
     console.error('[wallet-balance]', err)
