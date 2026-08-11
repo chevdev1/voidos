@@ -204,7 +204,6 @@ export default function Cabinet() {
               <LotFigure
                 lot={{ constel_id: 'empty_preview', constel_name: 'VACANT FIELD' }}
                 animate
-                interactive
               />
             </div>
             <p className="mt-6 text-center text-sm text-muted">
@@ -280,7 +279,7 @@ export default function Cabinet() {
                         }`}
                       >
                         <div className="h-28 border-b border-white/5 sm:h-32">
-                          <LotFigure lot={lot} animate={on} />
+                          <LotFigure lot={lot} animate={false} />
                         </div>
                         <div className="p-3">
                           <div className="flex items-start justify-between gap-2">
@@ -322,7 +321,7 @@ export default function Cabinet() {
                       <div className="pointer-events-none absolute left-3 top-3 border border-white/10 bg-black/55 px-2 py-1 text-[9px] uppercase tracking-[0.16em] text-muted">
                         drag · tap a star
                       </div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/50 to-transparent p-4 pt-20">
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent p-4 pt-12">
                         <p className="text-[10px] uppercase tracking-[0.18em] text-lime/80">
                           {active.profile.kindLabel} · {active.profile.rarity}
                         </p>
@@ -387,7 +386,9 @@ export default function Cabinet() {
                             <div className="text-[9px] uppercase tracking-[0.14em] text-muted">
                               {f.label}
                             </div>
-                            <div className="mt-0.5 truncate text-[12px] text-lime">{f.value}</div>
+                            <div className="mt-0.5 truncate text-[12px] text-lime" title={f.value}>
+                              {f.value}
+                            </div>
                           </div>
                         ))}
                       </div>

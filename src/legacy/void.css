@@ -555,7 +555,10 @@ body.arena-live .cart-dock{
 }
 @media(max-width:960px){
   body.arena-live .cart-dock{
-    bottom:calc(118px + env(safe-area-inset-bottom));
+    bottom:calc(72px + env(safe-area-inset-bottom));
+  }
+  body.arena-live .void-toast.show{
+    bottom:calc(96px + env(safe-area-inset-bottom));
   }
   body.arena-live .cosmos-hud{
     bottom:auto;
@@ -590,6 +593,12 @@ body.arena-live .cart-dock{
 .void-toast.show{
   opacity:1;transform:translateX(-50%) translateY(0);
 }
+body.arena-live .void-toast.show{
+  bottom:calc(108px + env(safe-area-inset-bottom));
+}
+body.arena-live .void-toast.claim.show{
+  bottom:calc(128px + env(safe-area-inset-bottom));
+}
 .void-toast.claim{
   padding:14px 18px 16px;
   border-color:rgba(204,255,0,.75);
@@ -615,6 +624,7 @@ body.arena-live .cart-dock{
   font-size:11px;
   color:rgba(204,255,0,.7);
 }
+.filters[hidden]{display:none !important}
 .mind-chat{
   position:fixed;inset:0;z-index:140;
   display:flex;align-items:flex-end;justify-content:center;

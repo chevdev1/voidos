@@ -829,7 +829,9 @@ export function initVoidEngine() {
           if (!c) return '';
           const cm = c.grains.reduce((a, s) => a + s.size, 0);
           const cb = c.grains.reduce((a, s) => a + (Number(s.usd) || 0), 0);
-          return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${c.name} · ${c.grains.length}g · ${formatUsd(cb)}</button>`;
+          return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${escHtml(
+            c.name,
+          )} · ${c.grains.length}g · ${escHtml(formatUsd(cb))}</button>`;
         })
         .join('');
       if (title) title.textContent = `STACK · ${selectedConstels.size} constellations`;
@@ -944,6 +946,14 @@ export function initVoidEngine() {
 
     const celebrateLots = new Map(); // constel_id → until performance.now()
 
+    function escHtml(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
     function toast(msg, opts = {}) {
       const el =
         document.getElementById('voidToast') ||
@@ -962,13 +972,14 @@ export function initVoidEngine() {
       el._t = setTimeout(() => {
         el.classList.remove('show');
         el.classList.remove('claim');
+        el.textContent = '';
       }, opts.claim ? 4200 : 2800);
     }
 
     function celebrateClaim(cids) {
       const ids = [...cids].map(String).filter(Boolean);
       if (!ids.length) return;
-      const until = performance.now() + 5200;
+      const until = performance.now() + 4200;
       for (const id of ids) celebrateLots.set(id, until);
       const first = g0.constels.find((c) => ids.includes(String(c.id)));
       if (first) {
@@ -985,7 +996,9 @@ export function initVoidEngine() {
         return a + c.grains.reduce((s, g) => s + (Number(g.usd) || 0), 0);
       }, 0);
       toast(
-        `<b>CLAIMED</b><span>${names.slice(0, 3).join(' · ')}${names.length > 3 ? '…' : ''}</span><em>${formatUsd(burn)} · yours forever</em>`,
+        `<b>CLAIMED</b><span>${escHtml(names.slice(0, 3).join(' · '))}${
+          names.length > 3 ? '…' : ''
+        }</span><em>${escHtml(formatUsd(burn))} · yours forever</em>`,
         { html: true, claim: true },
       );
     }
@@ -2368,7 +2381,7 @@ export function initVoidEngine() {
               Math.floor(60 + h * 195),
             ];
           }
-          if (yoursSet.has(s.id)) col = [210, 255, 80];
+          if (yoursSet.has(s.id)) col = [200, 255, 100];
           const empty = s.kind === 'empty' && !heatMode;
           const inConstelSel = selectedConstels.has(s.constel);
           const selected = selectedSet.has(s.id) || inConstelSel;
@@ -2377,14 +2390,14 @@ export function initVoidEngine() {
           const celebrating = celebUntil && performance.now() < celebUntil;
           ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, mineGrain ? 1 : 0.95);
           ctx.beginPath();
-          ctx.arc(sx, sy, grainR * (mineGrain ? 1.15 : 1), 0, Math.PI * 2);
+          ctx.arc(sx, sy, grainR * (mineGrain ? 1.08 : 1), 0, Math.PI * 2);
           ctx.fill();
-          if (mineGrain) {
-            const gp = 0.55 + 0.45 * Math.sin(t * 3.2 + s.id);
-            ctx.strokeStyle = rgba([204, 255, 0], 0.55 + gp * 0.4);
-            ctx.lineWidth = celebrating ? 2.2 : 1.4;
+          if (mineGrain && (celebrating || selected || s.hover > 0.2 || scale > 2.5)) {
+            const gp = celebrating ? 0.55 + 0.45 * Math.sin(t * 3.2 + s.id) : 0.35;
+            ctx.strokeStyle = rgba([204, 255, 0], 0.4 + gp * 0.35);
+            ctx.lineWidth = celebrating ? 2 : 1.2;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 3.5 + (celebrating ? gp * 2 : 0), 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + 2.8 + (celebrating ? gp * 2 : 0), 0, Math.PI * 2);
             ctx.stroke();
           }
           if (s.tier === 'MEGA' || s.tier === 'LARGE') {
@@ -2557,7 +2570,7 @@ export function initVoidEngine() {
             strokePath(ring, true, strokeCol, aMain * (mine ? 0.5 : 0.35), mine || celebrating ? 1.6 : picked ? 1.2 : 0.7);
           }
 
-          if (picked || mine || celebrating) {
+          if (picked || celebrating) {
             let hx = 0,
               hy = 0;
             for (const p of stars) {
@@ -2567,23 +2580,40 @@ export function initVoidEngine() {
             hx /= stars.length;
             hy /= stars.length;
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
-            const rad = (mine ? 64 : 56) + boom * 28;
+            const rad = (celebrating ? 68 : 52) + boom * 24;
             const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, rad);
-            halo.addColorStop(0, `rgba(204,255,0,${mine || celebrating ? 0.38 : 0.28})`);
-            halo.addColorStop(0.45, `rgba(204,255,0,${0.12 + boom * 0.12})`);
+            halo.addColorStop(0, `rgba(204,255,0,${celebrating ? 0.36 : 0.22})`);
+            halo.addColorStop(0.45, `rgba(204,255,0,${0.1 + boom * 0.1})`);
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
             ctx.arc(hx, hy, rad, 0, Math.PI * 2);
             ctx.fill();
             if (celebrating) {
-              const ringR = 28 + ((performance.now() % 900) / 900) * 70;
-              ctx.strokeStyle = rgba(LIME, 0.55 * (1 - ringR / 100));
+              const age = 1 - Math.max(0, (celebUntil - performance.now()) / 4200);
+              const ringR = 24 + age * 80;
+              ctx.strokeStyle = rgba(LIME, 0.5 * (1 - age));
               ctx.lineWidth = 2;
               ctx.beginPath();
               ctx.arc(hx, hy, ringR, 0, Math.PI * 2);
               ctx.stroke();
             }
+          } else if (mine && scale > 1.2) {
+            let hx = 0,
+              hy = 0;
+            for (const p of stars) {
+              hx += p.sx;
+              hy += p.sy;
+            }
+            hx /= stars.length;
+            hy /= stars.length;
+            const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, 42);
+            halo.addColorStop(0, 'rgba(204,255,0,.14)');
+            halo.addColorStop(1, 'rgba(204,255,0,0)');
+            ctx.fillStyle = halo;
+            ctx.beginPath();
+            ctx.arc(hx, hy, 42, 0, Math.PI * 2);
+            ctx.fill();
           }
 
           for (const p of stars) {
@@ -2594,22 +2624,29 @@ export function initVoidEngine() {
 
       if (scale > 0.7 && scale < 9) {
         const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
+        // Collect owned label candidates, keep nearest few to avoid lime pile-up
+        const yoursLabels = [];
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
           const mine = constelOwned(c);
-          const celebrating = celebrateLots.has(String(c.id)) && performance.now() < celebrateLots.get(String(c.id));
+          const celebrating =
+            celebrateLots.has(String(c.id)) && performance.now() < celebrateLots.get(String(c.id));
           if (!picked && !mine && !celebrating && idx % step) return;
           if (!constelVisible(c) && !picked && !mine) return;
           if (c.grains.length < 2 && !picked && !mine) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
           if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
-          const pulse = 0.75 + 0.25 * Math.sin(t * (mine ? 2.2 : 1.6) + idx);
+          const dist2 = (sx - W * 0.5) ** 2 + (sy - H * 0.5) ** 2;
+          const showBadge =
+            celebrating || picked || c.hover > 0.2 || (mine && (scale > 2.2 || dist2 < 180 * 180));
+          if (mine || celebrating) {
+            yoursLabels.push({ c, sx, sy, picked, mine, celebrating, dist2, showBadge, idx });
+            return;
+          }
+          const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
           const a = clamp(
-            0.35 +
-              c.hover * 0.55 +
-              (picked || mine ? 0.65 : 0) +
-              (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
+            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
             0,
             0.98,
           );
@@ -2618,19 +2655,34 @@ export function initVoidEngine() {
           ctx.textAlign = 'center';
           ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
           ctx.fillText(c.name, sx + 1, sy + 1);
-          ctx.fillStyle = rgba(mine || picked || celebrating ? LIME : c.col, a);
+          ctx.fillStyle = rgba(picked ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (mine || celebrating) {
-            ctx.font = '700 8px IBM Plex Mono';
-            ctx.fillStyle = rgba(LIME, 0.95);
-            ctx.fillText(celebrating ? '◆ CLAIMED' : '◆ YOURS', sx, sy + 12);
-            ctx.font = '7px IBM Plex Mono';
-            ctx.fillStyle = rgba(LIME, 0.75);
-            ctx.fillText(c.grains.length + '★', sx, sy + 22);
-          } else if (picked || scale > 2) {
+          if (picked || scale > 2) {
             ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
             ctx.font = '7px IBM Plex Mono';
             ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);
+          }
+        });
+        yoursLabels.sort((a, b) => {
+          if (a.celebrating !== b.celebrating) return a.celebrating ? -1 : 1;
+          if (a.picked !== b.picked) return a.picked ? -1 : 1;
+          return a.dist2 - b.dist2;
+        });
+        const labelCap = scale < 1.5 ? 3 : scale < 2.5 ? 5 : 8;
+        yoursLabels.slice(0, labelCap).forEach(({ c, sx, sy, picked, celebrating, showBadge, idx }) => {
+          const pulse = 0.8 + 0.2 * Math.sin(t * 2 + idx);
+          const a = clamp(0.55 + (picked || celebrating ? 0.35 : 0.15) * pulse, 0, 0.98);
+          const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
+          ctx.font = `600 ${fs}px IBM Plex Mono`;
+          ctx.textAlign = 'center';
+          ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
+          ctx.fillText(c.name, sx + 1, sy + 1);
+          ctx.fillStyle = rgba(LIME, a);
+          ctx.fillText(c.name, sx, sy);
+          if (showBadge) {
+            ctx.font = '700 8px IBM Plex Mono';
+            ctx.fillStyle = rgba(LIME, 0.92);
+            ctx.fillText(celebrating ? '◆ CLAIMED' : '◆ YOURS', sx, sy + 12);
           }
         });
       }
@@ -2680,9 +2732,9 @@ export function initVoidEngine() {
     let burned = 7218018;
     const burnedIntervalId = setInterval(() => {
       burned += ri(10, 200);
-      document.getElementById('burned').textContent = fmt(burned);
-      const burnEl = document.getElementById('mindMetaBurn');
-      if (burnEl) burnEl.textContent = `${fmt(burned)} $EXO burned`;
+      const el = document.getElementById('burned');
+      if (el) el.textContent = fmt(burned);
+      // Do not overwrite #mindMetaBurn — that shows live wallet / ledger line.
     }, 2600);
     onCleanup(() => clearInterval(burnedIntervalId));
   })();

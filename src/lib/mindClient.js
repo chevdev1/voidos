@@ -418,8 +418,12 @@ export function voidToast(text, ms = 2800) {
     el.className = 'void-toast'
     document.body.appendChild(el)
   }
+  el.classList.remove('claim')
   el.textContent = text
   el.classList.add('show')
   clearTimeout(el._t)
-  el._t = setTimeout(() => el.classList.remove('show'), ms)
+  el._t = setTimeout(() => {
+    el.classList.remove('show')
+    el.classList.remove('claim')
+  }, ms)
 }

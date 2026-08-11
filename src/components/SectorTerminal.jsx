@@ -67,7 +67,7 @@ export function SectorTerminal() {
             mass <b id="cartMass">0</b> cells
           </span>
           <span>
-            burn <b id="cartBurn">$0.00</b>
+            burn <b id="cartBurn">—</b>
           </span>
         </div>
         <button type="button" className="btn-lime cart-claim" id="cartClaim">
