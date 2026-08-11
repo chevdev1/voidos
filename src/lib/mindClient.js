@@ -95,6 +95,13 @@ export function saveUser(user) {
   } catch {
     /* ignore */
   }
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('void-user', { detail: user || null }))
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 function normalizeOwn(o) {

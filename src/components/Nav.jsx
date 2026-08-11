@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion'
+import { useEffect, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 import { AccountMenu } from './AccountMenu'
+import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
   { label: 'MAP', target: '#map' },
@@ -15,6 +17,19 @@ export function Nav() {
   const lenisRef = useLenis()
   const loc = useLocation()
   const onHome = loc.pathname === '/'
+  const [hasWallet, setHasWallet] = useState(() => Boolean(loadUser()?.wallet))
+
+  useEffect(() => {
+    mindSession()
+      .then((data) => {
+        if (data.user) saveUser(data.user)
+        setHasWallet(Boolean(data.user?.wallet))
+      })
+      .catch(() => {})
+    const onUser = (e) => setHasWallet(Boolean(e.detail?.wallet))
+    window.addEventListener('void-user', onUser)
+    return () => window.removeEventListener('void-user', onUser)
+  }, [])
 
   function goTo(target) {
     if (target === '#map') {
@@ -71,22 +86,26 @@ export function Nav() {
               <ScrambleText text={link.label} trigger="hover" duration={400} />
             </button>
           ))}
-        <Link
-          to="/cabinet"
-          className="transition-colors duration-150 ease-out hover:text-lime"
-          title="личный кабинет"
-        >
-          <ScrambleText text="CABINET" trigger="hover" duration={400} />
-        </Link>
+        {hasWallet && (
+          <Link
+            to="/cabinet"
+            className="transition-colors duration-150 ease-out hover:text-lime"
+            title="личный кабинет"
+          >
+            <ScrambleText text="CABINET" trigger="hover" duration={400} />
+          </Link>
+        )}
       </nav>
 
       <div className="flex items-center gap-2.5">
-        <Link
-          to="/cabinet"
-          className="rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime lg:hidden"
-        >
-          cabinet
-        </Link>
+        {hasWallet && (
+          <Link
+            to="/cabinet"
+            className="rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime lg:hidden"
+          >
+            cabinet
+          </Link>
+        )}
         <AccountMenu />
         {onHome && (
           <button

@@ -12,11 +12,12 @@ export function rhChainId() {
 }
 
 export function rhRpcUrl() {
-  return (
-    String(process.env.RH_RPC_URL || process.env.VITE_RH_RPC_URL || '').trim() ||
-    // Public placeholder — override with a real RH RPC in Vercel
-    'https://rpc.robinhood.engineering'
-  )
+  const id = rhChainId()
+  const fromEnv = String(process.env.RH_RPC_URL || process.env.VITE_RH_RPC_URL || '').trim()
+  if (fromEnv) return fromEnv
+  return id === RH_CHAIN_TEST
+    ? 'https://rpc.testnet.chain.robinhood.com/rpc'
+    : 'https://rpc.mainnet.chain.robinhood.com'
 }
 
 export function exoTokenAddress() {

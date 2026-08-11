@@ -21,9 +21,12 @@ function chainIdNum() {
 }
 
 function rpcUrl() {
-  return (
-    String(import.meta.env.VITE_RH_RPC_URL || '').trim() || 'https://rpc.robinhood.engineering'
-  )
+  const id = chainIdNum()
+  const fromEnv = String(import.meta.env.VITE_RH_RPC_URL || '').trim()
+  if (fromEnv) return fromEnv
+  return id === RH_CHAIN_TEST
+    ? 'https://rpc.testnet.chain.robinhood.com/rpc'
+    : 'https://rpc.mainnet.chain.robinhood.com'
 }
 
 export function getRhChain() {
@@ -52,6 +55,14 @@ export function isClaimLiveClient() {
 
 export function hasWalletConnectProject() {
   return Boolean(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID)
+}
+
+/** Any injected EVM wallet (Robinhood in-app, Trust, MetaMask, …). */
+export function getInjectedEvm() {
+  if (typeof window === 'undefined') return null
+  const eth = window.ethereum
+  if (!eth?.request) return null
+  return eth
 }
 
 /** Robinhood in-app EVM provider (not Solana). */
@@ -101,8 +112,8 @@ async function ensureChain(provider) {
 }
 
 async function connectInjected() {
-  const provider = getRobinhoodInjected() || window.ethereum
-  if (!provider?.request) throw new Error('no EVM wallet — open Robinhood Web3 or use WalletConnect')
+  const provider = getRobinhoodInjected() || getInjectedEvm()
+  if (!provider?.request) throw new Error('no EVM wallet — use Trust / MetaMask / Robinhood, or WalletConnect QR')
   await ensureChain(provider)
   const accounts = await provider.request({ method: 'eth_requestAccounts' })
   const address = getAddress(accounts[0])
@@ -154,7 +165,8 @@ async function connectWalletConnect() {
  * Connect Robinhood (injected EVM or WalletConnect QR) + EIP-191 sign link message.
  */
 export async function connectAndSignLink(message) {
-  const injected = getRobinhoodInjected()
+  // Prefer any injected EVM (Trust / MetaMask / Robinhood). Else WalletConnect QR.
+  const injected = getRobinhoodInjected() || getInjectedEvm()
   const { provider, address } = injected
     ? await connectInjected()
     : await connectWalletConnect()
@@ -168,7 +180,7 @@ export async function connectAndSignLink(message) {
     account: address,
     message: String(message),
   })
-  return { pubkey: address, address, signature, walletLabel: 'Robinhood' }
+  return { pubkey: address, address, signature, walletLabel: 'EVM' }
 }
 
 export async function readBalances(address) {

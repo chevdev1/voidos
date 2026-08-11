@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
-import { connectAndSignLink, hasWalletConnectProject, getRobinhoodInjected } from '../lib/rhWallets'
+import { connectAndSignLink, hasWalletConnectProject, getRobinhoodInjected, getInjectedEvm } from '../lib/rhWallets'
 
 /**
  * Robinhood Chain wallet link (WalletConnect / in-app); shows ETH / $EXO balances.
@@ -12,7 +12,7 @@ export function WalletPanel({ user, onUser }) {
   const [inApp, setInApp] = useState(false)
 
   useEffect(() => {
-    const refresh = () => setInApp(Boolean(getRobinhoodInjected()))
+    const refresh = () => setInApp(Boolean(getRobinhoodInjected() || getInjectedEvm()))
     refresh()
     const t = setTimeout(refresh, 800)
     return () => clearTimeout(t)
@@ -115,8 +115,8 @@ export function WalletPanel({ user, onUser }) {
             className="bg-lime px-3 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
             title={
               canConnect
-                ? 'Connect Robinhood Wallet'
-                : 'Add VITE_WALLETCONNECT_PROJECT_ID in env'
+                ? 'Connect Trust / Robinhood / MetaMask'
+                : 'Add VITE_WALLETCONNECT_PROJECT_ID on Vercel (Reown) for phone QR'
             }
           >
             {busy ? '…' : 'connect Robinhood'}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { mindSession, loadOwnerships, loadUser, mindTrainLot } from '../lib/mindClient'
+import { mindSession, loadOwnerships, loadUser, mindTrainLot, saveUser } from '../lib/mindClient'
 import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
@@ -26,6 +26,7 @@ export default function Cabinet() {
         const data = await mindSession()
         if (cancelled) return
         setOwnerships(data.ownerships || [])
+        if (data.user) saveUser(data.user)
         setUser(data.user || null)
         if (!selectedId && data.ownerships?.length) {
           setSelectedId(data.ownerships[0].constel_id)
@@ -70,6 +71,11 @@ export default function Cabinet() {
     const still = filtered.some((p) => p.lot.constel_id === selectedId)
     if (!still) setSelectedId(filtered[0].lot.constel_id)
   }, [filtered, selectedId])
+
+  function onUserChange(next) {
+    saveUser(next)
+    setUser(next)
+  }
 
   const who = user?.wallet
     ? `${user.wallet.slice(0, 6)}…${user.wallet.slice(-4)}`
@@ -134,6 +140,31 @@ export default function Cabinet() {
       </header>
 
       <main className="relative z-10 mx-auto max-w-6xl px-5 pb-20 pt-4 sm:px-10">
+        {loading ? (
+          <p className="mt-16 text-sm text-muted">loading ledger…</p>
+        ) : !user?.wallet ? (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mx-auto mt-10 max-w-lg space-y-5"
+          >
+            <div>
+              <p className="text-[11px] uppercase tracking-[0.2em] text-muted">access locked</p>
+              <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-4xl">
+                connect wallet to open <span className="text-lime">cabinet</span>
+              </h1>
+              <p className="mt-3 text-sm text-muted">
+                personal ledger unlocks only after Robinhood Wallet is linked. connect below — then
+                cabinet, lots, and train stay with this wallet.
+              </p>
+            </div>
+            <WalletPanel user={user} onUser={onUserChange} />
+            <Link to="/" className="inline-block text-[11px] text-muted hover:text-lime">
+              ← back to map
+            </Link>
+          </motion.div>
+        ) : (
+          <>
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -154,28 +185,20 @@ export default function Cabinet() {
             wallet <span className="text-lime">{who}</span>
             {ownerships.length
               ? ` · ${ownerships.length} constellation${ownerships.length === 1 ? '' : 's'} · 6 kinds`
-              : ' · no claims yet — connect wallet, open map, claim'}
+              : ' · no claims yet — open map and claim'}
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
-            No Google — identity is your <span className="text-lime">Robinhood Wallet</span>. Connect
-            below, then claim on the map. One lot = one owner (others see RESERVED). $EXO not live →
-            test claim / train until token + contract are set.
+            Identity is your <span className="text-lime">Robinhood Wallet</span>. One lot = one
+            owner (others see RESERVED). $EXO not live → test claim / train until token + contract
+            are set.
           </p>
         </motion.div>
 
-        <div className="mt-8 space-y-4">
-          {!user?.wallet && (
-            <div className="border border-lime/35 bg-black/50 p-4 text-[12px] text-muted">
-              <span className="text-lime">Step 1:</span> connect Robinhood below →{' '}
-              <span className="text-lime">Step 2:</span> claim lots on the map.
-            </div>
-          )}
-          <WalletPanel user={user} onUser={setUser} />
+        <div className="mt-8">
+          <WalletPanel user={user} onUser={onUserChange} />
         </div>
 
-        {loading ? (
-          <p className="mt-16 text-sm text-muted">loading ledger…</p>
-        ) : !ownerships.length ? (
+        {!ownerships.length ? (
           <div className="mt-14 border border-lime/25 bg-black/40 p-8 sm:p-12">
             <div className="mx-auto h-40 max-w-sm opacity-70">
               <LotFigure
@@ -415,6 +438,8 @@ export default function Cabinet() {
                 )}
               </AnimatePresence>
             </div>
+          </>
+        )}
           </>
         )}
       </main>

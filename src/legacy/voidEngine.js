@@ -860,12 +860,8 @@ export function initVoidEngine() {
     function requireWalletForClaim() {
       const wallet = loadUser()?.wallet;
       if (wallet) return wallet;
-      toast('connect Robinhood wallet to claim · open CABINET');
-      try {
-        window.location.assign('/cabinet');
-      } catch {
-        /* ignore */
-      }
+      toast('connect Robinhood wallet first · open wallet menu in the nav');
+      return;
       return null;
     }
 
