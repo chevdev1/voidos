@@ -154,8 +154,7 @@ export default function Cabinet() {
                 connect wallet to open <span className="text-lime">cabinet</span>
               </h1>
               <p className="mt-3 text-sm text-muted">
-                personal ledger unlocks only after Robinhood Wallet is linked. connect below — then
-                cabinet, lots, and train stay with this wallet.
+                Link once — cabinet, lots, and train stay with this Robinhood Chain wallet.
               </p>
             </div>
             <WalletPanel user={user} onUser={onUserChange} />

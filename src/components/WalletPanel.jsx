@@ -3,7 +3,7 @@ import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } fro
 import { connectAndSignLink, hasWalletConnectProject, getInjectedEvm } from '../lib/rhWallets'
 
 /**
- * Wallet link — QR (Trust phone) by default; optional browser MetaMask.
+ * Single connect CTA — WalletConnect QR when configured, else browser wallet.
  */
 export function WalletPanel({ user, onUser }) {
   const [busy, setBusy] = useState(false)
@@ -33,15 +33,22 @@ export function WalletPanel({ user, onUser }) {
 
   const wcReady = useMemo(() => hasWalletConnectProject(), [])
   const canConnect = wcReady || hasBrowser
+  const connectMode = wcReady ? 'qr' : 'injected'
+  const connectHint = wcReady
+    ? 'Scan with Trust or any WalletConnect wallet'
+    : hasBrowser
+      ? 'Opens your browser wallet'
+      : 'WalletConnect Project ID required'
 
-  async function linkWallet(mode) {
+  async function linkWallet() {
+    if (!canConnect) return
     setBusy(true)
     setErr('')
     try {
       const guestKey = loadGuestKey()
       const ts = Date.now()
       const message = `VOID.OS link wallet\nguest:${guestKey}\nts:${ts}`
-      const { pubkey, signature } = await connectAndSignLink(message, { mode })
+      const { pubkey, signature } = await connectAndSignLink(message, { mode: connectMode })
       const data = await mindWalletLink({ pubkey, message, signature })
       onUser?.(data.user)
       await refreshBal(pubkey)
@@ -49,7 +56,7 @@ export function WalletPanel({ user, onUser }) {
       const msg = e?.message || String(e)
       if (/reject|cancel|closed|denied/i.test(msg)) setErr('connection cancelled')
       else if (/already pending/i.test(msg)) {
-        setErr('MetaMask popup stuck — open MetaMask, Reject, then use QR · Trust below')
+        setErr('Wallet popup stuck — open the extension, Reject, then try again')
       } else setErr(msg || 'wallet failed')
     } finally {
       setBusy(false)
@@ -76,70 +83,83 @@ export function WalletPanel({ user, onUser }) {
 
   return (
     <div className="border border-lime/25 bg-black/45 p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
-            <span className="border border-white/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted">
-              robinhood chain
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-lime">{short || 'not linked'}</p>
-          <p className="mt-1 text-[11px] text-muted">
-            Prefer <span className="text-lime">QR · Trust</span> on phone. Browser MetaMask is
-            optional. ETH balance live; $EXO when token address is set.
-          </p>
-        </div>
-        {user?.wallet ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => refreshBal(user.wallet)}
-              className="border border-white/20 px-3 py-1.5 text-[11px] text-muted hover:border-lime/40 hover:text-lime"
-            >
-              refresh
-            </button>
-            <button
-              type="button"
-              disabled={busy}
-              onClick={unlink}
-              className="border border-white/20 px-3 py-1.5 text-[11px] text-muted hover:border-red-400/50 hover:text-red-300"
-            >
-              unlink
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2 sm:items-end">
-            <button
-              type="button"
-              disabled={busy || !wcReady}
-              onClick={() => linkWallet('qr')}
-              className="bg-lime px-3 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
-              title={
-                wcReady
-                  ? 'WalletConnect QR — scan with Trust'
-                  : 'Add VITE_WALLETCONNECT_PROJECT_ID on Vercel'
-              }
-            >
-              {busy ? '…' : 'QR · Trust'}
-            </button>
-            {hasBrowser && (
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => linkWallet('injected')}
-                className="border border-white/25 px-3 py-1.5 text-[11px] text-muted hover:border-lime/40 hover:text-lime disabled:opacity-50"
-              >
-                browser MetaMask
-              </button>
-            )}
-          </div>
-        )}
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
+        <span className="border border-white/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted">
+          robinhood chain
+        </span>
       </div>
 
+      <p className="mt-2 font-display text-2xl tracking-wide text-lime sm:text-3xl">
+        {short || 'not linked'}
+      </p>
+
+      {!user?.wallet && (
+        <p className="mt-2 max-w-md text-[12px] leading-relaxed text-muted">
+          One tap to link. Works with <span className="text-lime/90">Trust</span>, MetaMask, and
+          other WalletConnect wallets. Cabinet, lots, and train stay with this address.
+        </p>
+      )}
+
+      {user?.wallet ? (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => refreshBal(user.wallet)}
+            className="border border-white/20 px-3 py-2 text-[11px] text-muted transition hover:border-lime/40 hover:text-lime"
+          >
+            refresh
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={unlink}
+            className="border border-white/20 px-3 py-2 text-[11px] text-muted transition hover:border-red-400/50 hover:text-red-300"
+          >
+            unlink
+          </button>
+        </div>
+      ) : (
+        <div className="mt-5">
+          <button
+            type="button"
+            disabled={busy || !canConnect}
+            onClick={linkWallet}
+            title={connectHint}
+            className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:opacity-45"
+          >
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100" />
+            <span className="relative flex items-center justify-between gap-3">
+              <span>
+                <span className="block text-[13px] font-semibold tracking-[0.14em] text-black uppercase">
+                  {busy ? 'Connecting…' : 'Connect wallet'}
+                </span>
+                <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
+                  {wcReady ? 'QR · Trust · WalletConnect' : 'Browser wallet'}
+                </span>
+              </span>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
+                {busy ? (
+                  <span className="text-sm">…</span>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
+                    <path
+                      d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="square"
+                    />
+                  </svg>
+                )}
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+
       {!user?.wallet && !canConnect && (
-        <p className="mt-2 text-[11px] text-amber-200/90">
+        <p className="mt-3 text-[11px] text-amber-200/90">
           Needs <code className="text-lime">VITE_WALLETCONNECT_PROJECT_ID</code> from{' '}
           <a
             className="underline hover:text-lime"
@@ -149,11 +169,11 @@ export function WalletPanel({ user, onUser }) {
           >
             cloud.reown.com
           </a>{' '}
-          on Vercel + Redeploy — then QR works with Trust.
+          on Vercel + Redeploy.
         </p>
       )}
 
-      {err && <p className="mt-2 text-[11px] text-red-400">{err}</p>}
+      {err && <p className="mt-3 text-[11px] text-red-400">{err}</p>}
 
       {user?.wallet && (
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
