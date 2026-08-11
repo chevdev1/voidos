@@ -2303,15 +2303,33 @@ export function initVoidEngine() {
       }
 
       {
-        // Grain dots mostly off — figures carry the look
-        const showGrains = scale > 4 || selectedConstels.size > 0;
-        if (showGrains) {
-          const sectorStep = scale < 5.5 ? (quality === 'low' ? 14 : 8) : quality === 'high' ? 2 : 4;
+        // Always paint the spiral as a field of lot sparks (not empty void)
+        const densStep = scale < 1.3 ? (quality === 'low' ? 10 : 6) : scale < 2.4 ? (quality === 'low' ? 5 : 3) : scale < 4 ? 2 : 1;
+        for (let ci = 0; ci < g.constels.length; ci += densStep) {
+          const c = g.constels[ci];
+          if (!constelVisible(c)) continue;
+          if (selectedConstels.has(c.id)) continue;
+          const center = constelWorld(c, g);
+          const [sx, sy] = w2s(center.x, center.y);
+          if (sx < -12 || sy < -12 || sx > W + 12 || sy > H + 12) continue;
+          const a = scale < 1.5 ? 0.45 : scale < 3 ? 0.55 : 0.4;
+          ctx.fillStyle = rgba(c.col, a);
+          ctx.beginPath();
+          ctx.arc(sx, sy, scale < 2 ? 1.35 : 1.1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      {
+        // Close zoom: soft grain accents on selected / owned / hot lots
+        if (scale > 3.2 || selectedConstels.size > 0) {
+          const sectorStep = quality === 'low' ? 6 : 3;
           for (let si = 0; si < g.sectors.length; si += sectorStep) {
             const s = g.sectors[si];
             if (!sectorVisible(s)) continue;
             const inConstelSel = selectedConstels.has(s.constel);
-            if (!inConstelSel && !yoursSet.has(s.id) && scale < 5) continue;
+            const mine = yoursSet.has(s.id);
+            if (!inConstelSel && !mine && scale < 4.5) continue;
             const p = sectorProj(s, g);
             let [sx, sy] = w2s(p.x, p.y);
             const Lpt = lensPoint(sx, sy);
@@ -2319,25 +2337,13 @@ export function initVoidEngine() {
             sx = Lpt[0];
             sy = Lpt[1];
             if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
-            const grainR = Math.max(0.5, (s.viz || 2.1) * 0.3);
-            let col = s.cCol;
-            if (heatMode) {
-              const cid = String(s.constel || '');
-              const mine = yoursSet.has(s.id);
-              const trained = mine && trainedLots.has(cid);
-              const reserved = !mine && takenMap.has(cid);
-              const taught = trained ? 1 : mine ? 0.72 : reserved ? 0.4 : 0.06;
-              const h = clamp(taught, 0, 1);
-              col = [Math.floor(40 + h * 215), Math.floor(30 + h * 40), Math.floor(60 + h * 195)];
-            }
-            if (yoursSet.has(s.id)) col = [180, 255, 120];
-            const empty = s.kind === 'empty' && !heatMode;
-            const selected = selectedSet.has(s.id) || inConstelSel;
-            ctx.fillStyle = empty ? rgba([70, 82, 48], 0.32) : rgba(col, 0.5);
+            const grainR = Math.max(0.55, (s.viz || 2.1) * 0.34);
+            let col = mine ? [180, 255, 120] : s.cCol;
+            ctx.fillStyle = rgba(col, 0.55);
             ctx.beginPath();
             ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
             ctx.fill();
-            if (selected) {
+            if (inConstelSel || selectedSet.has(s.id)) {
               ctx.strokeStyle = 'rgba(204,255,0,.7)';
               ctx.lineWidth = 0.85;
               ctx.beginPath();
@@ -2348,14 +2354,18 @@ export function initVoidEngine() {
         }
       }
 
-      // Sparse individual constellation figures (screen-separated, kind-shaped)
+      // Full mini-figures: many visible, mild separation so they stay readable
       {
-        const vis = scale < 1.1 ? 0.38 : scale < 3 ? 0.58 : 0.72;
-        const farSparkOnly = scale < 2.6;
-        const minSep = scale < 2.8 ? 36 : scale < 4.5 ? 28 : 20;
-        const maxFull = quality === 'low' ? 24 : quality === 'medium' ? 36 : 48;
-        const drawn = [];
+        const vis = scale < 1.1 ? 0.55 : scale < 3 ? 0.72 : 0.85;
+        const figFrom = 1.15; // below this: density sparks only
+        const minSep = scale < 2 ? 14 : scale < 3.5 ? 11 : 8;
+        const maxFull = quality === 'low' ? 90 : quality === 'medium' ? 140 : 200;
+        const labelSep = 72;
+        const maxLabels = scale < 2.2 ? 8 : scale < 3.5 ? 16 : 28;
+        const drawnFig = [];
+        const drawnLab = [];
         let fullDrawn = 0;
+        let labelsDrawn = 0;
 
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
@@ -2394,108 +2404,108 @@ export function initVoidEngine() {
         }
 
         function spark(x, y, col, a) {
-          ctx.fillStyle = rgba([255, 255, 245], a * 0.85);
+          ctx.fillStyle = rgba([255, 255, 245], a * 0.9);
           ctx.beginPath();
-          ctx.arc(x, y, 0.85, 0, Math.PI * 2);
+          ctx.arc(x, y, 0.95, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = rgba(col, a * 0.35);
+          ctx.fillStyle = rgba(col, a * 0.45);
           ctx.beginPath();
-          ctx.arc(x, y, 1.55, 0, Math.PI * 2);
+          ctx.arc(x, y, 1.7, 0, Math.PI * 2);
           ctx.fill();
         }
 
-        function tooClose(sx, sy) {
-          for (let i = 0; i < drawn.length; i++) {
-            if (Math.hypot(drawn[i].x - sx, drawn[i].y - sy) < minSep) return true;
+        function tooClose(list, sx, sy, sep) {
+          for (let i = 0; i < list.length; i++) {
+            if (Math.hypot(list[i].x - sx, list[i].y - sy) < sep) return true;
           }
           return false;
         }
 
-        const candidates = [];
-        for (let ci = 0; ci < g.constels.length; ci++) {
-          const c = g.constels[ci];
-          const picked = selectedConstels.has(c.id);
-          if (!constelVisible(c) && !picked) continue;
-          const center = constelWorld(c, g);
-          const [cx0, cy0] = w2s(center.x, center.y);
-          if (!picked && (cx0 < -40 || cy0 < -40 || cx0 > W + 40 || cy0 > H + 40)) continue;
-          const score = picked
-            ? -1e9
-            : mx != null
-              ? Math.hypot(cx0 - mx, cy0 - my)
-              : Math.hypot(cx0 - W / 2, cy0 - H / 2);
-          candidates.push({ c, cx0, cy0, picked, score });
-        }
-        candidates.sort((a, b) => a.score - b.score);
-
-        for (const item of candidates) {
-          const { c, cx0, cy0, picked } = item;
-
-          if (farSparkOnly && !picked) {
-            if (tooClose(cx0, cy0)) continue;
-            spark(cx0, cy0, c.col, 0.2 * vis);
-            drawn.push({ x: cx0, y: cy0 });
-            continue;
+        if (scale >= figFrom) {
+          const candidates = [];
+          for (let ci = 0; ci < g.constels.length; ci++) {
+            const c = g.constels[ci];
+            const picked = selectedConstels.has(c.id);
+            if (!constelVisible(c) && !picked) continue;
+            const center = constelWorld(c, g);
+            const [cx0, cy0] = w2s(center.x, center.y);
+            if (!picked && (cx0 < -40 || cy0 < -40 || cx0 > W + 40 || cy0 > H + 40)) continue;
+            const score = picked
+              ? -1e9
+              : mx != null
+                ? Math.hypot(cx0 - mx, cy0 - my)
+                : Math.hypot(cx0 - W / 2, cy0 - H / 2);
+            candidates.push({ c, cx0, cy0, picked, score });
           }
+          candidates.sort((a, b) => a.score - b.score);
 
-          if (!picked && (fullDrawn >= maxFull || tooClose(cx0, cy0))) {
-            if (!tooClose(cx0, cy0)) {
-              spark(cx0, cy0, c.col, 0.16 * vis);
-              drawn.push({ x: cx0, y: cy0 });
+          for (const item of candidates) {
+            const { c, cx0, cy0, picked } = item;
+            if (!picked && (fullDrawn >= maxFull || tooClose(drawnFig, cx0, cy0, minSep))) continue;
+
+            const raw = [];
+            for (const s of c.grains) {
+              if (!sectorVisible(s) && !picked) continue;
+              const p = sectorProj(s, g);
+              const [sx, sy] = w2s(p.x, p.y);
+              if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
+              raw.push({ s, sx, sy });
             }
-            continue;
-          }
+            if (raw.length < 2) {
+              spark(cx0, cy0, picked ? LIME : c.col, picked ? 0.85 : 0.4);
+              drawnFig.push({ x: cx0, y: cy0 });
+              if (!picked) fullDrawn++;
+              continue;
+            }
 
-          const raw = [];
-          for (const s of c.grains) {
-            if (!sectorVisible(s) && !picked) continue;
-            const p = sectorProj(s, g);
-            const [sx, sy] = w2s(p.x, p.y);
-            if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
-            raw.push({ s, sx, sy });
-          }
-          if (raw.length < 2) {
-            spark(cx0, cy0, picked ? LIME : c.col, picked ? 0.8 : 0.22);
-            drawn.push({ x: cx0, y: cy0 });
-            continue;
-          }
+            const stars = raw.slice(0, 3);
+            const hot =
+              picked ||
+              c.hover > 0.28 ||
+              stars.some((p) => p.s.hover > 0.3) ||
+              (hover && hover.s && hover.s.constel === c.id);
+            const pulse = 0.95 + 0.05 * Math.sin(t * 1.05 + c.a0 * 2);
+            const aMain = (picked ? 0.88 : hot ? 0.55 : 0.36 * vis) * pulse;
+            const strokeCol = picked ? LIME : c.col;
 
-          const stars = raw.slice(0, 3);
-          const hot = picked || c.hover > 0.28 || stars.some((p) => p.s.hover > 0.3);
-          const pulse = 0.95 + 0.05 * Math.sin(t * 1.05 + c.a0 * 2);
-          const aMain = (picked ? 0.8 : hot ? 0.38 : 0.2 * vis) * pulse;
-          const strokeCol = picked ? LIME : c.col;
+            for (const [a, b] of mstEdges(stars)) {
+              strokePath([a, b], false, strokeCol, aMain, picked ? 1.15 : hot ? 0.75 : 0.55);
+            }
 
-          for (const [a, b] of mstEdges(stars)) {
-            strokePath([a, b], false, strokeCol, aMain, picked ? 1.0 : hot ? 0.6 : 0.42);
+            if (picked) {
+              const halo = ctx.createRadialGradient(cx0, cy0, 2, cx0, cy0, 22);
+              halo.addColorStop(0, 'rgba(204,255,0,.16)');
+              halo.addColorStop(1, 'rgba(204,255,0,0)');
+              ctx.fillStyle = halo;
+              ctx.beginPath();
+              ctx.arc(cx0, cy0, 22, 0, Math.PI * 2);
+              ctx.fill();
+            }
+
+            for (const p of stars) {
+              spark(p.sx, p.sy, strokeCol, (picked ? 0.88 : hot ? 0.55 : 0.4) * vis * pulse);
+            }
+
+            const wantLabel =
+              picked ||
+              hot ||
+              (scale > 2.0 && labelsDrawn < maxLabels && !tooClose(drawnLab, cx0, cy0, labelSep));
+            if (wantLabel) {
+              const short = String(c.name || '').replace(/\s+\d+$/, '').slice(0, 14);
+              ctx.font = (picked || hot ? '600 9px' : '500 8px') + ' IBM Plex Mono';
+              ctx.textAlign = 'center';
+              const la = picked || hot ? 0.85 : 0.42;
+              ctx.fillStyle = 'rgba(0,0,0,' + la * 0.45 + ')';
+              ctx.fillText(short, cx0 + 1, cy0 + 13);
+              ctx.fillStyle = rgba(picked ? LIME : c.col, la);
+              ctx.fillText(short, cx0, cy0 + 12);
+              drawnLab.push({ x: cx0, y: cy0 });
+              labelsDrawn++;
+            }
+
+            drawnFig.push({ x: cx0, y: cy0 });
+            if (!picked) fullDrawn++;
           }
-
-          if (picked) {
-            const halo = ctx.createRadialGradient(cx0, cy0, 2, cx0, cy0, 20);
-            halo.addColorStop(0, 'rgba(204,255,0,.14)');
-            halo.addColorStop(1, 'rgba(204,255,0,0)');
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(cx0, cy0, 20, 0, Math.PI * 2);
-            ctx.fill();
-          }
-
-          for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked ? 0.82 : hot ? 0.45 : 0.28) * vis * pulse);
-          }
-
-          if (picked || c.hover > 0.45 || (hover && hover.s && hover.s.constel === c.id)) {
-            const short = String(c.name || '').replace(/\s+\d+$/, '').slice(0, 16);
-            ctx.font = '600 9px IBM Plex Mono';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
-            ctx.fillText(short, cx0 + 1, cy0 + 14);
-            ctx.fillStyle = rgba(picked ? LIME : c.col, picked ? 0.9 : 0.68);
-            ctx.fillText(short, cx0, cy0 + 13);
-          }
-
-          drawn.push({ x: cx0, y: cy0 });
-          if (!picked) fullDrawn++;
         }
       }
       if (scale < 1.15) {
