@@ -1,9 +1,9 @@
 /**
- * Full-map lot book: every constellation lot priced so the 200 lots sum to $1,000,000.
+ * Full-map lot book: every constellation lot priced so the 200 lots sum to $100,000.
  * Weights: closer to core = more expensive; rarer kinds get a mild bump; then renormalize.
  */
 
-export const TOTAL_LOT_BOOK_USD = 1_000_000
+export const TOTAL_LOT_BOOK_USD = 100_000
 export const TOTAL_PRICED_LOTS = 200
 
 /** Matches voidEngine CONSTEL_DEFS figure → LOT_KINDS index. */

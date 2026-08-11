@@ -152,7 +152,7 @@ export function Hero() {
           transition={{ duration: 0.6, delay: 0.55 }}
           className="price-note"
         >
-          Full map book: <b>$1,000,000</b> across 200 lots. Closer to the core = more expensive;
+          Full map book: <b>$100,000</b> across 200 lots. Closer to the core = more expensive;
           rim lots start lower.
         </motion.p>
       </div>
