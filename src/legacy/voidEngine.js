@@ -911,9 +911,8 @@ export function initVoidEngine() {
           toast('confirm claim tx in Robinhood…');
           const { hash } = await claimOnChain(previewLots.map((l) => l.id));
           await mindClaimVerify({ txHash: hash, lots: previewLots });
-          claimSectors(items, { skipSync: true });
+          claimSectors(items, { skipSync: true, celebrate: true });
           await refreshMapOwnerships();
-          toast((toastMsg || 'claimed') + ' · on-chain');
           return true;
         } catch (e) {
           const msg = e?.message || String(e);
@@ -928,9 +927,8 @@ export function initVoidEngine() {
 
       try {
         await mindClaimSync(previewLots);
-        claimSectors(items, { skipSync: true });
+        claimSectors(items, { skipSync: true, celebrate: true });
         await refreshMapOwnerships();
-        toast((toastMsg || 'claimed') + ' · yours alone');
         return true;
       } catch (e) {
         if (e?.status === 409 || e?.data?.code === 'LOT_RESERVED') {
@@ -939,24 +937,57 @@ export function initVoidEngine() {
           return false;
         }
         // Offline: still mark local
-        claimSectors(items, { skipSync: true });
-        toast((toastMsg || 'claimed') + ' · local');
+        claimSectors(items, { skipSync: true, celebrate: true });
         return true;
       }
     }
 
-    function toast(msg) {
-      const el = document.getElementById('voidToast') || (() => {
-        const n = document.createElement('div')
-        n.id = 'voidToast'
-        n.className = 'void-toast'
-        document.body.appendChild(n)
-        return n
-      })()
-      el.textContent = msg
-      el.classList.add('show')
-      clearTimeout(el._t)
-      el._t = setTimeout(() => el.classList.remove('show'), 2800)
+    const celebrateLots = new Map(); // constel_id → until performance.now()
+
+    function toast(msg, opts = {}) {
+      const el =
+        document.getElementById('voidToast') ||
+        (() => {
+          const n = document.createElement('div');
+          n.id = 'voidToast';
+          n.className = 'void-toast';
+          document.body.appendChild(n);
+          return n;
+        })();
+      el.classList.toggle('claim', Boolean(opts.claim));
+      if (opts.html) el.innerHTML = String(msg);
+      else el.textContent = String(msg);
+      el.classList.add('show');
+      clearTimeout(el._t);
+      el._t = setTimeout(() => {
+        el.classList.remove('show');
+        el.classList.remove('claim');
+      }, opts.claim ? 4200 : 2800);
+    }
+
+    function celebrateClaim(cids) {
+      const ids = [...cids].map(String).filter(Boolean);
+      if (!ids.length) return;
+      const until = performance.now() + 5200;
+      for (const id of ids) celebrateLots.set(id, until);
+      const first = g0.constels.find((c) => ids.includes(String(c.id)));
+      if (first) {
+        const p = constelWorld(first, g0);
+        focusOn(p.x, p.y, 4.0);
+        openConstelTerm(first);
+      }
+      const names = ids
+        .map((id) => g0.constels.find((c) => String(c.id) === id)?.name || id)
+        .filter(Boolean);
+      const burn = ids.reduce((a, id) => {
+        const c = g0.constels.find((x) => String(x.id) === id);
+        if (!c) return a;
+        return a + c.grains.reduce((s, g) => s + (Number(g.usd) || 0), 0);
+      }, 0);
+      toast(
+        `<b>CLAIMED</b><span>${names.slice(0, 3).join(' · ')}${names.length > 3 ? '…' : ''}</span><em>${formatUsd(burn)} · yours forever</em>`,
+        { html: true, claim: true },
+      );
     }
 
     function claimSectors(list, opts = {}) {
@@ -978,12 +1009,17 @@ export function initVoidEngine() {
       refreshCounts();
       refreshCartDock();
 
-      if (opts.skipSync) return;
+      if (opts.celebrate !== false && touched.size) {
+        celebrateClaim(touched);
+      }
+
+      if (opts.skipSync) return touched;
       const lots = [...touched]
         .map((cid) => g0.constels.find((x) => x.id === cid))
         .filter((c) => c && constelOwned(c))
         .map((c) => ({ id: c.id, name: c.name }));
       syncClaimedLots(lots);
+      return touched;
     }
 
     /** Apply server / localStorage ownership list onto the live map. */
@@ -2332,14 +2368,25 @@ export function initVoidEngine() {
               Math.floor(60 + h * 195),
             ];
           }
-          if (yoursSet.has(s.id)) col = [180, 255, 120];
+          if (yoursSet.has(s.id)) col = [210, 255, 80];
           const empty = s.kind === 'empty' && !heatMode;
           const inConstelSel = selectedConstels.has(s.constel);
           const selected = selectedSet.has(s.id) || inConstelSel;
-          ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, 0.95);
+          const mineGrain = yoursSet.has(s.id);
+          const celebUntil = celebrateLots.get(String(s.constel || ''));
+          const celebrating = celebUntil && performance.now() < celebUntil;
+          ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, mineGrain ? 1 : 0.95);
           ctx.beginPath();
-          ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
+          ctx.arc(sx, sy, grainR * (mineGrain ? 1.15 : 1), 0, Math.PI * 2);
           ctx.fill();
+          if (mineGrain) {
+            const gp = 0.55 + 0.45 * Math.sin(t * 3.2 + s.id);
+            ctx.strokeStyle = rgba([204, 255, 0], 0.55 + gp * 0.4);
+            ctx.lineWidth = celebrating ? 2.2 : 1.4;
+            ctx.beginPath();
+            ctx.arc(sx, sy, grainR + 3.5 + (celebrating ? gp * 2 : 0), 0, Math.PI * 2);
+            ctx.stroke();
+          }
           if (s.tier === 'MEGA' || s.tier === 'LARGE') {
             ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.55 : 0.28);
             ctx.lineWidth = s.tier === 'MEGA' ? 1.4 : 1;
@@ -2445,12 +2492,16 @@ export function initVoidEngine() {
         for (let ci = 0; ci < g.constels.length; ci++) {
           const c = g.constels[ci];
           const picked = selectedConstels.has(c.id);
-          if (!picked && ci % constelStep) continue;
-          if (!constelVisible(c) && !picked) continue;
+          const mine = constelOwned(c);
+          const celebUntil = celebrateLots.get(String(c.id));
+          const celebrating = Boolean(celebUntil && performance.now() < celebUntil);
+          if (!celebrating && celebUntil) celebrateLots.delete(String(c.id));
+          if (!picked && !mine && !celebrating && ci % constelStep) continue;
+          if (!constelVisible(c) && !picked && !mine && !celebrating) continue;
 
           const raw = [];
           for (const s of c.grains) {
-            if (!sectorVisible(s) && !picked) continue;
+            if (!sectorVisible(s) && !picked && !mine) continue;
             const p = sectorProj(s, g);
             const [sx, sy] = w2s(p.x, p.y);
             if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
@@ -2461,28 +2512,34 @@ export function initVoidEngine() {
               br:
                 (s.tier === 'MEGA' ? 3 : s.tier === 'LARGE' ? 1.6 : s.tier === 'MID' ? 0.4 : 0) +
                 (s.kind === 'fed' ? 1.2 : 0) +
-                s.hover,
+                s.hover +
+                (mine ? 2 : 0),
             });
           }
           if (raw.length < 2) continue;
           raw.sort((a, b) => b.br - a.br);
           const stars = raw.slice(0, Math.min(raw.length, maxStars));
 
-          const hot = picked || c.hover > 0.15 || stars.some((p) => p.s.hover > 0.2);
-          const pulse = 0.85 + 0.15 * Math.sin(t * 1.6 + c.a0 * 3);
-          // Bright enough that lines read as constellation stripes, not noise
-          const aMain = (picked ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
-          const strokeCol = picked ? LIME : c.col;
-          const glowCol = picked ? LIME : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
+          const hot = picked || mine || celebrating || c.hover > 0.15 || stars.some((p) => p.s.hover > 0.2);
+          const pulse = 0.85 + 0.15 * Math.sin(t * (mine || celebrating ? 2.4 : 1.6) + c.a0 * 3);
+          const aMain = (picked || mine ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
+          const strokeCol = mine || picked || celebrating ? LIME : c.col;
+          const glowCol =
+            mine || celebrating
+              ? [220, 255, 90]
+              : picked
+                ? LIME
+                : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
 
           const edges = mstEdges(stars);
+          const lineW = celebrating ? 2.6 : mine ? 2.2 : picked ? 2.1 : hot ? 1.55 : 1.25;
           for (const [a, b] of edges) {
-            strokePath([a, b], false, glowCol, aMain * 0.22, picked ? 5.5 : 3.6);
-            strokePath([a, b], false, strokeCol, aMain, picked ? 2.1 : hot ? 1.55 : 1.25);
+            strokePath([a, b], false, glowCol, aMain * (mine ? 0.35 : 0.22), mine || celebrating ? 7 : picked ? 5.5 : 3.6);
+            strokePath([a, b], false, strokeCol, aMain, lineW);
           }
 
           // Extra figure outline when zoomed into constellation scale
-          if (stars.length >= 3 && (picked || scale > 1.6)) {
+          if (stars.length >= 3 && (picked || mine || celebrating || scale > 1.6)) {
             let cx = 0,
               cy = 0;
             for (const p of stars) {
@@ -2497,10 +2554,10 @@ export function initVoidEngine() {
                 return p;
               })
               .sort((a, b) => a.ang - b.ang);
-            strokePath(ring, true, strokeCol, aMain * 0.35, picked ? 1.2 : 0.7);
+            strokePath(ring, true, strokeCol, aMain * (mine ? 0.5 : 0.35), mine || celebrating ? 1.6 : picked ? 1.2 : 0.7);
           }
 
-          if (picked) {
+          if (picked || mine || celebrating) {
             let hx = 0,
               hy = 0;
             for (const p of stars) {
@@ -2509,17 +2566,28 @@ export function initVoidEngine() {
             }
             hx /= stars.length;
             hy /= stars.length;
-            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, 56);
-            halo.addColorStop(0, 'rgba(204,255,0,.28)');
+            const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
+            const rad = (mine ? 64 : 56) + boom * 28;
+            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, rad);
+            halo.addColorStop(0, `rgba(204,255,0,${mine || celebrating ? 0.38 : 0.28})`);
+            halo.addColorStop(0.45, `rgba(204,255,0,${0.12 + boom * 0.12})`);
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(hx, hy, 56, 0, Math.PI * 2);
+            ctx.arc(hx, hy, rad, 0, Math.PI * 2);
             ctx.fill();
+            if (celebrating) {
+              const ringR = 28 + ((performance.now() % 900) / 900) * 70;
+              ctx.strokeStyle = rgba(LIME, 0.55 * (1 - ringR / 100));
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.arc(hx, hy, ringR, 0, Math.PI * 2);
+              ctx.stroke();
+            }
           }
 
           for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked ? 1 : hot ? 0.95 : 0.7) * vis * pulse);
+            spark(p.sx, p.sy, strokeCol, (picked || mine || celebrating ? 1 : hot ? 0.95 : 0.7) * vis * pulse);
           }
         }
       }
@@ -2528,15 +2596,20 @@ export function initVoidEngine() {
         const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
-          if (!picked && idx % step) return;
-          if (!constelVisible(c) && !picked) return;
-          if (c.grains.length < 2 && !picked) return;
+          const mine = constelOwned(c);
+          const celebrating = celebrateLots.has(String(c.id)) && performance.now() < celebrateLots.get(String(c.id));
+          if (!picked && !mine && !celebrating && idx % step) return;
+          if (!constelVisible(c) && !picked && !mine) return;
+          if (c.grains.length < 2 && !picked && !mine) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
           if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
-          const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
+          const pulse = 0.75 + 0.25 * Math.sin(t * (mine ? 2.2 : 1.6) + idx);
           const a = clamp(
-            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
+            0.35 +
+              c.hover * 0.55 +
+              (picked || mine ? 0.65 : 0) +
+              (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
             0,
             0.98,
           );
@@ -2545,9 +2618,16 @@ export function initVoidEngine() {
           ctx.textAlign = 'center';
           ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
           ctx.fillText(c.name, sx + 1, sy + 1);
-          ctx.fillStyle = rgba(picked ? LIME : c.col, a);
+          ctx.fillStyle = rgba(mine || picked || celebrating ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (picked || scale > 2) {
+          if (mine || celebrating) {
+            ctx.font = '700 8px IBM Plex Mono';
+            ctx.fillStyle = rgba(LIME, 0.95);
+            ctx.fillText(celebrating ? '◆ CLAIMED' : '◆ YOURS', sx, sy + 12);
+            ctx.font = '7px IBM Plex Mono';
+            ctx.fillStyle = rgba(LIME, 0.75);
+            ctx.fillText(c.grains.length + '★', sx, sy + 22);
+          } else if (picked || scale > 2) {
             ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
             ctx.font = '7px IBM Plex Mono';
             ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);

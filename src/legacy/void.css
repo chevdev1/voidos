@@ -590,6 +590,31 @@ body.arena-live .cart-dock{
 .void-toast.show{
   opacity:1;transform:translateX(-50%) translateY(0);
 }
+.void-toast.claim{
+  padding:14px 18px 16px;
+  border-color:rgba(204,255,0,.75);
+  box-shadow:0 0 0 1px rgba(204,255,0,.15), 0 0 40px rgba(204,255,0,.18);
+  background:linear-gradient(180deg, rgba(20,28,0,.96), rgba(4,6,0,.98));
+}
+.void-toast.claim b{
+  display:block;
+  font-size:11px;
+  letter-spacing:.28em;
+  margin-bottom:6px;
+  color:#ccff00;
+}
+.void-toast.claim span{
+  display:block;
+  font-size:13px;
+  color:#e8ff8a;
+  margin-bottom:4px;
+}
+.void-toast.claim em{
+  display:block;
+  font-style:normal;
+  font-size:11px;
+  color:rgba(204,255,0,.7);
+}
 .mind-chat{
   position:fixed;inset:0;z-index:140;
   display:flex;align-items:flex-end;justify-content:center;
