@@ -1,12 +1,10 @@
 /**
- * Full-map lot book: every constellation lot priced so all lots sum to $1,000,000.
+ * Full-map lot book: every constellation lot priced so the 200 lots sum to $1,000,000.
  * Weights: closer to core = more expensive; rarer kinds get a mild bump; then renormalize.
  */
 
-import { TOTAL_MAP_LOTS, lotDefMeta } from './mapLayout.js'
-
 export const TOTAL_LOT_BOOK_USD = 1_000_000
-export const TOTAL_PRICED_LOTS = TOTAL_MAP_LOTS
+export const TOTAL_PRICED_LOTS = 200
 
 /** Matches voidEngine CONSTEL_DEFS figure → LOT_KINDS index. */
 const KIND_MUL = [
@@ -18,9 +16,28 @@ const KIND_MUL = [
   1.55, // Halo — scarce
 ]
 
+function clamp(v, a, b) {
+  return Math.max(a, Math.min(b, v))
+}
+
+/** Same radial/figure layout as voidEngine CONSTEL_DEFS (ids c0…c199). */
+export function lotDefMeta(index) {
+  const n = Number(index) | 0
+  const arms = 4
+  const perArm = 50
+  const arm = Math.floor(n / perArm) % arms
+  const k = n % perArm
+  const u = clamp(0.04 + k * (0.94 / (perArm - 1)) + (((arm * 5 + k * 3) % 7) - 3) * 0.006, 0.03, 0.97)
+  const figure = n % 6
+  return { id: 'c' + n, index: n, arm, u, figure }
+}
+
 function weightFor(meta) {
+  // u ~ 0 at core side of arm param… in engine, smaller u is closer to core start of spiral.
+  // Core proximity: 1 at center, 0 at rim.
   const core = Math.pow(1 - meta.u, 1.65)
   const kind = KIND_MUL[meta.figure] || 1
+  // Floor so far-rim lots stay buyable (~few k), not dust.
   return (0.22 + core * 1.78) * kind
 }
 
@@ -74,8 +91,6 @@ export function getLotUsd(lotId) {
   return b.min
 }
 
-export { lotDefMeta } from './mapLayout.js'
-
 export function lotBookStats() {
   const b = book()
   return {
@@ -105,7 +120,7 @@ export function applyLotBookToConstels(constels) {
     if (!grains.length) continue
     let wSum = 0
     const ws = grains.map((s) => {
-      const core = 1 - Math.max(0, Math.min(1, Number(s.u) || 0.5))
+      const core = 1 - clamp(Number(s.u) || 0.5, 0, 1)
       const mass = Math.max(1, Number(s.size) || 1)
       const w = mass * (0.45 + Math.pow(core, 1.4))
       wSum += w
@@ -121,7 +136,7 @@ export function applyLotBookToConstels(constels) {
       if (i === grains.length - 1) {
         grains[i].usd = Math.max(0, lotUsd - assigned)
       } else {
-        const slice = Math.round((ws[i] / wSum) * lotUsd * 100) / 100
+        const slice = Math.round(((ws[i] / wSum) * lotUsd) * 100) / 100
         grains[i].usd = slice
         assigned += slice
       }

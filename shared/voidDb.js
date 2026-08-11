@@ -195,9 +195,8 @@ export async function listOwnerships(userId) {
   )
 }
 
-import { TOTAL_MAP_LOTS } from './mapLayout.js'
-
-export { TOTAL_MAP_LOTS }
+/** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */
+export const TOTAL_MAP_LOTS = 200
 
 /**
  * Claim lots for a user. One constel_id → one owner worldwide.

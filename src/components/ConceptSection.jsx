@@ -66,7 +66,7 @@ export function ConceptSection() {
       >
         <span className="mb-3 block text-[11px] tracking-[0.2em] text-lime/70">THE LORE</span>
         <h2 className="font-display text-3xl font-extrabold tracking-tight text-ink sm:text-4xl">
-          One probe. <span className="text-lime">10,000 lots</span> pulling on it.
+          One probe. <span className="text-lime">50,000 minds</span> pulling on it.
         </h2>
       </motion.div>
 
@@ -80,21 +80,21 @@ export function ConceptSection() {
         <CardShell tag="01 / OVERVIEW" title="What is this?" float={0} className="md:col-span-4 md:row-span-2">
           <p>
             ExoMind is a singular autonomous AI probe, its mind divided into{' '}
-            <b className="text-ink">10,000 constellation lots</b> across the spiral map.
-            Claiming a lot gives you eternal control of that sector and the right to train that part of the Mind.
+            <b className="text-ink">50,000 sectors</b> across <b className="text-ink">500 star systems</b>.
+            Buying a sector gives you the right to transmit data into that part of the Mind.
           </p>
           <p className="mt-4">
             There is no fixed script. The trajectory of the probe's personality drifts toward
-            whatever its owners feed it — collectively, lot by lot, signal by signal.
+            whatever its owners feed it — collectively, sector by sector, signal by signal.
           </p>
           <div className="mt-6 flex gap-6 border-t border-white/10 pt-5">
             <div>
-              <div className="font-display text-2xl font-extrabold text-lime">10,000</div>
-              <div className="text-[10px] tracking-wide text-muted-2">LOTS</div>
+              <div className="font-display text-2xl font-extrabold text-lime">50,000</div>
+              <div className="text-[10px] tracking-wide text-muted-2">SECTORS</div>
             </div>
             <div>
-              <div className="font-display text-2xl font-extrabold text-lime">$1M</div>
-              <div className="text-[10px] tracking-wide text-muted-2">MAP BOOK</div>
+              <div className="font-display text-2xl font-extrabold text-lime">500</div>
+              <div className="text-[10px] tracking-wide text-muted-2">STAR SYSTEMS</div>
             </div>
           </div>
         </CardShell>
