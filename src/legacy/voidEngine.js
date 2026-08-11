@@ -2461,7 +2461,7 @@ export function initVoidEngine() {
       }
 
       // Premium constellation figures (same silhouette as cabinet LotFigure).
-      // Draw every on-screen lot — shrink when crowded instead of hiding half.
+      // Soft astronomy stars — not UI plus-glyphs.
       {
         function strokeLink(a, b, col, alpha, w) {
           if (alpha < 0.04) return;
@@ -2474,34 +2474,70 @@ export function initVoidEngine() {
           ctx.stroke();
         }
 
-        /** Classic diamond sparkle — same language as LotFigure / cabinet. */
-        function diamondSpark(x, y, col, a, r) {
-          const rr = Math.max(1.8, r || 2.4);
-          if (a > 0.3) {
-            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 3);
-            grd.addColorStop(0, rgba(col, a * 0.32));
-            grd.addColorStop(1, rgba(col, 0));
-            ctx.fillStyle = grd;
-            ctx.beginPath();
-            ctx.arc(x, y, rr * 3, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = rgba([255, 255, 220], Math.min(1, a * 1.08));
-          ctx.fillRect(-rr * 0.3, -rr * 0.3, rr * 0.6, rr * 0.6);
-          ctx.fillStyle = rgba(col, a);
-          ctx.fillRect(-rr * 0.52, -rr * 0.52, rr * 1.04, rr * 1.04);
-          ctx.restore();
-          ctx.strokeStyle = rgba(col, a * 0.9);
-          ctx.lineWidth = Math.max(0.85, rr * 0.28);
+        /**
+         * Beautiful star: soft bloom + bright core + thin diffraction spikes.
+         * Reads as a real sky sparkle, not a neon + stamp.
+         */
+        function prettyStar(x, y, col, a, r, twinkle) {
+          const rr = Math.max(1.4, r || 2);
+          const tw = twinkle == null ? 1 : twinkle;
+          const glowR = rr * (3.8 + tw * 0.6);
+          const bloom = ctx.createRadialGradient(x, y, 0, x, y, glowR);
+          bloom.addColorStop(0, rgba([255, 255, 235], a * 0.55 * tw));
+          bloom.addColorStop(0.18, rgba(col, a * 0.42 * tw));
+          bloom.addColorStop(0.5, rgba(col, a * 0.12));
+          bloom.addColorStop(1, rgba(col, 0));
+          ctx.fillStyle = bloom;
           ctx.beginPath();
-          ctx.moveTo(x - rr * 1.55, y);
-          ctx.lineTo(x + rr * 1.55, y);
-          ctx.moveTo(x, y - rr * 1.55);
-          ctx.lineTo(x, y + rr * 1.55);
-          ctx.stroke();
+          ctx.arc(x, y, glowR, 0, Math.PI * 2);
+          ctx.fill();
+
+          // soft diffraction spikes (astronomy look) — only brighter stars
+          if (rr > 1.9 && a > 0.45) {
+            const spike = rr * (2.8 + tw * 1.2);
+            const spikeA = a * 0.35 * tw;
+            const g1 = ctx.createLinearGradient(x - spike, y, x + spike, y);
+            g1.addColorStop(0, rgba(col, 0));
+            g1.addColorStop(0.5, rgba([255, 255, 220], spikeA));
+            g1.addColorStop(1, rgba(col, 0));
+            ctx.strokeStyle = g1;
+            ctx.lineWidth = Math.max(0.55, rr * 0.18);
+            ctx.beginPath();
+            ctx.moveTo(x - spike, y);
+            ctx.lineTo(x + spike, y);
+            ctx.stroke();
+            const g2 = ctx.createLinearGradient(x, y - spike, x, y + spike);
+            g2.addColorStop(0, rgba(col, 0));
+            g2.addColorStop(0.5, rgba([255, 255, 220], spikeA));
+            g2.addColorStop(1, rgba(col, 0));
+            ctx.strokeStyle = g2;
+            ctx.beginPath();
+            ctx.moveTo(x, y - spike);
+            ctx.lineTo(x, y + spike);
+            ctx.stroke();
+            // faint diagonal sparkle
+            if (rr > 2.4) {
+              const d = spike * 0.55;
+              ctx.strokeStyle = rgba(col, spikeA * 0.35);
+              ctx.lineWidth = 0.45;
+              ctx.beginPath();
+              ctx.moveTo(x - d, y - d);
+              ctx.lineTo(x + d, y + d);
+              ctx.moveTo(x - d, y + d);
+              ctx.lineTo(x + d, y - d);
+              ctx.stroke();
+            }
+          }
+
+          // warm core
+          ctx.fillStyle = rgba([255, 255, 245], Math.min(1, a * 1.05));
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(0.7, rr * 0.38), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = rgba(col, a);
+          ctx.beginPath();
+          ctx.arc(x, y, Math.max(1.0, rr * 0.62), 0, Math.PI * 2);
+          ctx.fill();
         }
 
         const viewCx = W * 0.5;
@@ -2528,23 +2564,21 @@ export function initVoidEngine() {
             dist2;
           scored.push({ c, picked, mine, celebrating, hot, hx, hy, priority, dist2 });
         }
-        // Far ones first, then bright/hot on top
         scored.sort((a, b) => a.priority - b.priority);
 
         const placed = [];
-        const crowdRef = scale < 1.15 ? 26 : scale < 1.8 ? 32 : 40;
+        const crowdRef = scale < 1.15 ? 28 : scale < 1.8 ? 34 : 42;
 
         for (const item of scored) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
           const forced = picked || mine || celebrating || c.hover > 0.15;
 
-          // Shrink when neighbors are close — never drop a lot just for density
           let figMul = 1;
           if (!forced) {
             for (const p of placed) {
               const d = Math.hypot(p.x - hx, p.y - hy);
               if (d < crowdRef) {
-                figMul = Math.min(figMul, 0.42 + (d / crowdRef) * 0.58);
+                figMul = Math.min(figMul, 0.45 + (d / crowdRef) * 0.55);
               }
             }
           }
@@ -2555,46 +2589,51 @@ export function initVoidEngine() {
           const baseScale =
             g.R *
             scale *
-            (forced ? 0.085 : scale < 1.15 ? 0.058 : scale < 2 ? 0.068 : 0.078);
-          const figScale = clamp(baseScale * figMul, forced ? 24 : 14, forced ? 72 : 56);
+            (forced ? 0.088 : scale < 1.15 ? 0.06 : scale < 2 ? 0.07 : 0.08);
+          const figScale = clamp(baseScale * figMul, forced ? 26 : 15, forced ? 74 : 58);
 
-          const stars = profile.stars.map((s) => ({
-            sx: hx + s.x * figScale,
-            sy: hy - s.y * figScale,
-            r: Math.max(
-              2.0,
-              (s.r || 1.6) * (forced ? 1.45 : scale < 1.4 ? 1.05 : 1.25) * Math.max(0.75, figMul),
-            ),
-          }));
+          const stars = profile.stars.map((s, i) => {
+            const mag = 0.75 + ((s.r || 1.6) / 3.2) * 0.55;
+            return {
+              sx: hx + s.x * figScale,
+              sy: hy - s.y * figScale,
+              r: Math.max(
+                1.5,
+                mag * (forced ? 2.4 : scale < 1.4 ? 1.7 : 2.05) * Math.max(0.7, figMul),
+              ),
+              mag,
+              ph: i * 1.7 + c.a0,
+            };
+          });
           if (stars.length < 2) continue;
 
           placed.push({ x: hx, y: hy });
 
           const pulse =
             mine || celebrating
-              ? 0.88 + 0.12 * Math.sin(t * 2.2 + c.a0 * 3)
-              : 0.94 + 0.06 * Math.sin(t * 1.2 + c.a0 * 2);
+              ? 0.9 + 0.1 * Math.sin(t * 2.0 + c.a0 * 3)
+              : 0.96 + 0.04 * Math.sin(t * 1.0 + c.a0 * 2);
           const lineA =
-            (forced ? 0.85 : hot ? 0.62 : scale < 1.2 ? 0.52 : 0.58) * pulse;
+            (forced ? 0.55 : hot ? 0.38 : scale < 1.2 ? 0.28 : 0.34) * pulse;
           const starA =
-            (forced ? 1 : hot ? 0.92 : scale < 1.2 ? 0.8 : 0.88) * pulse;
-          const strokeCol = mine || picked || celebrating ? LIME : c.col;
-          const lineW = celebrating
-            ? 2.1
-            : mine || picked
-              ? 1.7
-              : hot
-                ? 1.4
-                : 1.15;
+            (forced ? 1 : hot ? 0.9 : scale < 1.2 ? 0.78 : 0.86) * pulse;
+          // warmer / cooler tint per lot so arms aren't one flat neon
+          const strokeCol = mine || picked || celebrating
+            ? LIME
+            : [
+                Math.min(255, c.col[0] + 20),
+                Math.min(255, c.col[1] + 10),
+                Math.min(120, c.col[2] + 15),
+              ];
+          const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.0 : 0.75;
 
-          // soft plate under figure
-          {
-            const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.9);
-            plate.addColorStop(0, rgba(strokeCol, forced ? 0.14 : 0.07));
+          if (forced) {
+            const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.95);
+            plate.addColorStop(0, rgba(strokeCol, 0.1));
             plate.addColorStop(1, rgba(strokeCol, 0));
             ctx.fillStyle = plate;
             ctx.beginPath();
-            ctx.arc(hx, hy, figScale * 0.9, 0, Math.PI * 2);
+            ctx.arc(hx, hy, figScale * 0.95, 0, Math.PI * 2);
             ctx.fill();
           }
 
@@ -2603,7 +2642,7 @@ export function initVoidEngine() {
             const a = stars[ai];
             const b = stars[bi];
             if (!a || !b) continue;
-            strokeLink(a, b, strokeCol, lineA * 0.3, lineW + 2.4);
+            strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
             strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
@@ -2611,7 +2650,7 @@ export function initVoidEngine() {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
             const rad = (celebrating ? 56 : 40) + boom * 18;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
-            halo.addColorStop(0, 'rgba(204,255,0,' + (celebrating ? 0.22 : 0.12) + ')');
+            halo.addColorStop(0, 'rgba(204,255,0,' + (celebrating ? 0.2 : 0.1) + ')');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
@@ -2619,8 +2658,12 @@ export function initVoidEngine() {
             ctx.fill();
           }
 
-          for (const p of stars) {
-            diamondSpark(p.sx, p.sy, strokeCol, starA, p.r);
+          // draw dim stars first, bright last
+          const order = stars.map((_, i) => i).sort((i, j) => stars[i].mag - stars[j].mag);
+          for (const i of order) {
+            const p = stars[i];
+            const tw = 0.88 + 0.12 * Math.sin(t * 2.4 + p.ph);
+            prettyStar(p.sx, p.sy, strokeCol, starA * (0.7 + p.mag * 0.35), p.r, tw);
           }
         }
       }

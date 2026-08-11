@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { buildLotProfile } from '../../shared/lotLore.js'
 
 /**
- * Classic diamond sparkles + kind silhouette (same geometry as map figure overlay).
+ * Soft astronomy sparkles + kind silhouette (same geometry as map).
  */
 export function LotFigure({
   lot,
@@ -95,12 +95,20 @@ export function LotFigure({
       ptsRef.current = pts
       const order = pts.map((_, i) => i).sort((a, b) => pts[a].z - pts[b].z)
 
-      // solid constellation links (same language as map)
+      // soft constellation links
       ctx.setLineDash([])
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-      ctx.lineWidth = Math.max(1.2, w / 200)
-      ctx.strokeStyle = 'rgba(204,255,0,0.5)'
+      ctx.lineWidth = Math.max(1.1, w / 220)
+      ctx.strokeStyle = 'rgba(204,255,0,0.28)'
+      ctx.beginPath()
+      for (const [a, b] of profile.edges) {
+        ctx.moveTo(pts[a].x, pts[a].y)
+        ctx.lineTo(pts[b].x, pts[b].y)
+      }
+      ctx.stroke()
+      ctx.lineWidth = Math.max(0.9, w / 260)
+      ctx.strokeStyle = 'rgba(204,255,0,0.55)'
       ctx.beginPath()
       for (const [a, b] of profile.edges) {
         ctx.moveTo(pts[a].x, pts[a].y)
@@ -111,34 +119,52 @@ export function LotFigure({
       for (const i of order) {
         const p = pts[i]
         const sel = selectedStar === i
-        const tick = animate ? 1 + Math.sin(t * 2.4 + i * 0.9) * 0.08 : 1
-        const r = Math.max(2.2, p.r * tick)
+        const tick = animate ? 1 + Math.sin(t * 2.4 + i * 0.9) * 0.1 : 1
+        const r = Math.max(2.4, p.r * tick)
+        const a = sel ? 1 : 0.92
 
-        // soft halo under spark
-        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6)
-        grd.addColorStop(0, sel ? 'rgba(245,255,154,0.28)' : 'rgba(204,255,0,0.18)')
-        grd.addColorStop(1, 'rgba(204,255,0,0)')
-        ctx.fillStyle = grd
+        // soft astronomy bloom
+        const glowR = r * 3.6
+        const bloom = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, glowR)
+        bloom.addColorStop(0, sel ? 'rgba(255,255,220,0.55)' : 'rgba(255,255,235,0.4)')
+        bloom.addColorStop(0.2, sel ? 'rgba(245,255,154,0.35)' : 'rgba(204,255,0,0.28)')
+        bloom.addColorStop(0.55, 'rgba(204,255,0,0.08)')
+        bloom.addColorStop(1, 'rgba(204,255,0,0)')
+        ctx.fillStyle = bloom
         ctx.beginPath()
-        ctx.arc(p.x, p.y, r * 2.6, 0, Math.PI * 2)
+        ctx.arc(p.x, p.y, glowR, 0, Math.PI * 2)
         ctx.fill()
 
-        // classic hard diamond + cross sparkle
-        ctx.save()
-        ctx.translate(p.x, p.y)
-        ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = sel ? '#f5ff9a' : '#ccff00'
-        ctx.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
-        ctx.restore()
-
+        // thin fading spikes
+        const spike = r * 2.6
+        const g1 = ctx.createLinearGradient(p.x - spike, p.y, p.x + spike, p.y)
+        g1.addColorStop(0, 'rgba(204,255,0,0)')
+        g1.addColorStop(0.5, sel ? 'rgba(245,255,154,0.55)' : 'rgba(255,255,220,0.4)')
+        g1.addColorStop(1, 'rgba(204,255,0,0)')
+        ctx.strokeStyle = g1
+        ctx.lineWidth = Math.max(0.7, r * 0.16)
         ctx.beginPath()
-        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.95)' : 'rgba(204,255,0,0.8)'
-        ctx.lineWidth = sel ? 1.5 : 1.1
-        ctx.moveTo(p.x - r * 1.4, p.y)
-        ctx.lineTo(p.x + r * 1.4, p.y)
-        ctx.moveTo(p.x, p.y - r * 1.4)
-        ctx.lineTo(p.x, p.y + r * 1.4)
+        ctx.moveTo(p.x - spike, p.y)
+        ctx.lineTo(p.x + spike, p.y)
         ctx.stroke()
+        const g2 = ctx.createLinearGradient(p.x, p.y - spike, p.x, p.y + spike)
+        g2.addColorStop(0, 'rgba(204,255,0,0)')
+        g2.addColorStop(0.5, sel ? 'rgba(245,255,154,0.55)' : 'rgba(255,255,220,0.4)')
+        g2.addColorStop(1, 'rgba(204,255,0,0)')
+        ctx.strokeStyle = g2
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y - spike)
+        ctx.lineTo(p.x, p.y + spike)
+        ctx.stroke()
+
+        ctx.fillStyle = sel ? '#fffef0' : 'rgba(255,255,245,0.95)'
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r * 0.4, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.fillStyle = sel ? '#f5ff9a' : 'rgba(204,255,0,' + a + ')'
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r * 0.65, 0, Math.PI * 2)
+        ctx.fill()
 
         if (sel || showLabels) {
           const label = `★${i + 1}`
