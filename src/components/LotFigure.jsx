@@ -100,7 +100,7 @@ export function LotFigure({
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.lineWidth = Math.max(1.2, w / 200)
-      ctx.strokeStyle = 'rgba(204,255,0,0.38)'
+      ctx.strokeStyle = 'rgba(204,255,0,0.5)'
       ctx.beginPath()
       for (const [a, b] of profile.edges) {
         ctx.moveTo(pts[a].x, pts[a].y)
@@ -112,23 +112,32 @@ export function LotFigure({
         const p = pts[i]
         const sel = selectedStar === i
         const tick = animate ? 1 + Math.sin(t * 2.4 + i * 0.9) * 0.08 : 1
-        const r = Math.max(2, p.r * tick)
+        const r = Math.max(2.2, p.r * tick)
+
+        // soft halo under spark
+        const grd = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 2.6)
+        grd.addColorStop(0, sel ? 'rgba(245,255,154,0.28)' : 'rgba(204,255,0,0.18)')
+        grd.addColorStop(1, 'rgba(204,255,0,0)')
+        ctx.fillStyle = grd
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r * 2.6, 0, Math.PI * 2)
+        ctx.fill()
 
         // classic hard diamond + cross sparkle
         ctx.save()
         ctx.translate(p.x, p.y)
         ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = sel ? '#f5ff9a' : 'rgba(204,255,0,0.82)'
+        ctx.fillStyle = sel ? '#f5ff9a' : '#ccff00'
         ctx.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
         ctx.restore()
 
         ctx.beginPath()
-        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.9)' : 'rgba(204,255,0,0.55)'
-        ctx.lineWidth = sel ? 1.5 : 1
-        ctx.moveTo(p.x - r * 1.35, p.y)
-        ctx.lineTo(p.x + r * 1.35, p.y)
-        ctx.moveTo(p.x, p.y - r * 1.35)
-        ctx.lineTo(p.x, p.y + r * 1.35)
+        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.95)' : 'rgba(204,255,0,0.8)'
+        ctx.lineWidth = sel ? 1.5 : 1.1
+        ctx.moveTo(p.x - r * 1.4, p.y)
+        ctx.lineTo(p.x + r * 1.4, p.y)
+        ctx.moveTo(p.x, p.y - r * 1.4)
+        ctx.lineTo(p.x, p.y + r * 1.4)
         ctx.stroke()
 
         if (sel || showLabels) {

@@ -2460,26 +2460,26 @@ export function initVoidEngine() {
         }
       }
 
-      // Real sky constellations from each lot's grain positions (not glyph stamps).
-      // Hard budget + MST links so arms stay readable like a star chart.
+      // Premium constellation figures (same silhouette as cabinet LotFigure).
+      // Budget + spacing so they read as buyable sky-art, not a glyph carpet.
       {
         const budget =
           quality === 'low'
             ? scale < 1.2
-              ? 10
-              : 16
-            : scale < 0.95
-              ? 12
-              : scale < 1.3
-                ? 18
-                : scale < 1.9
-                  ? 28
-                  : scale < 2.8
-                    ? 42
-                    : 70;
+              ? 14
+              : 22
+            : scale < 1.0
+              ? 16
+              : scale < 1.5
+                ? 24
+                : scale < 2.3
+                  ? 36
+                  : scale < 3.5
+                    ? 52
+                    : 80;
 
         function strokeLink(a, b, col, alpha, w) {
-          if (alpha < 0.03) return;
+          if (alpha < 0.04) return;
           ctx.strokeStyle = rgba(col, alpha);
           ctx.lineWidth = w;
           ctx.lineCap = 'round';
@@ -2489,103 +2489,34 @@ export function initVoidEngine() {
           ctx.stroke();
         }
 
-        function skyStar(x, y, col, a, r) {
-          const rr = Math.max(0.7, r);
-          if (rr > 1.4 && a > 0.4) {
-            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 2.2);
-            grd.addColorStop(0, rgba(col, a * 0.35));
+        /** Classic diamond sparkle — same language as LotFigure / cabinet. */
+        function diamondSpark(x, y, col, a, r) {
+          const rr = Math.max(1.6, r || 2.2);
+          if (a > 0.35) {
+            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 2.8);
+            grd.addColorStop(0, rgba(col, a * 0.28));
             grd.addColorStop(1, rgba(col, 0));
             ctx.fillStyle = grd;
             ctx.beginPath();
-            ctx.arc(x, y, rr * 2.2, 0, Math.PI * 2);
+            ctx.arc(x, y, rr * 2.8, 0, Math.PI * 2);
             ctx.fill();
           }
-          ctx.fillStyle = rgba([255, 255, 230], Math.min(1, a * 1.05));
-          ctx.beginPath();
-          ctx.arc(x, y, rr * 0.45, 0, Math.PI * 2);
-          ctx.fill();
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = rgba([255, 255, 210], Math.min(1, a * 1.05));
+          ctx.fillRect(-rr * 0.28, -rr * 0.28, rr * 0.56, rr * 0.56);
           ctx.fillStyle = rgba(col, a);
+          ctx.fillRect(-rr * 0.48, -rr * 0.48, rr * 0.96, rr * 0.96);
+          ctx.restore();
+          ctx.strokeStyle = rgba(col, a * 0.85);
+          ctx.lineWidth = Math.max(0.7, rr * 0.22);
           ctx.beginPath();
-          ctx.arc(x, y, rr * 0.85, 0, Math.PI * 2);
-          ctx.fill();
-          if (a > 0.55 && rr > 1.6) {
-            ctx.strokeStyle = rgba(col, a * 0.4);
-            ctx.lineWidth = 0.5;
-            ctx.beginPath();
-            ctx.moveTo(x - rr * 1.6, y);
-            ctx.lineTo(x + rr * 1.6, y);
-            ctx.moveTo(x, y - rr * 1.6);
-            ctx.lineTo(x, y + rr * 1.6);
-            ctx.stroke();
-          }
-        }
-
-        function mstPairs(pts) {
-          const n = pts.length;
-          if (n < 2) return [];
-          const used = new Array(n).fill(false);
-          used[0] = true;
-          const edges = [];
-          for (let k = 1; k < n; k++) {
-            let bi = -1,
-              bj = -1,
-              bd = 1e15;
-            for (let i = 0; i < n; i++) {
-              if (!used[i]) continue;
-              for (let j = 0; j < n; j++) {
-                if (used[j]) continue;
-                const dx = pts[i].sx - pts[j].sx;
-                const dy = pts[i].sy - pts[j].sy;
-                const d = dx * dx + dy * dy;
-                if (d < bd) {
-                  bd = d;
-                  bi = i;
-                  bj = j;
-                }
-              }
-            }
-            if (bj < 0) break;
-            used[bj] = true;
-            edges.push([bi, bj]);
-          }
-          return edges;
-        }
-
-        /** Pick 3–7 grains with spatial spread → unique asterism per lot. */
-        function asterismStars(c) {
-          const grains = c.grains || [];
-          if (grains.length < 2) return null;
-          const ranked = grains.slice().sort((a, b) => (b.size || 0) - (a.size || 0));
-          const want = Math.min(ranked.length, 3 + ((String(c.id).charCodeAt(1) || 0) % 5));
-          const chosen = [];
-          for (const s of ranked) {
-            if (chosen.length >= want) break;
-            const pr = sectorProj(s, g);
-            let [sx, sy] = w2s(pr.x, pr.y);
-            const L = lensPoint(sx, sy);
-            if (L[2]) continue;
-            sx = L[0];
-            sy = L[1];
-            if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
-            let ok = true;
-            const minSep = scale < 1.5 ? 3.5 : 5.5;
-            for (const p of chosen) {
-              if (Math.hypot(p.sx - sx, p.sy - sy) < minSep) {
-                ok = false;
-                break;
-              }
-            }
-            if (!ok && chosen.length >= 3) continue;
-            const mag = 0.55 + Math.min(1.4, (s.viz || 2) / 4.2);
-            chosen.push({
-              sx,
-              sy,
-              r: mag * (scale < 1.2 ? 0.85 : scale < 2.2 ? 1.05 : 1.25),
-              bright: mag,
-            });
-          }
-          if (chosen.length < 2) return null;
-          return chosen;
+          ctx.moveTo(x - rr * 1.45, y);
+          ctx.lineTo(x + rr * 1.45, y);
+          ctx.moveTo(x, y - rr * 1.45);
+          ctx.lineTo(x, y + rr * 1.45);
+          ctx.stroke();
         }
 
         const viewCx = W * 0.5;
@@ -2601,61 +2532,105 @@ export function initVoidEngine() {
           if (!constelVisible(c) && !picked && !mine && !celebrating) continue;
           const center = constelWorld(c, g);
           const [hx, hy] = w2s(center.x, center.y);
-          if (hx < -80 || hy < -80 || hx > W + 80 || hy > H + 80) continue;
+          if (hx < -90 || hy < -90 || hx > W + 90 || hy > H + 90) continue;
           const dist2 = (hx - viewCx) ** 2 + (hy - viewCy) ** 2;
-          const hot = picked || mine || celebrating || c.hover > 0.12;
+          const hot = picked || mine || celebrating || c.hover > 0.1;
           const priority =
             (celebrating ? 1e12 : 0) +
             (picked ? 1e11 : 0) +
             (mine ? 1e10 : 0) +
             (hot ? 1e8 : 0) -
             dist2;
-          scored.push({ c, picked, mine, celebrating, hot, hx, hy, priority });
+          scored.push({ c, picked, mine, celebrating, hot, hx, hy, priority, dist2 });
         }
         scored.sort((a, b) => b.priority - a.priority);
 
+        const placed = [];
         let drawn = 0;
+        const minGap = scale < 1.2 ? 38 : scale < 2 ? 44 : 52;
+
         for (const item of scored) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
-          const forced = picked || mine || celebrating || c.hover > 0.2;
+          const forced = picked || mine || celebrating || c.hover > 0.18;
           if (!forced && drawn >= budget) continue;
 
-          const stars = asterismStars(c);
-          if (!stars) continue;
-          if (!forced) drawn++;
+          // Keep figures from stacking into mush
+          if (!forced) {
+            let clash = false;
+            for (const p of placed) {
+              if (Math.hypot(p.x - hx, p.y - hy) < minGap) {
+                clash = true;
+                break;
+              }
+            }
+            if (clash) continue;
+          }
+
+          const profile = figureForConstel(c);
+          if (!profile?.stars?.length) continue;
+
+          const figScale = clamp(
+            g.R *
+              scale *
+              (forced ? 0.072 : scale < 1.2 ? 0.048 : scale < 2 ? 0.055 : 0.062),
+            forced ? 22 : 16,
+            forced ? 64 : 48,
+          );
+
+          const stars = profile.stars.map((s) => ({
+            sx: hx + s.x * figScale,
+            sy: hy - s.y * figScale,
+            r: Math.max(
+              1.8,
+              (s.r || 1.6) * (forced ? 1.35 : scale < 1.4 ? 0.95 : 1.15),
+            ),
+          }));
+          if (stars.length < 2) continue;
+
+          if (!forced) {
+            drawn++;
+            placed.push({ x: hx, y: hy });
+          }
 
           const pulse =
             mine || celebrating
-              ? 0.9 + 0.1 * Math.sin(t * 2.0 + c.a0 * 3)
-              : 0.97 + 0.03 * Math.sin(t * 0.8 + c.a0);
-          const lineA = (forced ? 0.42 : hot ? 0.22 : scale < 1.2 ? 0.08 : 0.12) * pulse;
-          const starA = (forced ? 0.95 : hot ? 0.7 : scale < 1.2 ? 0.45 : 0.58) * pulse;
+              ? 0.88 + 0.12 * Math.sin(t * 2.2 + c.a0 * 3)
+              : 0.94 + 0.06 * Math.sin(t * 1.2 + c.a0 * 2);
+          const lineA =
+            (forced ? 0.72 : hot ? 0.48 : scale < 1.2 ? 0.38 : 0.45) * pulse;
+          const starA =
+            (forced ? 1 : hot ? 0.88 : scale < 1.2 ? 0.72 : 0.82) * pulse;
           const strokeCol = mine || picked || celebrating ? LIME : c.col;
-          const lineW = celebrating ? 1.1 : mine || picked ? 0.85 : 0.4;
+          const lineW = celebrating ? 1.85 : mine || picked ? 1.45 : hot ? 1.15 : 0.95;
 
-          const edges = mstPairs(stars);
-          if (edges.length > 2 && !forced) {
-            const lens = edges.map(([i, j]) => {
-              const dx = stars[i].sx - stars[j].sx;
-              const dy = stars[i].sy - stars[j].sy;
-              return { i, j, d: dx * dx + dy * dy };
-            });
-            lens.sort((a, b) => a.d - b.d);
-            const keep = Math.max(2, Math.ceil(lens.length * 0.75));
-            for (let e = 0; e < keep; e++) {
-              strokeLink(stars[lens[e].i], stars[lens[e].j], strokeCol, lineA, lineW);
+          // soft plate under figure — premium, not neon soup
+          if (forced || scale > 1.1) {
+            const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.85);
+            plate.addColorStop(0, rgba(strokeCol, forced ? 0.12 : 0.05));
+            plate.addColorStop(1, rgba(strokeCol, 0));
+            ctx.fillStyle = plate;
+            ctx.beginPath();
+            ctx.arc(hx, hy, figScale * 0.85, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          const edges = profile.edges || [];
+          for (const [ai, bi] of edges) {
+            const a = stars[ai];
+            const b = stars[bi];
+            if (!a || !b) continue;
+            // faint outer glow stroke then crisp line
+            if (forced || hot) {
+              strokeLink(a, b, strokeCol, lineA * 0.25, lineW + 2.2);
             }
-          } else {
-            for (const [i, j] of edges) {
-              strokeLink(stars[i], stars[j], strokeCol, lineA, lineW);
-            }
+            strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
           if (picked || celebrating) {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
-            const rad = (celebrating ? 42 : 28) + boom * 14;
+            const rad = (celebrating ? 56 : 40) + boom * 18;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
-            halo.addColorStop(0, 'rgba(204,255,0,' + (celebrating ? 0.16 : 0.08) + ')');
+            halo.addColorStop(0, 'rgba(204,255,0,' + (celebrating ? 0.22 : 0.12) + ')');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
@@ -2664,7 +2639,7 @@ export function initVoidEngine() {
           }
 
           for (const p of stars) {
-            skyStar(p.sx, p.sy, strokeCol, starA * (0.75 + p.bright * 0.2), p.r);
+            diamondSpark(p.sx, p.sy, strokeCol, starA, p.r);
           }
         }
       }
