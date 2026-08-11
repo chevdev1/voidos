@@ -100,7 +100,7 @@ export function LotFigure({
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
       ctx.lineWidth = Math.max(1.2, w / 200)
-      ctx.strokeStyle = 'rgba(204,255,0,0.55)'
+      ctx.strokeStyle = 'rgba(204,255,0,0.38)'
       ctx.beginPath()
       for (const [a, b] of profile.edges) {
         ctx.moveTo(pts[a].x, pts[a].y)
@@ -118,12 +118,12 @@ export function LotFigure({
         ctx.save()
         ctx.translate(p.x, p.y)
         ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = sel ? '#f5ff9a' : '#ccff00'
+        ctx.fillStyle = sel ? '#f5ff9a' : 'rgba(204,255,0,0.82)'
         ctx.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
         ctx.restore()
 
         ctx.beginPath()
-        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.95)' : 'rgba(204,255,0,0.75)'
+        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.9)' : 'rgba(204,255,0,0.55)'
         ctx.lineWidth = sel ? 1.5 : 1
         ctx.moveTo(p.x - r * 1.35, p.y)
         ctx.lineTo(p.x + r * 1.35, p.y)

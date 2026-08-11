@@ -138,8 +138,9 @@ export function initVoidEngine() {
       'FOLD', 'REACH', 'DELTA', 'THRONE',
     ];
     function limeShade(i) {
+      // Softer olive→lime so idle lots don't scream
       const t = (i % 20) / 19;
-      return [Math.floor(100 + t * 155), Math.floor(150 + t * 105), Math.floor(15 + t * 55)];
+      return [Math.floor(78 + t * 110), Math.floor(118 + t * 95), Math.floor(22 + t * 38)];
     }
     /* dense constellation grid — ~200 across the disk */
     const CONSTEL_DEFS = [];
@@ -152,6 +153,8 @@ export function initVoidEngine() {
           const u = 0.04 + k * (0.94 / (perArm - 1)) + (((arm * 5 + k * 3) % 7) - 3) * 0.006;
           const name = NAME_A[n % NAME_A.length] + ' ' + NAME_B[(n * 5 + arm * 2) % NAME_B.length];
           const tag = n > NAME_A.length ? ' ' + (n + 1) : '';
+          // Scramble kinds along the arm so neighbors aren't the same silhouette
+          const figure = (n * 17 + arm * 11 + k * 5) % 6;
           CONSTEL_DEFS.push({
             id: 'c' + n,
             name: (name + tag).toUpperCase(),
@@ -159,7 +162,7 @@ export function initVoidEngine() {
             arm,
             u: clamp(u, 0.03, 0.97),
             spread: 0.22 + (n % 7) * 0.035,
-            figure: n % 6,
+            figure,
           });
           n++;
         }
@@ -169,14 +172,14 @@ export function initVoidEngine() {
     function colLerp(a, b, t) {
       return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
     }
-    /* milky-way lime: hot core → bright arms → faint olive rim */
+    /* milky-way lime: warm core → soft arms → faint olive rim (not neon slap) */
     function starColor(u) {
       u = clamp(u, 0, 1);
-      if (u < 0.08) return colLerp([255, 255, 245], [255, 245, 180], u / 0.08);
-      if (u < 0.28) return colLerp([240, 255, 140], [204, 255, 0], (u - 0.08) / 0.2);
-      if (u < 0.55) return colLerp([204, 255, 0], [160, 210, 40], (u - 0.28) / 0.27);
-      if (u < 0.8) return colLerp([130, 170, 50], [90, 120, 40], (u - 0.55) / 0.25);
-      return colLerp([70, 95, 30], [40, 55, 20], (u - 0.8) / 0.2);
+      if (u < 0.08) return colLerp([235, 235, 210], [220, 220, 150], u / 0.08);
+      if (u < 0.28) return colLerp([200, 220, 110], [170, 210, 50], (u - 0.08) / 0.2);
+      if (u < 0.55) return colLerp([160, 200, 45], [120, 160, 40], (u - 0.28) / 0.27);
+      if (u < 0.8) return colLerp([95, 130, 40], [65, 90, 32], (u - 0.55) / 0.25);
+      return colLerp([48, 65, 24], [28, 38, 16], (u - 0.8) / 0.2);
     }
     function rgba(c, a) {
       return `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
@@ -272,8 +275,8 @@ export function initVoidEngine() {
           rad: rnd(28, 70),
           stretch: rnd(1.6, 3.2),
           ang: a0 + Math.PI / 2,
-          col: u < 0.25 ? [255, 245, 180] : u < 0.55 ? [204, 255, 0] : [130, 175, 40],
-          a: rnd(0.04, 0.11),
+          col: u < 0.25 ? [230, 220, 160] : u < 0.55 ? [170, 210, 50] : [100, 140, 38],
+          a: rnd(0.025, 0.07),
           ph: rnd(0, 6.28),
           sp: rnd(0.15, 0.5),
         });
@@ -2150,8 +2153,8 @@ export function initVoidEngine() {
         const R = g.R * scale * 0.85;
         const flat = Math.max(0.08, Math.abs(Math.cos(viewPitch)) * 0.72 + 0.1);
         const hg = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, R * 1.25);
-        hg.addColorStop(0, rgba(LIME, 0.09));
-        hg.addColorStop(0.4, rgba([150, 190, 25], 0.04));
+        hg.addColorStop(0, rgba(LIME, 0.05));
+        hg.addColorStop(0.4, rgba([120, 155, 30], 0.025));
         hg.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = hg;
         ctx.beginPath();
@@ -2245,9 +2248,9 @@ export function initVoidEngine() {
           if (p.dust) col = colLerp(col, [8, 10, 6], 0.72);
           const tw = 0.6 + 0.4 * Math.sin(t * p.sp * 1.3 + p.ph);
           const depthFade = clamp(0.55 + pr.persp * 0.5, 0.35, 1.2);
-          let sz = Math.max(0.45, Math.min(2.0, p.br * pr.persp * 0.85 * tw));
-          if (p.u < 0.12) sz = Math.min(2.4, sz * 1.15);
-          const a = ((p.dust ? 0.1 : 0.38) + p.br * 0.22 * tw) * depthFade;
+          let sz = Math.max(0.5, Math.min(2.2, p.br * pr.persp * 0.95 * tw));
+          if (p.u < 0.12) sz = Math.min(2.6, sz * 1.2);
+          const a = ((p.dust ? 0.14 : 0.48) + p.br * 0.28 * tw) * depthFade;
           ctx.fillStyle = rgba(col, clamp(a, 0, 1));
           ctx.beginPath();
           ctx.arc(sx, sy, sz, 0, Math.PI * 2);
@@ -2369,8 +2372,12 @@ export function initVoidEngine() {
       }
 
       {
+        // Grains are lot mass dots — keep them quiet so the sky reads as stars,
+        // not a pile of neon discs. Full grain detail only when zoomed in.
+        const showGrains = scale > 2.8 || heatMode;
         const sectorStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
         const drawLabels = quality === 'high' && scale > 6;
+        if (showGrains) {
         for (let si = 0; si < g.sectors.length; si += sectorStep) {
           const s = g.sectors[si];
           if (!sectorVisible(s)) continue;
@@ -2381,7 +2388,7 @@ export function initVoidEngine() {
           sx = L[0];
           sy = L[1];
           if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
-          const grainR = s.viz || 2.1;
+          const grainR = Math.max(0.7, (s.viz || 2.1) * (scale < 2.5 ? 0.38 : scale < 4 ? 0.55 : 0.85));
           let col = s.cCol;
           if (heatMode) {
             // Live heat: trained yours > yours > reserved by others > free
@@ -2404,38 +2411,39 @@ export function initVoidEngine() {
           const mineGrain = yoursSet.has(s.id);
           const celebUntil = celebrateLots.get(String(s.constel || ''));
           const celebrating = celebUntil && performance.now() < celebUntil;
-          ctx.fillStyle = empty ? rgba([95, 105, 70], 0.75) : rgba(col, mineGrain ? 1 : 0.95);
+          ctx.fillStyle = empty ? rgba([70, 78, 52], 0.35) : rgba(col, mineGrain ? 0.75 : 0.28);
           ctx.beginPath();
-          ctx.arc(sx, sy, grainR * (mineGrain ? 1.08 : 1), 0, Math.PI * 2);
+          ctx.arc(sx, sy, grainR * (mineGrain ? 1.05 : 0.9), 0, Math.PI * 2);
           ctx.fill();
-          if (mineGrain && (celebrating || selected || s.hover > 0.2 || scale > 2.5)) {
+          if (mineGrain && (celebrating || selected || s.hover > 0.2 || scale > 3.2)) {
             const gp = celebrating ? 0.55 + 0.45 * Math.sin(t * 3.2 + s.id) : 0.35;
-            ctx.strokeStyle = rgba([204, 255, 0], 0.4 + gp * 0.35);
-            ctx.lineWidth = celebrating ? 2 : 1.2;
+            ctx.strokeStyle = rgba([204, 255, 0], 0.22 + gp * 0.25);
+            ctx.lineWidth = celebrating ? 1.6 : 1;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 2.8 + (celebrating ? gp * 2 : 0), 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + 2.2 + (celebrating ? gp * 2 : 0), 0, Math.PI * 2);
             ctx.stroke();
           }
-          if (s.tier === 'MEGA' || s.tier === 'LARGE') {
-            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.55 : 0.28);
-            ctx.lineWidth = s.tier === 'MEGA' ? 1.4 : 1;
+          // No MEGA rings at mid zoom — concentric rings read as glyphs, not stars
+          if (scale > 3.5 && (s.tier === 'MEGA' || s.tier === 'LARGE')) {
+            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.22 : 0.12);
+            ctx.lineWidth = 0.85;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 3.2 : 1.6), 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 2.2 : 1.1), 0, Math.PI * 2);
             ctx.stroke();
           }
           if (selected) {
             ctx.strokeStyle = inConstelSel && !selectedSet.has(s.id)
-              ? 'rgba(204,255,0,.7)'
-              : 'rgba(204,255,0,.95)';
-            ctx.lineWidth = inConstelSel ? 2 : 1.6;
+              ? 'rgba(204,255,0,.55)'
+              : 'rgba(204,255,0,.85)';
+            ctx.lineWidth = inConstelSel ? 1.6 : 1.3;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (inConstelSel ? 5 : 4), 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + (inConstelSel ? 4 : 3.2), 0, Math.PI * 2);
             ctx.stroke();
           } else if (s.hover > 0.2) {
-            ctx.strokeStyle = rgba(col, 0.75);
+            ctx.strokeStyle = rgba(col, 0.55);
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 2.5, 0, Math.PI * 2);
+            ctx.arc(sx, sy, grainR + 2.0, 0, Math.PI * 2);
             ctx.stroke();
           }
           if (drawLabels && (s.hover > 0.25 || selected || scale > 10 || s.tier === 'MEGA')) {
@@ -2449,30 +2457,70 @@ export function initVoidEngine() {
             }
           }
         }
+        }
       }
 
-      // Constellation = connected LINE figures (stripes), not just dots.
-      // Always draw — even on low quality — or the map reads as only points.
+      // Real sky constellations from each lot's grain positions (not glyph stamps).
+      // Hard budget + MST links so arms stay readable like a star chart.
       {
-        const vis = scale < 1.1 ? 0.7 : scale < 3 ? 0.95 : 1;
-        const maxStars = quality === 'low' ? 5 : quality === 'medium' ? 6 : 8;
-        const constelStep = quality === 'low' ? 2 : 1;
+        const budget =
+          quality === 'low'
+            ? scale < 1.2
+              ? 10
+              : 16
+            : scale < 0.95
+              ? 12
+              : scale < 1.3
+                ? 18
+                : scale < 1.9
+                  ? 28
+                  : scale < 2.8
+                    ? 42
+                    : 70;
 
-        function strokePath(pts, close, col, a, w) {
-          if (pts.length < 2) return;
-          ctx.strokeStyle = rgba(col, a);
+        function strokeLink(a, b, col, alpha, w) {
+          if (alpha < 0.03) return;
+          ctx.strokeStyle = rgba(col, alpha);
           ctx.lineWidth = w;
           ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
           ctx.beginPath();
-          ctx.moveTo(pts[0].sx, pts[0].sy);
-          for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].sx, pts[i].sy);
-          if (close) ctx.closePath();
+          ctx.moveTo(a.sx, a.sy);
+          ctx.lineTo(b.sx, b.sy);
           ctx.stroke();
         }
 
-        // Minimal spanning tree so every constellation reads as connected stripes
-        function mstEdges(pts) {
+        function skyStar(x, y, col, a, r) {
+          const rr = Math.max(0.7, r);
+          if (rr > 1.4 && a > 0.4) {
+            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 2.2);
+            grd.addColorStop(0, rgba(col, a * 0.35));
+            grd.addColorStop(1, rgba(col, 0));
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(x, y, rr * 2.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.fillStyle = rgba([255, 255, 230], Math.min(1, a * 1.05));
+          ctx.beginPath();
+          ctx.arc(x, y, rr * 0.45, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = rgba(col, a);
+          ctx.beginPath();
+          ctx.arc(x, y, rr * 0.85, 0, Math.PI * 2);
+          ctx.fill();
+          if (a > 0.55 && rr > 1.6) {
+            ctx.strokeStyle = rgba(col, a * 0.4);
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(x - rr * 1.6, y);
+            ctx.lineTo(x + rr * 1.6, y);
+            ctx.moveTo(x, y - rr * 1.6);
+            ctx.lineTo(x, y + rr * 1.6);
+            ctx.stroke();
+          }
+        }
+
+        function mstPairs(pts) {
           const n = pts.length;
           if (n < 2) return [];
           const used = new Array(n).fill(false);
@@ -2486,9 +2534,9 @@ export function initVoidEngine() {
               if (!used[i]) continue;
               for (let j = 0; j < n; j++) {
                 if (used[j]) continue;
-                const d =
-                  (pts[i].sx - pts[j].sx) * (pts[i].sx - pts[j].sx) +
-                  (pts[i].sy - pts[j].sy) * (pts[i].sy - pts[j].sy);
+                const dx = pts[i].sx - pts[j].sx;
+                const dy = pts[i].sy - pts[j].sy;
+                const d = dx * dx + dy * dy;
                 if (d < bd) {
                   bd = d;
                   bi = i;
@@ -2498,29 +2546,51 @@ export function initVoidEngine() {
             }
             if (bj < 0) break;
             used[bj] = true;
-            edges.push([pts[bi], pts[bj]]);
+            edges.push([bi, bj]);
           }
           return edges;
         }
 
-        function diamondSpark(x, y, col, a, r) {
-          const rr = Math.max(2.2, r || 2.4);
-          ctx.save();
-          ctx.translate(x, y);
-          ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = rgba(col, a);
-          ctx.fillRect(-rr * 0.45, -rr * 0.45, rr * 0.9, rr * 0.9);
-          ctx.restore();
-          ctx.strokeStyle = rgba(col, a * 0.9);
-          ctx.lineWidth = 0.9;
-          ctx.beginPath();
-          ctx.moveTo(x - rr * 1.25, y);
-          ctx.lineTo(x + rr * 1.25, y);
-          ctx.moveTo(x, y - rr * 1.25);
-          ctx.lineTo(x, y + rr * 1.25);
-          ctx.stroke();
+        /** Pick 3–7 grains with spatial spread → unique asterism per lot. */
+        function asterismStars(c) {
+          const grains = c.grains || [];
+          if (grains.length < 2) return null;
+          const ranked = grains.slice().sort((a, b) => (b.size || 0) - (a.size || 0));
+          const want = Math.min(ranked.length, 3 + ((String(c.id).charCodeAt(1) || 0) % 5));
+          const chosen = [];
+          for (const s of ranked) {
+            if (chosen.length >= want) break;
+            const pr = sectorProj(s, g);
+            let [sx, sy] = w2s(pr.x, pr.y);
+            const L = lensPoint(sx, sy);
+            if (L[2]) continue;
+            sx = L[0];
+            sy = L[1];
+            if (sx < -40 || sy < -40 || sx > W + 40 || sy > H + 40) continue;
+            let ok = true;
+            const minSep = scale < 1.5 ? 3.5 : 5.5;
+            for (const p of chosen) {
+              if (Math.hypot(p.sx - sx, p.sy - sy) < minSep) {
+                ok = false;
+                break;
+              }
+            }
+            if (!ok && chosen.length >= 3) continue;
+            const mag = 0.55 + Math.min(1.4, (s.viz || 2) / 4.2);
+            chosen.push({
+              sx,
+              sy,
+              r: mag * (scale < 1.2 ? 0.85 : scale < 2.2 ? 1.05 : 1.25),
+              bright: mag,
+            });
+          }
+          if (chosen.length < 2) return null;
+          return chosen;
         }
 
+        const viewCx = W * 0.5;
+        const viewCy = H * 0.5;
+        const scored = [];
         for (let ci = 0; ci < g.constels.length; ci++) {
           const c = g.constels[ci];
           const picked = selectedConstels.has(c.id);
@@ -2528,83 +2598,79 @@ export function initVoidEngine() {
           const celebUntil = celebrateLots.get(String(c.id));
           const celebrating = Boolean(celebUntil && performance.now() < celebUntil);
           if (!celebrating && celebUntil) celebrateLots.delete(String(c.id));
-          if (!picked && !mine && !celebrating && ci % constelStep) continue;
           if (!constelVisible(c) && !picked && !mine && !celebrating) continue;
-
-          // Same silhouette as cabinet LotFigure (stable per lot id)
-          const profile = figureForConstel(c);
           const center = constelWorld(c, g);
           const [hx, hy] = w2s(center.x, center.y);
           if (hx < -80 || hy < -80 || hx > W + 80 || hy > H + 80) continue;
+          const dist2 = (hx - viewCx) ** 2 + (hy - viewCy) ** 2;
+          const hot = picked || mine || celebrating || c.hover > 0.12;
+          const priority =
+            (celebrating ? 1e12 : 0) +
+            (picked ? 1e11 : 0) +
+            (mine ? 1e10 : 0) +
+            (hot ? 1e8 : 0) -
+            dist2;
+          scored.push({ c, picked, mine, celebrating, hot, hx, hy, priority });
+        }
+        scored.sort((a, b) => b.priority - a.priority);
 
-          const figScale = clamp(g.R * scale * 0.11, 18, 78);
-          const stars = (profile?.stars || []).map((s) => ({
-            sx: hx + s.x * figScale,
-            sy: hy - s.y * figScale,
-            r: Math.max(2.2, (s.r || 1.6) * (scale < 2 ? 0.9 : 1.15)),
-          }));
-          if (stars.length < 2) continue;
+        let drawn = 0;
+        for (const item of scored) {
+          const { c, picked, mine, celebrating, hot, hx, hy } = item;
+          const forced = picked || mine || celebrating || c.hover > 0.2;
+          if (!forced && drawn >= budget) continue;
 
-          const hot = picked || mine || celebrating || c.hover > 0.15;
-          const pulse = 0.85 + 0.15 * Math.sin(t * (mine || celebrating ? 2.4 : 1.6) + c.a0 * 3);
-          const aMain = (picked || mine ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
-          const strokeCol = mine || picked || celebrating ? LIME : c.col;
-          const glowCol =
+          const stars = asterismStars(c);
+          if (!stars) continue;
+          if (!forced) drawn++;
+
+          const pulse =
             mine || celebrating
-              ? [220, 255, 90]
-              : picked
-                ? LIME
-                : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
+              ? 0.9 + 0.1 * Math.sin(t * 2.0 + c.a0 * 3)
+              : 0.97 + 0.03 * Math.sin(t * 0.8 + c.a0);
+          const lineA = (forced ? 0.42 : hot ? 0.22 : scale < 1.2 ? 0.08 : 0.12) * pulse;
+          const starA = (forced ? 0.95 : hot ? 0.7 : scale < 1.2 ? 0.45 : 0.58) * pulse;
+          const strokeCol = mine || picked || celebrating ? LIME : c.col;
+          const lineW = celebrating ? 1.1 : mine || picked ? 0.85 : 0.4;
 
-          const edges = profile.edges || [];
-          const lineW = celebrating ? 2.4 : mine ? 2.0 : picked ? 1.9 : hot ? 1.45 : 1.2;
-          for (const [ai, bi] of edges) {
-            const a = stars[ai];
-            const b = stars[bi];
-            if (!a || !b) continue;
-            strokePath([a, b], false, glowCol, aMain * (mine ? 0.32 : 0.2), mine || celebrating ? 6 : picked ? 5 : 3.2);
-            strokePath([a, b], false, strokeCol, aMain, lineW);
+          const edges = mstPairs(stars);
+          if (edges.length > 2 && !forced) {
+            const lens = edges.map(([i, j]) => {
+              const dx = stars[i].sx - stars[j].sx;
+              const dy = stars[i].sy - stars[j].sy;
+              return { i, j, d: dx * dx + dy * dy };
+            });
+            lens.sort((a, b) => a.d - b.d);
+            const keep = Math.max(2, Math.ceil(lens.length * 0.75));
+            for (let e = 0; e < keep; e++) {
+              strokeLink(stars[lens[e].i], stars[lens[e].j], strokeCol, lineA, lineW);
+            }
+          } else {
+            for (const [i, j] of edges) {
+              strokeLink(stars[i], stars[j], strokeCol, lineA, lineW);
+            }
           }
 
           if (picked || celebrating) {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
-            const rad = (celebrating ? 68 : 52) + boom * 24;
-            const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, rad);
-            halo.addColorStop(0, `rgba(204,255,0,${celebrating ? 0.36 : 0.22})`);
-            halo.addColorStop(0.45, `rgba(204,255,0,${0.1 + boom * 0.1})`);
+            const rad = (celebrating ? 42 : 28) + boom * 14;
+            const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
+            halo.addColorStop(0, 'rgba(204,255,0,' + (celebrating ? 0.16 : 0.08) + ')');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
             ctx.arc(hx, hy, rad, 0, Math.PI * 2);
             ctx.fill();
-            if (celebrating) {
-              const age = 1 - Math.max(0, (celebUntil - performance.now()) / 4200);
-              const ringR = 24 + age * 80;
-              ctx.strokeStyle = rgba(LIME, 0.5 * (1 - age));
-              ctx.lineWidth = 2;
-              ctx.beginPath();
-              ctx.arc(hx, hy, ringR, 0, Math.PI * 2);
-              ctx.stroke();
-            }
-          } else if (mine && scale > 1.2) {
-            const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, 42);
-            halo.addColorStop(0, 'rgba(204,255,0,.14)');
-            halo.addColorStop(1, 'rgba(204,255,0,0)');
-            ctx.fillStyle = halo;
-            ctx.beginPath();
-            ctx.arc(hx, hy, 42, 0, Math.PI * 2);
-            ctx.fill();
           }
 
           for (const p of stars) {
-            diamondSpark(p.sx, p.sy, strokeCol, (picked || mine || celebrating ? 1 : hot ? 0.95 : 0.7) * vis * pulse, p.r);
+            skyStar(p.sx, p.sy, strokeCol, starA * (0.75 + p.bright * 0.2), p.r);
           }
         }
       }
 
-      if (scale > 0.7 && scale < 9) {
-        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
-        // Collect owned label candidates, keep nearest few to avoid lime pile-up
+      if (scale > 1.15 && scale < 9) {
+        const step = (scale < 1.6 ? 5 : scale < 2.4 ? 3 : 2) * (quality === 'low' ? 2 : 1);
         const yoursLabels = [];
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
@@ -2624,21 +2690,22 @@ export function initVoidEngine() {
             yoursLabels.push({ c, sx, sy, picked, mine, celebrating, dist2, showBadge, idx });
             return;
           }
+          if (!picked && c.hover < 0.25 && scale < 2.0) return;
           const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
           const a = clamp(
-            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.4 && scale < 5 ? 0.35 : 0) * pulse,
+            0.25 + c.hover * 0.55 + (picked ? 0.5 : 0) + (scale > 2.2 ? 0.2 : 0) * pulse,
             0,
-            0.98,
+            0.9,
           );
           const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
-          ctx.font = `600 ${fs}px IBM Plex Mono`;
+          ctx.font = '600 ' + fs + 'px IBM Plex Mono';
           ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
+          ctx.fillStyle = 'rgba(0,0,0,' + a * 0.45 + ')';
           ctx.fillText(c.name, sx + 1, sy + 1);
           ctx.fillStyle = rgba(picked ? LIME : c.col, a);
           ctx.fillText(c.name, sx, sy);
-          if (picked || scale > 2) {
-            ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.7);
+          if (picked || scale > 2.5) {
+            ctx.fillStyle = rgba(picked ? LIME : c.col, a * 0.65);
             ctx.font = '7px IBM Plex Mono';
             ctx.fillText((picked ? '● ' : '') + c.grains.length + '★', sx, sy + 12);
           }
@@ -2653,9 +2720,9 @@ export function initVoidEngine() {
           const pulse = 0.8 + 0.2 * Math.sin(t * 2 + idx);
           const a = clamp(0.55 + (picked || celebrating ? 0.35 : 0.15) * pulse, 0, 0.98);
           const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
-          ctx.font = `600 ${fs}px IBM Plex Mono`;
+          ctx.font = '600 ' + fs + 'px IBM Plex Mono';
           ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(0,0,0,${a * 0.55})`;
+          ctx.fillStyle = 'rgba(0,0,0,' + a * 0.55 + ')';
           ctx.fillText(c.name, sx + 1, sy + 1);
           ctx.fillStyle = rgba(LIME, a);
           ctx.fillText(c.name, sx, sy);
