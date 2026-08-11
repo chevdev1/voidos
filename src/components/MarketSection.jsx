@@ -1,5 +1,8 @@
 import { motion } from 'framer-motion'
+import { useState } from 'react'
 import { ScrambleText } from './ScrambleText'
+import { BuyExoButton } from './BuyExoButton'
+import { getDexUrl, getExoCa, copyExoCa } from '../lib/buyExo'
 import '../legacy/void.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
@@ -14,6 +17,17 @@ const fadeUp = {
 }
 
 export function MarketSection() {
+  const dex = getDexUrl()
+  const ca = getExoCa()
+  const [copied, setCopied] = useState(false)
+
+  async function onCopyCa() {
+    const ok = await copyExoCa()
+    if (!ok) return
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1200)
+  }
+
   return (
     <section className="void section" id="market">
       <motion.div
@@ -61,6 +75,52 @@ export function MarketSection() {
             +64.86%
           </div>
         </motion.div>
+      </motion.div>
+
+      <motion.div
+        id="market-buy"
+        initial={{ opacity: 0, y: 14 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, amount: 0.4 }}
+        transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.08 }}
+        className="mt-6 flex flex-col gap-3 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+      >
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $exo</p>
+          <p className="mt-1 text-sm text-muted">
+            {dex
+              ? 'Open the Dex to swap into $EXO on Robinhood Chain.'
+              : ca
+                ? 'Token CA is live — copy it into your wallet / Dex.'
+                : 'Token not listed yet. Set VITE_DEX_URL (or VITE_EXO_CA) on Vercel when mint is live. Until then claim lots in test mode on the map.'}
+          </p>
+          {ca ? (
+            <button
+              type="button"
+              onClick={onCopyCa}
+              className="mt-2 truncate font-mono text-[11px] text-lime/90 hover:text-lime"
+              title="Copy contract address"
+            >
+              {copied ? 'copied ✓' : ca}
+            </button>
+          ) : (
+            <p className="mt-2 font-mono text-[11px] text-muted">CA TBA</p>
+          )}
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <BuyExoButton filled label={dex ? 'Buy on Dex ↗' : ca ? 'Copy CA' : 'Buy $EXO · soon'} />
+          <button
+            type="button"
+            className="rounded-full border border-white/20 px-4 py-2 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime"
+            onClick={() => {
+              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+              else if (window.__openFullMap) window.__openFullMap()
+              else window.__voidCosmosPendingEnter = true
+            }}
+          >
+            claim lots on map
+          </button>
+        </div>
       </motion.div>
 
       <motion.div

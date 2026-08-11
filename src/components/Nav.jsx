@@ -4,6 +4,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 import { AccountMenu } from './AccountMenu'
+import { BuyExoButton } from './BuyExoButton'
 import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
@@ -108,12 +109,7 @@ export function Nav() {
         )}
         <AccountMenu />
         {onHome && (
-          <button
-            onClick={() => goTo('#market')}
-            className="rounded-full border border-lime/40 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black"
-          >
-            Buy $EXO
-          </button>
+          <BuyExoButton filled onFallback={() => goTo('#market')} />
         )}
       </div>
     </motion.header>
