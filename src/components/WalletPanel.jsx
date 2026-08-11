@@ -138,17 +138,8 @@ export function WalletPanel({ user, onUser }) {
 
       {!user?.wallet && (
         <p className="mt-2 max-w-md text-[12px] leading-relaxed text-muted">
-          {mobile ? (
-            <>
-              Phone: <span className="text-lime/90">Open in Trust</span>, or WalletConnect.
-              Chrome with MetaMask extension also works on desktop.
-            </>
-          ) : (
-            <>
-              Chrome: connect via <span className="text-lime/90">MetaMask / extension</span>, or
-              scan QR with Trust on your phone.
-            </>
-          )}
+          Open the full wallet list (Trust, MetaMask, Rainbow, Coinbase, …) via WalletConnect —
+          same as QR. If an extension is installed in Chrome, you can use that too.
         </p>
       )}
 
@@ -188,90 +179,59 @@ export function WalletPanel({ user, onUser }) {
             </button>
           )}
 
-          {hasBrowser && (
+          {wcReady && (
             <button
               type="button"
               disabled={busy}
-              onClick={() => linkWallet('injected')}
-              title={`Connect with ${extName}`}
+              onClick={() => linkWallet('qr')}
+              title="All WalletConnect wallets"
               className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:cursor-wait disabled:opacity-80"
             >
               <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100" />
               <span className="relative flex items-center justify-between gap-3">
                 <span>
                   <span className="block text-[13px] font-semibold tracking-[0.14em] text-black uppercase">
-                    {busy && busyMode === 'injected' ? 'Waiting…' : `Connect ${extName}`}
+                    {busy && busyMode === 'qr' ? 'Waiting…' : 'Connect wallet'}
                   </span>
                   <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
-                    {busy && busyMode === 'injected'
-                      ? 'Approve in the extension popup'
-                      : 'Chrome / Brave extension · no QR'}
+                    {busy && busyMode === 'qr'
+                      ? mobile
+                        ? 'Pick your wallet — approve in the app'
+                        : 'QR or pick any wallet from the list'
+                      : 'All wallets · Trust · MetaMask · Rainbow · QR'}
                   </span>
                 </span>
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
-                  {busy && busyMode === 'injected' ? '…' : '↗'}
-                </span>
-              </span>
-            </button>
-          )}
-
-          {wcReady && (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => linkWallet('qr')}
-              title="WalletConnect QR / Trust"
-              className={`w-full border px-4 py-3.5 text-left transition disabled:cursor-wait disabled:opacity-80 ${
-                hasBrowser
-                  ? 'border-white/20 bg-black/30 hover:border-lime/40'
-                  : 'border-lime/60 bg-lime hover:shadow-[0_0_28px_rgba(204,255,0,0.35)]'
-              }`}
-            >
-              <span className="flex items-center justify-between gap-3">
-                <span>
-                  <span
-                    className={`block text-[13px] font-semibold tracking-[0.14em] uppercase ${
-                      hasBrowser ? 'text-lime' : 'text-black'
-                    }`}
-                  >
-                    {busy && busyMode === 'qr' ? 'Waiting…' : 'WalletConnect / QR'}
-                  </span>
-                  <span
-                    className={`mt-0.5 block text-[10px] tracking-wide ${
-                      hasBrowser ? 'text-muted' : 'text-black/65'
-                    }`}
-                  >
-                    {busy && busyMode === 'qr'
-                      ? mobile
-                        ? 'Pick Trust — approve in the app'
-                        : 'Scan QR with Trust on phone'
-                      : 'Trust · MetaMask mobile · any WC wallet'}
-                  </span>
-                </span>
-                <span
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center border ${
-                    hasBrowser ? 'border-white/25 text-lime' : 'border-black/25 text-black'
-                  }`}
-                >
                   {busy && busyMode === 'qr' ? '…' : '⧉'}
                 </span>
               </span>
             </button>
           )}
 
-          {!hasBrowser && !mobile && wcReady && (
-            <p className="text-[11px] leading-relaxed text-muted">
-              No extension detected. Install{' '}
-              <a
-                className="text-lime underline"
-                href="https://metamask.io/download/"
-                target="_blank"
-                rel="noreferrer"
-              >
-                MetaMask
-              </a>{' '}
-              for Chrome, or use QR with Trust.
-            </p>
+          {hasBrowser && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => linkWallet('injected')}
+              title={`Use installed ${extName}`}
+              className="w-full border border-white/20 bg-black/30 px-4 py-3.5 text-left transition hover:border-lime/40 disabled:cursor-wait disabled:opacity-80"
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span className="block text-[13px] font-semibold tracking-[0.14em] text-lime uppercase">
+                    {busy && busyMode === 'injected' ? 'Waiting…' : `Use ${extName}`}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] tracking-wide text-muted">
+                    {busy && busyMode === 'injected'
+                      ? 'Approve in the extension popup'
+                      : 'Installed Chrome / Brave extension'}
+                  </span>
+                </span>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-white/25 text-lime">
+                  {busy && busyMode === 'injected' ? '…' : '↗'}
+                </span>
+              </span>
+            </button>
           )}
 
           {busy && (
@@ -288,8 +248,8 @@ export function WalletPanel({ user, onUser }) {
 
       {!user?.wallet && !canConnect && (
         <p className="mt-3 text-[11px] text-amber-200/90">
-          Install MetaMask in Chrome, or set{' '}
-          <code className="text-lime">VITE_WALLETCONNECT_PROJECT_ID</code> on Vercel for QR.
+          Set <code className="text-lime">VITE_WALLETCONNECT_PROJECT_ID</code> on Vercel for the
+          full wallet list, or install a browser extension.
         </p>
       )}
 

@@ -344,8 +344,13 @@ async function connectWalletConnect() {
           },
           enableExplorer: true,
           explorerRecommendedWalletIds: [
-            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+            '1ae92b26df02f0abca6304df07debccd18262fdf5fe82daa81593582dac9a369', // Rainbow
+            'd0ca99ff52b99abc48743dad0f7fc891e041be73574f7fac4afe5d4bb83845c8', // Coinbase
+            'ecc4036f814562b41a5268adc86270fba1365471402006302e70169465b7ac18', // Zerion
+            '38f5d18bd8522c244bdd70cb4a68e0e718865155811c043f052fb9f1c51de662', // Bitget
+            '19177a98252e07ddfc9af2083ba8e07ef627cb6103467ffebb3f8f4205fd7927', // Ledger
           ],
           mobileWallets: [
             {
@@ -354,6 +359,32 @@ async function connectWalletConnect() {
               links: {
                 native: 'trust://',
                 universal: 'https://link.trustwallet.com',
+              },
+            },
+            {
+              id: 'metamask',
+              name: 'MetaMask',
+              links: {
+                native: 'metamask://',
+                universal: 'https://metamask.app.link',
+              },
+            },
+            {
+              id: 'rainbow',
+              name: 'Rainbow',
+              links: {
+                native: 'rainbow://',
+                universal: 'https://rainbow.me',
+              },
+            },
+          ],
+          desktopWallets: [
+            {
+              id: 'metamask',
+              name: 'MetaMask',
+              links: {
+                native: '',
+                universal: 'https://metamask.io/download/',
               },
             },
           ],
