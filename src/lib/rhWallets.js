@@ -295,7 +295,7 @@ function withTimeout(promise, ms, label) {
 
 function friendlyWcError(e) {
   const msg = String(e?.message || e || '')
-  if (/reject|cancel|closed|denied|User closed/i.test(msg)) return 'Connection cancelled'
+  if (/reject|cancel|closed|denied|User closed|reset/i.test(msg)) return 'Connection cancelled or reset'
   if (/signRawData|RobinhoodChain|not supported/i.test(msg)) {
     return 'Trust cannot sign on Robinhood Chain — Connect again (Ethereum). Or Open in Trust Browser.'
   }

@@ -8,25 +8,36 @@ import {
   isMobileDevice,
   isTrustInjected,
   openSiteInTrustWallet,
-  pickConnectMode,
 } from '../lib/rhWallets'
 
+function injectedLabel() {
+  const eth = typeof window !== 'undefined' ? window.ethereum : null
+  if (!eth) return 'Browser extension'
+  if (eth.isTrust || eth.isTrustWallet) return 'Trust'
+  if (eth.isMetaMask) return 'MetaMask'
+  if (eth.isRobinhood || eth.isRobinhoodWallet) return 'Robinhood'
+  return 'Browser wallet'
+}
+
 /**
- * Single connect CTA — Trust deep-link on phone, WC / injected otherwise.
+ * Connect CTAs: Chrome extension (MetaMask etc.) AND/OR WalletConnect QR.
  */
 export function WalletPanel({ user, onUser }) {
   const [busy, setBusy] = useState(false)
+  const [busyMode, setBusyMode] = useState(null)
   const [err, setErr] = useState('')
   const [balances, setBalances] = useState(null)
   const [hasBrowser, setHasBrowser] = useState(false)
   const [mobile, setMobile] = useState(false)
   const [inTrust, setInTrust] = useState(false)
+  const [extName, setExtName] = useState('Browser wallet')
 
   useEffect(() => {
     const refresh = () => {
       setHasBrowser(Boolean(getInjectedEvm()))
       setMobile(isMobileDevice())
       setInTrust(isTrustInjected())
+      setExtName(injectedLabel())
     }
     refresh()
     const t = setTimeout(refresh, 800)
@@ -48,41 +59,40 @@ export function WalletPanel({ user, onUser }) {
 
   const wcReady = useMemo(() => hasWalletConnectProject(), [])
   const canConnect = wcReady || hasBrowser
-  const connectMode = pickConnectMode() || (wcReady ? 'qr' : 'injected')
   const showOpenInTrust = mobile && !inTrust && !hasBrowser
-
-  const connectHint = inTrust
-    ? 'Connect inside Trust Browser'
-    : hasBrowser
-      ? 'Opens your browser wallet'
-      : wcReady
-        ? mobile
-          ? 'Opens WalletConnect → pick Trust'
-          : 'Scan with Trust or any WalletConnect wallet'
-        : 'WalletConnect Project ID required'
 
   async function cancelConnect() {
     await abortWalletConnect()
     setBusy(false)
+    setBusyMode(null)
     setErr('Cancelled — tap Connect again')
   }
 
-  async function linkWallet() {
+  async function linkWallet(mode) {
     if (!canConnect || busy) return
+    if (mode === 'injected' && !hasBrowser) {
+      setErr('Install MetaMask / Trust extension in Chrome, then refresh')
+      return
+    }
+    if (mode === 'qr' && !wcReady) {
+      setErr('WalletConnect Project ID missing on Vercel')
+      return
+    }
     setBusy(true)
+    setBusyMode(mode)
     setErr('')
     try {
       const guestKey = loadGuestKey()
       const ts = Date.now()
       const message = `VOID.OS link wallet\nguest:${guestKey}\nts:${ts}`
-      const { pubkey, signature } = await connectAndSignLink(message, { mode: connectMode })
+      const { pubkey, signature } = await connectAndSignLink(message, { mode })
       const data = await mindWalletLink({ pubkey, message, signature })
       onUser?.(data.user)
       await refreshBal(pubkey)
     } catch (e) {
       const msg = e?.message || String(e)
-      if (/reject|cancel|closed|denied|User closed/i.test(msg)) {
-        setErr('Cancelled — tap Connect again')
+      if (/reject|cancel|closed|denied|User closed|reset/i.test(msg)) {
+        setErr('Cancelled or reset — try again (extension or QR)')
       } else if (/already pending|already in progress/i.test(msg)) {
         setErr(msg)
       } else if (/timed out/i.test(msg)) {
@@ -91,6 +101,7 @@ export function WalletPanel({ user, onUser }) {
       await abortWalletConnect()
     } finally {
       setBusy(false)
+      setBusyMode(null)
     }
   }
 
@@ -112,23 +123,6 @@ export function WalletPanel({ user, onUser }) {
     ? `${user.wallet.slice(0, 6)}…${user.wallet.slice(-4)}`
     : null
 
-  const busySub =
-    connectMode === 'injected'
-      ? 'Approve in Trust / MetaMask'
-      : mobile
-        ? 'Pick Trust in the list — approve in the app'
-        : 'QR should open — scan with Trust'
-
-  const idleSub = inTrust
-    ? 'Trust Browser · one tap'
-    : showOpenInTrust
-      ? 'Or use WalletConnect below'
-      : wcReady
-        ? mobile
-          ? 'Trust · WalletConnect'
-          : 'QR · Trust · WalletConnect'
-        : 'Browser wallet'
-
   return (
     <div className="border border-lime/25 bg-black/45 p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -146,13 +140,13 @@ export function WalletPanel({ user, onUser }) {
         <p className="mt-2 max-w-md text-[12px] leading-relaxed text-muted">
           {mobile ? (
             <>
-              On phone: open the site in <span className="text-lime/90">Trust Browser</span>, then
-              Connect — or use WalletConnect and pick Trust.
+              Phone: <span className="text-lime/90">Open in Trust</span>, or WalletConnect.
+              Chrome with MetaMask extension also works on desktop.
             </>
           ) : (
             <>
-              One tap to link. Works with <span className="text-lime/90">Trust</span>, MetaMask, and
-              other WalletConnect wallets.
+              Chrome: connect via <span className="text-lime/90">MetaMask / extension</span>, or
+              scan QR with Trust on your phone.
             </>
           )}
         </p>
@@ -189,43 +183,97 @@ export function WalletPanel({ user, onUser }) {
                 Open in Trust
               </span>
               <span className="mt-0.5 block text-[10px] tracking-wide text-muted">
-                Best on phone — then tap Connect inside Trust
+                Best on phone — then Connect inside Trust
               </span>
             </button>
           )}
-          <button
-            type="button"
-            disabled={busy || !canConnect}
-            onClick={linkWallet}
-            title={connectHint}
-            className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:cursor-wait disabled:opacity-80"
-          >
-            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100" />
-            <span className="relative flex items-center justify-between gap-3">
-              <span>
-                <span className="block text-[13px] font-semibold tracking-[0.14em] text-black uppercase">
-                  {busy ? 'Waiting for wallet…' : 'Connect wallet'}
+
+          {hasBrowser && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => linkWallet('injected')}
+              title={`Connect with ${extName}`}
+              className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:cursor-wait disabled:opacity-80"
+            >
+              <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100" />
+              <span className="relative flex items-center justify-between gap-3">
+                <span>
+                  <span className="block text-[13px] font-semibold tracking-[0.14em] text-black uppercase">
+                    {busy && busyMode === 'injected' ? 'Waiting…' : `Connect ${extName}`}
+                  </span>
+                  <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
+                    {busy && busyMode === 'injected'
+                      ? 'Approve in the extension popup'
+                      : 'Chrome / Brave extension · no QR'}
+                  </span>
                 </span>
-                <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
-                  {busy ? busySub : idleSub}
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
+                  {busy && busyMode === 'injected' ? '…' : '↗'}
                 </span>
               </span>
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
-                {busy ? (
-                  <span className="text-sm">…</span>
-                ) : (
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-                    <path
-                      d="M3 8h9M8.5 4.5 12 8l-3.5 3.5"
-                      stroke="currentColor"
-                      strokeWidth="1.6"
-                      strokeLinecap="square"
-                    />
-                  </svg>
-                )}
+            </button>
+          )}
+
+          {wcReady && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => linkWallet('qr')}
+              title="WalletConnect QR / Trust"
+              className={`w-full border px-4 py-3.5 text-left transition disabled:cursor-wait disabled:opacity-80 ${
+                hasBrowser
+                  ? 'border-white/20 bg-black/30 hover:border-lime/40'
+                  : 'border-lime/60 bg-lime hover:shadow-[0_0_28px_rgba(204,255,0,0.35)]'
+              }`}
+            >
+              <span className="flex items-center justify-between gap-3">
+                <span>
+                  <span
+                    className={`block text-[13px] font-semibold tracking-[0.14em] uppercase ${
+                      hasBrowser ? 'text-lime' : 'text-black'
+                    }`}
+                  >
+                    {busy && busyMode === 'qr' ? 'Waiting…' : 'WalletConnect / QR'}
+                  </span>
+                  <span
+                    className={`mt-0.5 block text-[10px] tracking-wide ${
+                      hasBrowser ? 'text-muted' : 'text-black/65'
+                    }`}
+                  >
+                    {busy && busyMode === 'qr'
+                      ? mobile
+                        ? 'Pick Trust — approve in the app'
+                        : 'Scan QR with Trust on phone'
+                      : 'Trust · MetaMask mobile · any WC wallet'}
+                  </span>
+                </span>
+                <span
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center border ${
+                    hasBrowser ? 'border-white/25 text-lime' : 'border-black/25 text-black'
+                  }`}
+                >
+                  {busy && busyMode === 'qr' ? '…' : '⧉'}
+                </span>
               </span>
-            </span>
-          </button>
+            </button>
+          )}
+
+          {!hasBrowser && !mobile && wcReady && (
+            <p className="text-[11px] leading-relaxed text-muted">
+              No extension detected. Install{' '}
+              <a
+                className="text-lime underline"
+                href="https://metamask.io/download/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                MetaMask
+              </a>{' '}
+              for Chrome, or use QR with Trust.
+            </p>
+          )}
+
           {busy && (
             <button
               type="button"
@@ -240,16 +288,8 @@ export function WalletPanel({ user, onUser }) {
 
       {!user?.wallet && !canConnect && (
         <p className="mt-3 text-[11px] text-amber-200/90">
-          Needs <code className="text-lime">VITE_WALLETCONNECT_PROJECT_ID</code> from{' '}
-          <a
-            className="underline hover:text-lime"
-            href="https://cloud.reown.com/"
-            target="_blank"
-            rel="noreferrer"
-          >
-            cloud.reown.com
-          </a>{' '}
-          on Vercel + Redeploy. Or open the site in Trust Browser.
+          Install MetaMask in Chrome, or set{' '}
+          <code className="text-lime">VITE_WALLETCONNECT_PROJECT_ID</code> on Vercel for QR.
         </p>
       )}
 
