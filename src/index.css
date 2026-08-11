@@ -60,11 +60,48 @@ body {
   }
 }
 
-/* WalletConnect / Reown QR modal above app chrome */
+/* WalletConnect / Reown QR modal above app chrome + scrollable wallet grid */
 w3m-modal,
 wcm-modal,
 #w3m-modal,
 .wcm-overlay,
 .w3m-overlay {
   z-index: 100000 !important;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
+
+/* Map uses touch-action:none — unlock while WC modal is open so wallets can scroll */
+body.wc-modal-open {
+  touch-action: auto !important;
+  overflow: hidden !important;
+}
+body.wc-modal-open.arena-live {
+  touch-action: auto !important;
+}
+body.wc-modal-open .cosmos-map-pop,
+body.wc-modal-open .arena-stage,
+body.wc-modal-open canvas {
+  pointer-events: none !important;
+}
+
+/* WalletConnect modal inner list must pan/scroll on mobile */
+wcm-modal,
+w3m-modal,
+wcm-modal *,
+w3m-modal *,
+.wcm-overlay *,
+.w3m-overlay * {
+  touch-action: pan-y !important;
+}
+wcm-modal .wcm-container,
+wcm-modal [class*='scroll'],
+w3m-modal [class*='scroll'],
+wcm-view-all-wallets,
+wui-card,
+wui-flex {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain;
+  max-height: min(72vh, 560px);
 }

@@ -151,6 +151,7 @@ let wcBusy = false
 
 export async function abortWalletConnect() {
   wcBusy = false
+  if (typeof document !== 'undefined') document.body.classList.remove('wc-modal-open')
   if (!wcProvider) return
   try {
     await wcProvider.disconnect()
@@ -188,6 +189,7 @@ async function connectWalletConnect() {
   if (wcBusy) throw new Error('connection already in progress — tap Cancel first')
   wcBusy = true
   try {
+    if (typeof document !== 'undefined') document.body.classList.add('wc-modal-open')
     // Required for showQrModal — without it enable() hangs forever
     await import('@walletconnect/modal')
     const { EthereumProvider } = await import('@walletconnect/ethereum-provider')
@@ -215,7 +217,14 @@ async function connectWalletConnect() {
           themeMode: 'dark',
           themeVariables: {
             '--wcm-z-index': '100000',
+            '--wcm-max-width': '400px',
           },
+          // Keep wallet grid scrollable; explorer list is long on mobile
+          enableExplorer: true,
+          explorerRecommendedWalletIds: [
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+          ],
         },
         metadata: {
           name: 'VOID.OS',
@@ -253,6 +262,7 @@ async function connectWalletConnect() {
     throw e
   } finally {
     wcBusy = false
+    if (typeof document !== 'undefined') document.body.classList.remove('wc-modal-open')
   }
 }
 
