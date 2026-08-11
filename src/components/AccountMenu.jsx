@@ -59,11 +59,11 @@ export function AccountMenu() {
           <button
             type="button"
             aria-label="close overlay"
-            className="fixed inset-0 z-[55] bg-black/70 backdrop-blur-sm md:bg-black/40"
+            className="fixed inset-0 z-[210] bg-black/70 backdrop-blur-sm md:bg-black/40"
             onClick={() => setOpen(false)}
           />
           <div
-            className="fixed inset-x-0 bottom-0 z-[60] max-h-[92dvh] overflow-y-auto border-t border-lime/40 bg-black/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(80vh,36rem)] md:w-[22rem] md:border md:border-lime/40 md:pb-4 md:shadow-[0_0_40px_rgba(204,255,0,0.08)]"
+            className="fixed inset-x-0 bottom-0 z-[220] max-h-[92dvh] overflow-y-auto border-t border-lime/40 bg-black/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(80vh,36rem)] md:w-[22rem] md:border md:border-lime/40 md:pb-4 md:shadow-[0_0_40px_rgba(204,255,0,0.08)]"
             role="dialog"
             aria-modal="true"
           >

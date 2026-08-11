@@ -874,8 +874,7 @@ export function initVoidEngine() {
     function requireWalletForClaim() {
       const wallet = loadUser()?.wallet;
       if (wallet) return wallet;
-      toast('connect Robinhood wallet first · open wallet menu in the nav');
-      return;
+      toast('connect wallet first · open wallet menu in the nav');
       return null;
     }
 
@@ -941,9 +940,13 @@ export function initVoidEngine() {
           await refreshMapOwnerships();
           return false;
         }
-        // Offline: still mark local
-        claimSectors(items, { skipSync: true, celebrate: true });
-        return true;
+        if (e?.code === 'CLAIM_OFFLINE') {
+          claimSectors(items, { skipSync: true, celebrate: true });
+          toast('offline · saved locally — will sync when online');
+          return true;
+        }
+        toast((e?.message || 'claim failed').slice(0, 120));
+        return false;
       }
     }
 
@@ -1057,6 +1060,16 @@ export function initVoidEngine() {
     /** Apply server / localStorage ownership list onto the live map. */
     function hydrateOwnsFromLedger(list) {
       if (!g0?.constels || !Array.isArray(list)) return;
+      // Rebuild from scratch so dropped local ghosts disappear
+      if (g0.sectors) {
+        for (const s of g0.sectors) {
+          if (yoursSet.has(s.id) && (s.kind === 'claimed' || s.kind === 'fed')) {
+            s.kind = 'empty';
+          }
+        }
+      }
+      yoursSet.clear();
+      trainedLots.clear();
       for (const o of list) {
         const cid = String(o.constel_id || o.id || '');
         if (!cid) continue;

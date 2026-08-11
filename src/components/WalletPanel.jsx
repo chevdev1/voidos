@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
+import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey, mindSession } from '../lib/mindClient'
 import {
   connectAndSignLink,
   hasWalletConnectProject,
@@ -87,7 +87,9 @@ export function WalletPanel({ user, onUser }) {
     setNote('')
     try {
       await abortWalletConnect()
-      const guestKey = loadGuestKey()
+      const session = await mindSession()
+      const guestKey = String(session?.guestKey || loadGuestKey() || '').trim()
+      if (!guestKey) throw new Error('Session not ready — refresh and try again')
       const ts = Date.now()
       const message = `VOID.OS link wallet\nguest:${guestKey}\nts:${ts}`
       const { pubkey, signature } = await connectAndSignLink(message, { mode })

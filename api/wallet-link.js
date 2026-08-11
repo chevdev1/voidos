@@ -40,7 +40,7 @@ export default async function handler(req, res) {
     if (!isEvmAddress(pubkey)) {
       return res.status(400).json({ error: 'invalid EVM wallet address' })
     }
-    if (!message.includes('VOID.OS link wallet') || !message.includes(guestKey)) {
+    if (!message.includes('VOID.OS link wallet') || !guestKey || !message.includes(`guest:${guestKey}`)) {
       return res.status(400).json({ error: 'bad link message' })
     }
     const tsMatch = message.match(/ts:(\d+)/)

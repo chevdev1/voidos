@@ -530,9 +530,11 @@ export async function claimOnChain(lotIds = []) {
   const injected = getRobinhoodInjected()
   const { provider, address } = injected
     ? await connectInjected()
-    : wcProvider
+    : wcProvider?.accounts?.[0]
       ? { provider: wcProvider, address: getAddress(wcProvider.accounts[0]) }
       : await connectWalletConnect()
+
+  await ensureChain(provider)
 
   const walletClient = createWalletClient({
     account: address,

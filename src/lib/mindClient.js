@@ -118,22 +118,29 @@ function normalizeOwn(o) {
   }
 }
 
-/** Merge server + local ownerships — never drop local claims when server returns []. */
+/** Merge: server list is authoritative for which lots you own; keep local trained flags. */
 export function mergeOwnerships(serverList, localList) {
-  const map = new Map()
-  for (const raw of [...(localList || []), ...(serverList || [])]) {
+  const localMap = new Map()
+  for (const raw of localList || []) {
+    const o = normalizeOwn(raw)
+    if (o) localMap.set(o.constel_id, o)
+  }
+  if (!Array.isArray(serverList)) {
+    return [...localMap.values()]
+  }
+  const out = []
+  for (const raw of serverList) {
     const o = normalizeOwn(raw)
     if (!o) continue
-    const prev = map.get(o.constel_id)
-    map.set(o.constel_id, {
-      ...prev,
+    const prev = localMap.get(o.constel_id)
+    out.push({
       ...o,
       claimed_at: o.claimed_at || prev?.claimed_at || null,
-      trained: Boolean(prev?.trained || o.trained),
+      trained: Boolean(o.trained || prev?.trained),
       trained_at: o.trained_at || prev?.trained_at || null,
     })
   }
-  return [...map.values()]
+  return out
 }
 
 function applyServerState(data) {
@@ -297,7 +304,11 @@ export async function mindClaimSync(lots) {
       }
       throw err
     }
-    // Offline fallback: keep optimistic local ledger
+    // Only keep optimistic local ledger when truly offline
+    const offline =
+      typeof navigator !== 'undefined' && navigator.onLine === false
+    if (!offline) throw err
+
     const mapped = lots.map((l) => ({
       constel_id: String(l.id),
       constel_name: String(l.name || l.id),
@@ -316,7 +327,10 @@ export async function mindClaimSync(lots) {
     const merged = [...map.values()]
     saveOwnerships(merged)
     notifyOwnershipHydrate(merged)
-    return merged
+    const soft = new Error('offline · claim saved locally — sync when back online')
+    soft.code = 'CLAIM_OFFLINE'
+    soft.ownerships = merged
+    throw soft
   }
 }
 

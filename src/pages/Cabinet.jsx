@@ -40,6 +40,15 @@ export default function Cabinet() {
     }
   }, [])
 
+  useEffect(() => {
+    const onUser = (e) => {
+      setUser(e.detail || null)
+      setOwnerships(loadOwnerships())
+    }
+    window.addEventListener('void-user', onUser)
+    return () => window.removeEventListener('void-user', onUser)
+  }, [])
+
   const profiles = useMemo(
     () => ownerships.map((o) => ({ lot: o, profile: buildLotProfile(o) })),
     [ownerships],
@@ -75,6 +84,7 @@ export default function Cabinet() {
   function onUserChange(next) {
     saveUser(next)
     setUser(next)
+    setOwnerships(loadOwnerships())
   }
 
   const who = user?.wallet

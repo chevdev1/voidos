@@ -7,6 +7,7 @@ import {
   sidCookie,
 } from '../shared/voidDb.js'
 import { cors, readBody, isSecureReq } from './_http.js'
+import { isEvmAddress } from '../shared/rhChain.js'
 
 export default async function handler(req, res) {
   cors(req, res)
@@ -24,6 +25,13 @@ export default async function handler(req, res) {
         guestKey: user.guest_key,
         user: publicUser(user),
         ownerships: await listOwnerships(user.id),
+      })
+    }
+
+    if (!user.wallet_pubkey || !isEvmAddress(user.wallet_pubkey)) {
+      return res.status(401).json({
+        error: 'link wallet before claiming lots',
+        code: 'WALLET_REQUIRED',
       })
     }
 
