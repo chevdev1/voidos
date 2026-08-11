@@ -1038,18 +1038,46 @@ export function initVoidEngine() {
 
     function focusLotFromStorage() {
       try {
-        const cid = sessionStorage.getItem('void_focus_lot')
-        if (!cid || !g0?.constels) return
-        sessionStorage.removeItem('void_focus_lot')
-        const c = g0.constels.find((x) => String(x.id) === String(cid))
-        if (!c) return
-        const p = constelWorld(c, g0)
-        focusOn(p.x, p.y, 3.2)
-        openConstelTerm(c)
+        const cid = sessionStorage.getItem('void_focus_lot');
+        if (!cid) return;
+        sessionStorage.removeItem('void_focus_lot');
+        const targetCid = String(cid);
+        if (sessionStorage.getItem('void_open_arena')) {
+          sessionStorage.removeItem('void_open_arena');
+        }
+        enterArena();
+        // enterArena snaps to home view on rAF — focus after that lands.
+        const tryFocus = () => {
+          if (!g0?.constels) return false;
+          const c = g0.constels.find((x) => String(x.id) === targetCid);
+          if (!c) return false;
+          const p = constelWorld(c, g0);
+          focusOn(p.x, p.y, 3.6);
+          openConstelTerm(c);
+          return true;
+        };
+        setTimeout(() => {
+          if (!tryFocus()) setTimeout(() => {
+            if (!tryFocus()) toast('lot not found on map — open full map and search');
+          }, 400);
+        }, 250);
       } catch (_) {
         /* ignore */
       }
     }
+
+    window.__voidFocusLot = (cid) => {
+      try {
+        sessionStorage.setItem('void_focus_lot', String(cid || ''));
+        sessionStorage.setItem('void_open_arena', '1');
+        focusLotFromStorage();
+      } catch (_) {
+        /* ignore */
+      }
+    };
+    onCleanup(() => {
+      if (window.__voidFocusLot) delete window.__voidFocusLot;
+    });
 
     // Pull durable ownerships on boot (cache + server) + public reserved map
     hydrateOwnsFromLedger(loadOwnerships())

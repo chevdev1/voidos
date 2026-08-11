@@ -263,11 +263,36 @@ function layoutStars(kindIdx, starCount, rnd) {
     }
   }
 
-  // Mild jitter so no two lots of same kind look identical
+  // Strong per-lot warp so same kind still looks unique in cabinet thumbnails
+  const yaw = (rnd() - 0.5) * Math.PI * 2
+  const pitch = (rnd() - 0.5) * 1.1
+  const roll = (rnd() - 0.5) * 1.4
+  const stretchX = 0.72 + rnd() * 0.7
+  const stretchY = 0.72 + rnd() * 0.7
+  const stretchZ = 0.72 + rnd() * 0.7
+  const cy = Math.cos(yaw)
+  const sy = Math.sin(yaw)
+  const cp = Math.cos(pitch)
+  const sp = Math.sin(pitch)
+  const cr = Math.cos(roll)
+  const sr = Math.sin(roll)
   for (const s of stars) {
-    s.x += (rnd() - 0.5) * 0.06
-    s.y += (rnd() - 0.5) * 0.05
-    s.z += (rnd() - 0.5) * 0.06
+    let x = (s.x + (rnd() - 0.5) * 0.1) * stretchX
+    let y = (s.y + (rnd() - 0.5) * 0.1) * stretchY
+    let z = (s.z + (rnd() - 0.5) * 0.1) * stretchZ
+    // yaw
+    let x1 = x * cy + z * sy
+    let z1 = -x * sy + z * cy
+    // pitch
+    let y2 = y * cp - z1 * sp
+    let z2 = y * sp + z1 * cp
+    // roll
+    const x3 = x1 * cr - y2 * sr
+    const y3 = x1 * sr + y2 * cr
+    s.x = x3
+    s.y = y3
+    s.z = z2
+    s.r = Math.max(1.2, s.r * (0.85 + rnd() * 0.45))
   }
   return stars
 }

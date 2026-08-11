@@ -17,7 +17,10 @@ export function LotFigure({
 }) {
   const ref = useRef(null)
   const profile = buildLotProfile(lot)
-  const viewRef = useRef({ yaw: 0.45, pitch: 0.22 })
+  const viewRef = useRef({
+    yaw: 0.35 + (profile.id.charCodeAt(profile.id.length - 1) % 13) * 0.37,
+    pitch: 0.12 + (profile.starCount % 5) * 0.05,
+  })
   const dragRef = useRef(null)
   const ptsRef = useRef([])
   const movedRef = useRef(false)

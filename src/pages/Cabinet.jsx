@@ -406,6 +406,7 @@ export default function Cabinet() {
                           className="bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black"
                           onClick={() => {
                             sessionStorage.setItem('void_focus_lot', active.lot.constel_id)
+                            sessionStorage.setItem('void_open_arena', '1')
                           }}
                         >
                           view on map
