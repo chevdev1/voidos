@@ -1,18 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
-import { connectAndSignLink, hasWalletConnectProject, getRobinhoodInjected, getInjectedEvm } from '../lib/rhWallets'
+import { connectAndSignLink, hasWalletConnectProject, getInjectedEvm } from '../lib/rhWallets'
 
 /**
- * Robinhood Chain wallet link (WalletConnect / in-app); shows ETH / $EXO balances.
+ * Wallet link — QR (Trust phone) by default; optional browser MetaMask.
  */
 export function WalletPanel({ user, onUser }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [balances, setBalances] = useState(null)
-  const [inApp, setInApp] = useState(false)
+  const [hasBrowser, setHasBrowser] = useState(false)
 
   useEffect(() => {
-    const refresh = () => setInApp(Boolean(getRobinhoodInjected() || getInjectedEvm()))
+    const refresh = () => setHasBrowser(Boolean(getInjectedEvm()))
     refresh()
     const t = setTimeout(refresh, 800)
     return () => clearTimeout(t)
@@ -32,23 +32,25 @@ export function WalletPanel({ user, onUser }) {
   }, [user?.wallet, refreshBal])
 
   const wcReady = useMemo(() => hasWalletConnectProject(), [])
-  const canConnect = inApp || wcReady
+  const canConnect = wcReady || hasBrowser
 
-  async function linkRobinhood() {
+  async function linkWallet(mode) {
     setBusy(true)
     setErr('')
     try {
       const guestKey = loadGuestKey()
       const ts = Date.now()
       const message = `VOID.OS link wallet\nguest:${guestKey}\nts:${ts}`
-      const { pubkey, signature } = await connectAndSignLink(message)
+      const { pubkey, signature } = await connectAndSignLink(message, { mode })
       const data = await mindWalletLink({ pubkey, message, signature })
       onUser?.(data.user)
       await refreshBal(pubkey)
     } catch (e) {
       const msg = e?.message || String(e)
       if (/reject|cancel|closed|denied/i.test(msg)) setErr('connection cancelled')
-      else setErr(msg || 'wallet failed')
+      else if (/already pending/i.test(msg)) {
+        setErr('MetaMask popup stuck — open MetaMask, Reject, then use QR · Trust below')
+      } else setErr(msg || 'wallet failed')
     } finally {
       setBusy(false)
     }
@@ -84,8 +86,8 @@ export function WalletPanel({ user, onUser }) {
           </div>
           <p className="mt-1 text-sm text-lime">{short || 'not linked'}</p>
           <p className="mt-1 text-[11px] text-muted">
-            Robinhood Wallet on Robinhood Chain — WalletConnect QR or in-app Web3. ETH live; $EXO
-            when token address is set.
+            Prefer <span className="text-lime">QR · Trust</span> on phone. Browser MetaMask is
+            optional. ETH balance live; $EXO when token address is set.
           </p>
         </div>
         {user?.wallet ? (
@@ -108,19 +110,31 @@ export function WalletPanel({ user, onUser }) {
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            disabled={busy || !canConnect}
-            onClick={linkRobinhood}
-            className="bg-lime px-3 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
-            title={
-              canConnect
-                ? 'Connect Trust / Robinhood / MetaMask'
-                : 'Add VITE_WALLETCONNECT_PROJECT_ID on Vercel (Reown) for phone QR'
-            }
-          >
-            {busy ? '…' : 'connect Robinhood'}
-          </button>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <button
+              type="button"
+              disabled={busy || !wcReady}
+              onClick={() => linkWallet('qr')}
+              className="bg-lime px-3 py-1.5 text-[11px] font-semibold tracking-wide text-black disabled:opacity-50"
+              title={
+                wcReady
+                  ? 'WalletConnect QR — scan with Trust'
+                  : 'Add VITE_WALLETCONNECT_PROJECT_ID on Vercel'
+              }
+            >
+              {busy ? '…' : 'QR · Trust'}
+            </button>
+            {hasBrowser && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => linkWallet('injected')}
+                className="border border-white/25 px-3 py-1.5 text-[11px] text-muted hover:border-lime/40 hover:text-lime disabled:opacity-50"
+              >
+                browser MetaMask
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -134,8 +148,8 @@ export function WalletPanel({ user, onUser }) {
             rel="noreferrer"
           >
             cloud.reown.com
-          </a>
-          , or open this site inside Robinhood Wallet → Web3 browser.
+          </a>{' '}
+          on Vercel + Redeploy — then QR works with Trust.
         </p>
       )}
 

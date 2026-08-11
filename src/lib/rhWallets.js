@@ -92,19 +92,36 @@ async function ensureChain(provider) {
       params: [{ chainId: hexId }],
     })
   } catch (err) {
+    const msg = String(err?.message || err || '')
+    if (/already pending/i.test(msg)) {
+      throw new Error('wallet popup already open — check MetaMask/Trust and approve or reject, then retry')
+    }
     // 4902 = unknown chain — try add
-    if (err?.code === 4902 || /Unrecognized chain/i.test(String(err?.message || ''))) {
-      await provider.request({
-        method: 'wallet_addEthereumChain',
-        params: [
-          {
-            chainId: hexId,
-            chainName: chain.name,
-            nativeCurrency: chain.nativeCurrency,
-            rpcUrls: [rpcUrl()],
-          },
-        ],
-      })
+    if (err?.code === 4902 || /Unrecognized chain/i.test(msg)) {
+      try {
+        await provider.request({
+          method: 'wallet_addEthereumChain',
+          params: [
+            {
+              chainId: hexId,
+              chainName: chain.name,
+              nativeCurrency: chain.nativeCurrency,
+              rpcUrls: [rpcUrl()],
+              blockExplorerUrls: [
+                chain.id === RH_CHAIN_TEST
+                  ? 'https://explorer.testnet.chain.robinhood.com'
+                  : 'https://robinhoodchain.blockscout.com',
+              ],
+            },
+          ],
+        })
+      } catch (addErr) {
+        const addMsg = String(addErr?.message || addErr || '')
+        if (/already pending/i.test(addMsg)) {
+          throw new Error('wallet popup already open — approve/reject in MetaMask, then retry')
+        }
+        throw addErr
+      }
     } else {
       throw err
     }
@@ -162,14 +179,26 @@ async function connectWalletConnect() {
 }
 
 /**
- * Connect Robinhood (injected EVM or WalletConnect QR) + EIP-191 sign link message.
+ * Link wallet + EIP-191 sign.
+ * mode: 'qr' (WalletConnect — Trust phone) | 'injected' (browser MetaMask) | 'auto'
+ * Default 'qr' so desktop MetaMask does not steal the flow from Trust users.
  */
-export async function connectAndSignLink(message) {
-  // Prefer any injected EVM (Trust / MetaMask / Robinhood). Else WalletConnect QR.
-  const injected = getRobinhoodInjected() || getInjectedEvm()
-  const { provider, address } = injected
-    ? await connectInjected()
-    : await connectWalletConnect()
+export async function connectAndSignLink(message, opts = {}) {
+  const mode = opts.mode || 'qr'
+  let provider
+  let address
+
+  if (mode === 'injected') {
+    ;({ provider, address } = await connectInjected())
+  } else if (mode === 'auto' && getRobinhoodInjected()) {
+    ;({ provider, address } = await connectInjected())
+  } else if (hasWalletConnectProject()) {
+    ;({ provider, address } = await connectWalletConnect())
+  } else if (getInjectedEvm()) {
+    ;({ provider, address } = await connectInjected())
+  } else {
+    throw new Error('set VITE_WALLETCONNECT_PROJECT_ID (Reown) for QR, or use a browser wallet')
+  }
 
   const walletClient = createWalletClient({
     account: address,
@@ -180,7 +209,7 @@ export async function connectAndSignLink(message) {
     account: address,
     message: String(message),
   })
-  return { pubkey: address, address, signature, walletLabel: 'EVM' }
+  return { pubkey: address, address, signature, walletLabel: mode === 'injected' ? 'browser' : 'WalletConnect' }
 }
 
 export async function readBalances(address) {
