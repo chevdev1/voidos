@@ -36,8 +36,8 @@ const SECTIONS = [
         <p>
           Sector price scales with proximity to the galactic core and lot kind. The full map —
           all <b className="text-lime">200</b> constellation lots — is valued at{' '}
-          <b className="text-lime">$100,000</b> total. Far-rim lots start around a few hundred;
-          core / scarce kinds run higher (into the low thousands). Closer to the
+          <b className="text-lime">$300,000</b> total. Far-rim lots start around a few hundred;
+          core / scarce kinds run into the low–mid thousands. Closer to the
           core means more contested, higher-gravity real estate.
         </p>
         <p className="mt-4">

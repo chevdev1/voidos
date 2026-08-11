@@ -565,7 +565,7 @@ export function runVoidTool(name, args = {}, ctx = {}) {
       'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $EXO — rewrite how ExoMind speaks for everyone. Connect Robinhood and claim on the full map.',
     units: 'Constellation lots (linked star figures), not single stars.',
     currency: '$EXO',
-    map_book: '$100,000 across 200 constellation lots (~$110 rim → ~$1.3k core/scarce; avg $500)',
+    map_book: '$300,000 across 200 constellation lots (~$315 rim → ~$3.9k core/scarce; avg $1.5k)',
     core_reserved: '28%',
     claim_cta: 'Connect Robinhood in CABINET → full map → stack → claim. One lot = one wallet forever.',
   }

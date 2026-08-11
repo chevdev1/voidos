@@ -53,7 +53,7 @@ export function initVoidEngine() {
     if (r < 0.55) return { size: ri(110, 239), tier: 'MID', viz: rnd(1.9, 2.9) };
     return { size: ri(32, 109), tier: 'MICRO', viz: rnd(1.15, 1.85) };
   }
-  /* Per-grain USD is assigned later from the $100k lot book (applyLotBookToConstels). */
+  /* Per-grain USD is assigned later from the $300k lot book (applyLotBookToConstels). */
   function ringName(dist, maxR) {
     const t = dist / maxR;
     if (t < 0.18) return 'core ring';
