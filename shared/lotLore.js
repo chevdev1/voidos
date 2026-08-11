@@ -161,140 +161,173 @@ export function getLotKind(idOrIndex) {
 function layoutStars(kindIdx, starCount, rnd) {
   const stars = []
   const k = kindIdx % 6
+  const n = Math.max(5, starCount)
 
   if (k === 0) {
-    // Spire — vertical stack with slight twist
-    for (let i = 0; i < starCount; i++) {
-      const t = i / Math.max(1, starCount - 1)
-      const ang = t * 1.2 + rnd() * 0.4
-      const rad = 0.12 + rnd() * 0.18
+    // Spire — tall vertical column (needle)
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1)
       stars.push({
-        x: Math.cos(ang) * rad,
-        y: (t - 0.5) * 1.1,
-        z: Math.sin(ang) * rad,
-        r: 1.5 + rnd() * 2,
+        x: (rnd() - 0.5) * 0.04,
+        y: (t - 0.5) * 1.35,
+        z: (rnd() - 0.5) * 0.04,
+        r: 1.2 + (1 - t) * 1.8 + rnd() * 0.4,
+        mark: 'diamond',
       })
     }
   } else if (k === 1) {
-    // Coil — helix
-    for (let i = 0; i < starCount; i++) {
-      const t = i / Math.max(1, starCount - 1)
-      const ang = t * Math.PI * 2.6 + rnd() * 0.3
-      const rad = 0.28 + rnd() * 0.12
+    // Coil — clear helix / spiral
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1)
+      const ang = t * Math.PI * 3.2
+      const rad = 0.22 + t * 0.2
       stars.push({
         x: Math.cos(ang) * rad,
-        y: (t - 0.5) * 0.95,
+        y: (t - 0.5) * 1.05,
         z: Math.sin(ang) * rad,
-        r: 1.4 + rnd() * 2.1,
+        r: 1.4 + rnd() * 1.2,
+        mark: 'plus',
       })
     }
   } else if (k === 2) {
-    // Crown — open arc
-    for (let i = 0; i < starCount; i++) {
-      const t = i / Math.max(1, starCount - 1)
-      const ang = -0.9 + t * 1.8 + (rnd() - 0.5) * 0.15
-      const rad = 0.42 + rnd() * 0.08
+    // Crown — wide U / throne arc (points up)
+    for (let i = 0; i < n; i++) {
+      const t = i / (n - 1)
+      const ang = -Math.PI * 0.55 + t * Math.PI * 1.1
       stars.push({
-        x: Math.sin(ang) * rad,
-        y: 0.15 + Math.cos(ang) * 0.22 + (rnd() - 0.5) * 0.06,
-        z: Math.cos(ang) * rad * 0.55,
-        r: 1.6 + rnd() * 2,
+        x: Math.sin(ang) * 0.55,
+        y: -0.05 + Math.cos(ang) * 0.35,
+        z: Math.cos(ang) * 0.12,
+        r: 1.5 + (i === 0 || i === n - 1 ? 1.2 : 0.6) + rnd() * 0.5,
+        mark: 'triangle',
       })
     }
   } else if (k === 3) {
-    // Lattice — two crossing lines + filler
-    const half = Math.ceil(starCount / 2)
-    for (let i = 0; i < starCount; i++) {
-      if (i < half) {
-        const t = i / Math.max(1, half - 1)
-        stars.push({
-          x: (t - 0.5) * 0.9,
-          y: (t - 0.5) * 0.35 + (rnd() - 0.5) * 0.05,
-          z: (rnd() - 0.5) * 0.12,
-          r: 1.5 + rnd() * 2,
-        })
-      } else {
-        const t = (i - half) / Math.max(1, starCount - half - 1)
-        stars.push({
-          x: (t - 0.5) * 0.35 + (rnd() - 0.5) * 0.05,
-          y: (0.5 - t) * 0.9,
-          z: (rnd() - 0.5) * 0.12,
-          r: 1.5 + rnd() * 2,
-        })
-      }
+    // Lattice — clear X / cross grid
+    const a = Math.ceil(n / 2)
+    for (let i = 0; i < a; i++) {
+      const t = i / Math.max(1, a - 1)
+      stars.push({
+        x: (t - 0.5) * 1.0,
+        y: (t - 0.5) * 1.0,
+        z: 0,
+        r: 1.5 + rnd() * 0.8,
+        mark: 'square',
+      })
+    }
+    for (let i = 0; i < n - a; i++) {
+      const t = i / Math.max(1, n - a - 1)
+      stars.push({
+        x: (t - 0.5) * 1.0,
+        y: (0.5 - t) * 1.0,
+        z: 0.05,
+        r: 1.5 + rnd() * 0.8,
+        mark: 'square',
+      })
     }
   } else if (k === 4) {
-    // Vein — trunk + branches
-    const trunk = Math.max(3, Math.floor(starCount * 0.45))
+    // Vein — Y / tree fork
+    const trunk = Math.max(3, Math.floor(n * 0.4))
     for (let i = 0; i < trunk; i++) {
       const t = i / Math.max(1, trunk - 1)
       stars.push({
-        x: (rnd() - 0.5) * 0.08,
-        y: (t - 0.5) * 1.05,
-        z: (rnd() - 0.5) * 0.08,
-        r: 1.7 + rnd() * 1.8,
+        x: 0,
+        y: -0.55 + t * 0.7,
+        z: 0,
+        r: 1.6 + rnd() * 0.7,
+        mark: 'circle',
       })
     }
-    for (let i = trunk; i < starCount; i++) {
-      const side = i % 2 === 0 ? 1 : -1
-      const t = (i - trunk) / Math.max(1, starCount - trunk)
+    const rest = n - trunk
+    const left = Math.ceil(rest / 2)
+    for (let i = 0; i < left; i++) {
+      const t = (i + 1) / (left + 1)
       stars.push({
-        x: side * (0.18 + t * 0.35),
-        y: -0.1 + t * 0.55 + (rnd() - 0.5) * 0.1,
-        z: side * (0.08 + rnd() * 0.15),
-        r: 1.3 + rnd() * 2,
+        x: -t * 0.48,
+        y: 0.15 + t * 0.4,
+        z: -t * 0.08,
+        r: 1.3 + rnd() * 0.9,
+        mark: 'circle',
+      })
+    }
+    for (let i = 0; i < rest - left; i++) {
+      const t = (i + 1) / (rest - left + 1)
+      stars.push({
+        x: t * 0.48,
+        y: 0.15 + t * 0.4,
+        z: t * 0.08,
+        r: 1.3 + rnd() * 0.9,
+        mark: 'circle',
       })
     }
   } else {
-    // Halo — ring + optional center
-    const ring = Math.max(3, starCount - 1)
+    // Halo — closed ring + bright center
+    const ring = n - 1
     for (let i = 0; i < ring; i++) {
-      const ang = (i / ring) * Math.PI * 2 + rnd() * 0.2
-      const rad = 0.38 + rnd() * 0.08
+      const ang = (i / ring) * Math.PI * 2 - Math.PI / 2
       stars.push({
-        x: Math.cos(ang) * rad,
-        y: (rnd() - 0.5) * 0.1,
-        z: Math.sin(ang) * rad,
-        r: 1.5 + rnd() * 2,
+        x: Math.cos(ang) * 0.48,
+        y: Math.sin(ang) * 0.48,
+        z: 0,
+        r: 1.4 + rnd() * 0.7,
+        mark: 'hex',
       })
     }
-    if (stars.length < starCount) {
-      stars.push({ x: 0, y: 0, z: 0, r: 2.4 + rnd() })
-    }
+    stars.push({ x: 0, y: 0, z: 0, r: 2.8, mark: 'hex' })
   }
 
-  // Strong per-lot warp so same kind still looks unique in cabinet thumbnails
-  const yaw = (rnd() - 0.5) * Math.PI * 2
-  const pitch = (rnd() - 0.5) * 1.1
-  const roll = (rnd() - 0.5) * 1.4
-  const stretchX = 0.72 + rnd() * 0.7
-  const stretchY = 0.72 + rnd() * 0.7
-  const stretchZ = 0.72 + rnd() * 0.7
+  // Mild per-lot tilt only — keep kind silhouette readable in thumbnails
+  const yaw = (rnd() - 0.5) * 0.7
+  const roll = (rnd() - 0.5) * 0.45
+  const scale = 0.92 + rnd() * 0.16
   const cy = Math.cos(yaw)
   const sy = Math.sin(yaw)
-  const cp = Math.cos(pitch)
-  const sp = Math.sin(pitch)
   const cr = Math.cos(roll)
   const sr = Math.sin(roll)
   for (const s of stars) {
-    let x = (s.x + (rnd() - 0.5) * 0.1) * stretchX
-    let y = (s.y + (rnd() - 0.5) * 0.1) * stretchY
-    let z = (s.z + (rnd() - 0.5) * 0.1) * stretchZ
-    // yaw
-    let x1 = x * cy + z * sy
-    let z1 = -x * sy + z * cy
-    // pitch
-    let y2 = y * cp - z1 * sp
-    let z2 = y * sp + z1 * cp
-    // roll
-    const x3 = x1 * cr - y2 * sr
-    const y3 = x1 * sr + y2 * cr
-    s.x = x3
-    s.y = y3
-    s.z = z2
-    s.r = Math.max(1.2, s.r * (0.85 + rnd() * 0.45))
+    let x = s.x * scale
+    let y = s.y * scale
+    let z = (s.z || 0) * scale
+    const x1 = x * cy + z * sy
+    const z1 = -x * sy + z * cy
+    s.x = x1 * cr - y * sr
+    s.y = x1 * sr + y * cr
+    s.z = z1
+    s.r = Math.max(1.1, (s.r || 1.5) * (0.9 + rnd() * 0.25))
   }
   return stars
+}
+
+/** Kind-specific edge list so figures read as shapes, not random MST webs. */
+function kindEdges(kindIdx, stars) {
+  const n = stars.length
+  if (n < 2) return []
+  const k = kindIdx % 6
+  const edges = []
+  if (k === 0 || k === 1) {
+    // chain
+    for (let i = 0; i < n - 1; i++) edges.push([i, i + 1])
+  } else if (k === 2) {
+    // arc chain
+    for (let i = 0; i < n - 1; i++) edges.push([i, i + 1])
+  } else if (k === 3) {
+    // two diagonals of X
+    const a = Math.ceil(n / 2)
+    for (let i = 0; i < a - 1; i++) edges.push([i, i + 1])
+    for (let i = a; i < n - 1; i++) edges.push([i, i + 1])
+  } else if (k === 4) {
+    // trunk chain + fork from branch point
+    const trunk = Math.max(3, Math.floor(n * 0.4))
+    for (let i = 0; i < trunk - 1; i++) edges.push([i, i + 1])
+    const tip = trunk - 1
+    for (let i = trunk; i < n; i++) edges.push([tip, i])
+  } else {
+    // ring + spokes to center (last star)
+    const ring = n - 1
+    for (let i = 0; i < ring; i++) edges.push([i, (i + 1) % ring])
+    for (let i = 0; i < ring; i++) edges.push([i, n - 1])
+  }
+  return edges
 }
 
 function loreForStar(lotId, lotName, kind, index, rnd, starCount) {
@@ -357,11 +390,11 @@ export function buildLotProfile(lot) {
 
   const starCount = 5 + Math.floor(rnd() * 4) // 5–8
   const rawStars = layoutStars(kindIdx, starCount, rnd)
-  const edges = mstEdges(rawStars)
+  const edges = kindEdges(kindIdx, rawStars)
 
   const stars = rawStars.map((s, i) => {
     const lore = loreForStar(id, name, kind, i, rnd, starCount)
-    return { ...s, ...lore }
+    return { ...s, ...lore, mark: s.mark || 'diamond' }
   })
 
   const trait = TRAITS[seed % TRAITS.length]

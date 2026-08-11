@@ -2,8 +2,7 @@ import { useEffect, useRef } from 'react'
 import { buildLotProfile } from '../../shared/lotLore.js'
 
 /**
- * Sharp constellation figure — no soft glow.
- * Interactive: drag to orbit; click a star to select (onSelectStar).
+ * Sharp constellation figure — silhouette + mark style vary by kind.
  */
 export function LotFigure({
   lot,
@@ -17,9 +16,18 @@ export function LotFigure({
 }) {
   const ref = useRef(null)
   const profile = buildLotProfile(lot)
+  const kindCam = {
+    spire: { yaw: 0.15, pitch: 0.08 },
+    coil: { yaw: 0.85, pitch: 0.18 },
+    crown: { yaw: 0.05, pitch: 0.35 },
+    lattice: { yaw: 0.2, pitch: 0.55 },
+    vein: { yaw: 0.12, pitch: 0.1 },
+    halo: { yaw: 0.05, pitch: 0.9 },
+  }[profile.kindId] || { yaw: 0.35, pitch: 0.2 }
+
   const viewRef = useRef({
-    yaw: 0.35 + (profile.id.charCodeAt(profile.id.length - 1) % 13) * 0.37,
-    pitch: 0.12 + (profile.starCount % 5) * 0.05,
+    yaw: kindCam.yaw + (profile.id.charCodeAt(profile.id.length - 1) % 7) * 0.08,
+    pitch: kindCam.pitch,
   })
   const dragRef = useRef(null)
   const ptsRef = useRef([])
@@ -42,15 +50,82 @@ export function LotFigure({
       const z1 = -s.x * sy + s.z * cy
       const y2 = s.y * cp - z1 * sp
       const z2 = s.y * sp + z1 * cp
-      const scale = (Math.min(w, h) * 0.44) / (1.12 + z2 * 0.32)
+      const scale = (Math.min(w, h) * 0.42) / (1.05 + z2 * 0.28)
       return {
         x: w * 0.5 + x1 * scale,
-        y: h * 0.5 - y2 * scale,
+        y: h * 0.52 - y2 * scale,
         z: z2,
-        r: Math.max(2.2, s.r * (w / 155) * (1.08 - z2 * 0.12)),
+        r: Math.max(2.4, s.r * (w / 140) * (1.1 - z2 * 0.1)),
         index: s.index,
         name: s.name,
+        mark: s.mark || 'diamond',
       }
+    }
+
+    function drawMark(p, r, sel) {
+      const fill = sel ? '#f5ff9a' : '#ccff00'
+      const stroke = sel ? 'rgba(245,255,154,0.95)' : 'rgba(204,255,0,0.8)'
+      ctx.fillStyle = fill
+      ctx.strokeStyle = stroke
+      ctx.lineWidth = sel ? 1.6 : 1.1
+
+      if (p.mark === 'circle') {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r * 0.85, 0, Math.PI * 2)
+        ctx.fill()
+        return
+      }
+      if (p.mark === 'square') {
+        const s = r * 1.1
+        ctx.fillRect(p.x - s * 0.5, p.y - s * 0.5, s, s)
+        return
+      }
+      if (p.mark === 'triangle') {
+        ctx.beginPath()
+        ctx.moveTo(p.x, p.y - r)
+        ctx.lineTo(p.x + r * 0.95, p.y + r * 0.7)
+        ctx.lineTo(p.x - r * 0.95, p.y + r * 0.7)
+        ctx.closePath()
+        ctx.fill()
+        return
+      }
+      if (p.mark === 'plus') {
+        ctx.beginPath()
+        ctx.moveTo(p.x - r * 1.2, p.y)
+        ctx.lineTo(p.x + r * 1.2, p.y)
+        ctx.moveTo(p.x, p.y - r * 1.2)
+        ctx.lineTo(p.x, p.y + r * 1.2)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, r * 0.35, 0, Math.PI * 2)
+        ctx.fill()
+        return
+      }
+      if (p.mark === 'hex') {
+        ctx.beginPath()
+        for (let i = 0; i < 6; i++) {
+          const a = (Math.PI / 3) * i - Math.PI / 6
+          const x = p.x + Math.cos(a) * r
+          const y = p.y + Math.sin(a) * r
+          if (i === 0) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        }
+        ctx.closePath()
+        ctx.fill()
+        return
+      }
+      // diamond default
+      ctx.save()
+      ctx.translate(p.x, p.y)
+      ctx.rotate(Math.PI / 4)
+      ctx.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
+      ctx.restore()
+      ctx.beginPath()
+      ctx.moveTo(p.x - r * 1.2, p.y)
+      ctx.lineTo(p.x + r * 1.2, p.y)
+      ctx.moveTo(p.x, p.y - r * 1.2)
+      ctx.lineTo(p.x, p.y + r * 1.2)
+      ctx.stroke()
     }
 
     function paint(now) {
@@ -61,16 +136,16 @@ export function LotFigure({
       const t = (now - t0) / 1000
 
       if (interactive && autoSpin && !dragRef.current) {
-        viewRef.current.yaw += dt * 0.28
+        viewRef.current.yaw += dt * 0.22
       }
 
       const { yaw, pitch } = viewRef.current
       ctx.clearRect(0, 0, w, h)
 
-      // subtle grid / void grain — no lime bloom
-      ctx.strokeStyle = 'rgba(255,255,255,0.04)'
+      // faint kind-tinted grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.035)'
       ctx.lineWidth = 1
-      const step = Math.max(24, w / 12)
+      const step = Math.max(22, w / 11)
       for (let x = 0; x < w; x += step) {
         ctx.beginPath()
         ctx.moveTo(x, 0)
@@ -88,10 +163,33 @@ export function LotFigure({
       ptsRef.current = pts
       const order = pts.map((_, i) => i).sort((a, b) => pts[a].z - pts[b].z)
 
-      // thin hard links
-      ctx.setLineDash([Math.max(2, w / 90), Math.max(3, w / 70)])
-      ctx.lineWidth = Math.max(1, w / 280)
-      ctx.strokeStyle = 'rgba(204,255,0,0.55)'
+      // kind-specific links
+      const kind = profile.kindId
+      ctx.lineCap = 'round'
+      ctx.lineJoin = 'round'
+      if (kind === 'coil' || kind === 'spire') {
+        ctx.setLineDash([])
+        ctx.lineWidth = Math.max(1.4, w / 160)
+        ctx.strokeStyle = 'rgba(204,255,0,0.7)'
+      } else if (kind === 'lattice') {
+        ctx.setLineDash([])
+        ctx.lineWidth = Math.max(1.2, w / 200)
+        ctx.strokeStyle = 'rgba(204,255,0,0.55)'
+      } else if (kind === 'halo') {
+        ctx.setLineDash([])
+        ctx.lineWidth = Math.max(1.1, w / 220)
+        ctx.strokeStyle = 'rgba(204,255,0,0.5)'
+      } else if (kind === 'vein') {
+        ctx.setLineDash([])
+        ctx.lineWidth = Math.max(1.5, w / 150)
+        ctx.strokeStyle = 'rgba(204,255,0,0.65)'
+      } else {
+        // crown
+        ctx.setLineDash([Math.max(3, w / 70), Math.max(2, w / 90)])
+        ctx.lineWidth = Math.max(1.2, w / 190)
+        ctx.strokeStyle = 'rgba(204,255,0,0.6)'
+      }
+
       ctx.beginPath()
       for (const [a, b] of profile.edges) {
         ctx.moveTo(pts[a].x, pts[a].y)
@@ -103,31 +201,15 @@ export function LotFigure({
       for (const i of order) {
         const p = pts[i]
         const sel = selectedStar === i
-        const tick = animate ? 1 + Math.sin(t * 2.4 + i * 0.9) * 0.08 : 1
-        const r = Math.max(2, p.r * tick)
-
-        // hard diamond / cross core — no soft aura
-        ctx.save()
-        ctx.translate(p.x, p.y)
-        ctx.rotate(Math.PI / 4)
-        ctx.fillStyle = sel ? '#f5ff9a' : '#ccff00'
-        ctx.fillRect(-r * 0.55, -r * 0.55, r * 1.1, r * 1.1)
-        ctx.restore()
-
-        ctx.beginPath()
-        ctx.strokeStyle = sel ? 'rgba(245,255,154,0.95)' : 'rgba(204,255,0,0.75)'
-        ctx.lineWidth = sel ? 1.5 : 1
-        ctx.moveTo(p.x - r * 1.35, p.y)
-        ctx.lineTo(p.x + r * 1.35, p.y)
-        ctx.moveTo(p.x, p.y - r * 1.35)
-        ctx.lineTo(p.x, p.y + r * 1.35)
-        ctx.stroke()
+        const tick = animate ? 1 + Math.sin(t * 2.2 + i * 0.85) * 0.07 : 1
+        const r = Math.max(2.2, p.r * tick)
+        drawMark(p, r, sel)
 
         if (sel || showLabels) {
           const label = `★${i + 1}`
           ctx.font = `${Math.max(9, w / 42)}px ui-monospace, monospace`
           ctx.fillStyle = sel ? '#f5ff9a' : 'rgba(204,255,0,0.7)'
-          ctx.fillText(label, p.x + r * 1.6, p.y - r * 0.4)
+          ctx.fillText(label, p.x + r * 1.5, p.y - r * 0.35)
         }
       }
 
@@ -180,9 +262,7 @@ export function LotFigure({
       let best = null
       for (let i = 0; i < ptsRef.current.length; i++) {
         const p = ptsRef.current[i]
-        const dx = p.x - lx
-        const dy = p.y - ly
-        const d = Math.hypot(dx, dy)
+        const d = Math.hypot(p.x - lx, p.y - ly)
         const thresh = Math.max(14, p.r * 3.2)
         if (d <= thresh && (!best || d < best.d)) best = { i, d }
       }
