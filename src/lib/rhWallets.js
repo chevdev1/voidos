@@ -87,6 +87,12 @@ async function ensureChain(provider) {
   const chain = getRhChain()
   const hexId = `0x${chain.id.toString(16)}`
   try {
+    const current = await provider.request({ method: 'eth_chainId' })
+    if (String(current).toLowerCase() === hexId.toLowerCase()) return
+  } catch {
+    /* continue to switch */
+  }
+  try {
     await provider.request({
       method: 'wallet_switchEthereumChain',
       params: [{ chainId: hexId }],
@@ -94,9 +100,10 @@ async function ensureChain(provider) {
   } catch (err) {
     const msg = String(err?.message || err || '')
     if (/already pending/i.test(msg)) {
-      throw new Error('wallet popup already open — check MetaMask/Trust and approve or reject, then retry')
+      throw new Error(
+        'MetaMask: старый запрос сети ещё открыт. Открой расширение MetaMask → Reject. Потом жми QR · Trust (не MetaMask).',
+      )
     }
-    // 4902 = unknown chain — try add
     if (err?.code === 4902 || /Unrecognized chain/i.test(msg)) {
       try {
         await provider.request({
@@ -118,7 +125,9 @@ async function ensureChain(provider) {
       } catch (addErr) {
         const addMsg = String(addErr?.message || addErr || '')
         if (/already pending/i.test(addMsg)) {
-          throw new Error('wallet popup already open — approve/reject in MetaMask, then retry')
+          throw new Error(
+            'MetaMask: запрос Add Network уже висит. Открой MetaMask → Reject. Потом используй QR · Trust.',
+          )
         }
         throw addErr
       }
@@ -170,7 +179,14 @@ async function connectWalletConnect() {
     },
   })
   await wcProvider.enable()
-  await ensureChain(wcProvider)
+  // Do not force wallet_addEthereumChain on WC — Trust may already be on testnet from faucet.
+  try {
+    await ensureChain(wcProvider)
+  } catch (e) {
+    const msg = String(e?.message || e || '')
+    if (!/already pending|MetaMask/i.test(msg)) throw e
+    // Continue — sign/link can still work; wrong chain shows later on balance/claim.
+  }
   const accounts = wcProvider.accounts?.length
     ? wcProvider.accounts
     : await wcProvider.request({ method: 'eth_accounts' })
@@ -180,24 +196,29 @@ async function connectWalletConnect() {
 
 /**
  * Link wallet + EIP-191 sign.
- * mode: 'qr' (WalletConnect — Trust phone) | 'injected' (browser MetaMask) | 'auto'
- * Default 'qr' so desktop MetaMask does not steal the flow from Trust users.
+ * mode: 'qr' | 'injected' | 'auto'
+ * 'qr' NEVER falls back to MetaMask — needs VITE_WALLETCONNECT_PROJECT_ID.
  */
 export async function connectAndSignLink(message, opts = {}) {
   const mode = opts.mode || 'qr'
   let provider
   let address
 
-  if (mode === 'injected') {
+  if (mode === 'qr') {
+    if (!hasWalletConnectProject()) {
+      throw new Error(
+        'Нет VITE_WALLETCONNECT_PROJECT_ID на Vercel. Добавь Project ID → Redeploy. Без этого QR для Trust не работает (MetaMask тут ни при чём).',
+      )
+    }
+    ;({ provider, address } = await connectWalletConnect())
+  } else if (mode === 'injected') {
     ;({ provider, address } = await connectInjected())
-  } else if (mode === 'auto' && getRobinhoodInjected()) {
+  } else if (getRobinhoodInjected()) {
     ;({ provider, address } = await connectInjected())
   } else if (hasWalletConnectProject()) {
     ;({ provider, address } = await connectWalletConnect())
-  } else if (getInjectedEvm()) {
-    ;({ provider, address } = await connectInjected())
   } else {
-    throw new Error('set VITE_WALLETCONNECT_PROJECT_ID (Reown) for QR, or use a browser wallet')
+    throw new Error('Нет WalletConnect Project ID и нет browser wallet')
   }
 
   const walletClient = createWalletClient({
