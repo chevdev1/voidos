@@ -792,6 +792,12 @@ export function initVoidEngine() {
       const burnEl = document.getElementById('cartBurn');
       if (!dock || !list) return;
 
+      // Drop lots that are already yours / reserved so totals never flash $0
+      for (const cid of [...selectedConstels]) {
+        const c = g0.constels.find((x) => x.id === cid);
+        if (!c || constelOwned(c) || constelReserved(c)) selectedConstels.delete(cid);
+      }
+
       // Stack = constellations only (any leftover grain picks dropped)
       selectedSet.clear();
       const items = [];
@@ -799,17 +805,20 @@ export function initVoidEngine() {
         burn = 0;
       for (const cid of selectedConstels) {
         const c = g0.constels.find((x) => x.id === cid);
-        if (!c || constelOwned(c) || constelReserved(c)) continue;
+        if (!c) continue;
         for (const s of c.grains) {
           items.push(s);
           mass += s.size;
-          burn += s.usd;
+          burn += Number(s.usd) || 0;
         }
       }
 
       if (!selectedConstels.size) {
         dock.hidden = true;
         list.innerHTML = '';
+        if (title) title.textContent = 'STACK · 0 constellations';
+        if (massEl) massEl.textContent = '0';
+        if (burnEl) burnEl.textContent = formatUsd(0);
         syncTermButtons();
         return;
       }
@@ -819,7 +828,7 @@ export function initVoidEngine() {
           const c = g0.constels.find((x) => x.id === cid);
           if (!c) return '';
           const cm = c.grains.reduce((a, s) => a + s.size, 0);
-          const cb = c.grains.reduce((a, s) => a + s.usd, 0);
+          const cb = c.grains.reduce((a, s) => a + (Number(s.usd) || 0), 0);
           return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${c.name} · ${c.grains.length}g · ${formatUsd(cb)}</button>`;
         })
         .join('');
@@ -1132,11 +1141,13 @@ export function initVoidEngine() {
           ? 'owner · ' + shortWallet(taken?.wallet)
           : 'kind · ' + kind.label,
         tier: kind.tag + ' · ' + kind.rarity,
-        price: reserved
-          ? 'RESERVED · one owner only'
-          : isClaimLiveClient()
-            ? formatUsd(burn) + ' · burn $EXO on Robinhood Chain'
-            : formatUsd(burn) + ' · test claim (connect wallet · no real $EXO yet)',
+        price: owned
+          ? formatUsd(burn) + ' · claimed (yours)'
+          : reserved
+            ? 'RESERVED · one owner only'
+            : isClaimLiveClient()
+              ? formatUsd(burn) + ' · burn $EXO on Robinhood Chain'
+              : formatUsd(burn) + ' · test claim (no real $EXO yet)',
         size: fmt(mass) + ' cells',
         grav: owned
           ? yours + '/' + c.grains.length + ' owned'
