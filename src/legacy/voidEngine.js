@@ -13,7 +13,7 @@
  */
 import { mindClaimSync, mindClaimVerify, mindMapOwnerships, loadOwnerships, loadUser, mindSession } from '../lib/mindClient.js'
 import { isClaimLiveClient, claimOnChain } from '../lib/rhWallets.js'
-import { getLotKind } from '../../shared/lotLore.js'
+import { getLotKind, buildLotProfile } from '../../shared/lotLore.js'
 import { applyLotBookToConstels, formatUsd } from '../../shared/lotPricing.js'
 
 export function initVoidEngine() {
@@ -945,6 +945,22 @@ export function initVoidEngine() {
     }
 
     const celebrateLots = new Map(); // constel_id → until performance.now()
+    const figureCache = new Map(); // constel_id → lot profile (same as cabinet)
+
+    function figureForConstel(c) {
+      const id = String(c?.id || '');
+      if (!id) return null;
+      let p = figureCache.get(id);
+      if (!p) {
+        p = buildLotProfile({
+          constel_id: id,
+          constel_name: c.name,
+          figure: typeof c.figure === 'number' ? c.figure : undefined,
+        });
+        figureCache.set(id, p);
+      }
+      return p;
+    }
 
     function escHtml(s) {
       return String(s || '')
@@ -2487,19 +2503,22 @@ export function initVoidEngine() {
           return edges;
         }
 
-        function spark(x, y, col, a) {
+        function diamondSpark(x, y, col, a, r) {
+          const rr = Math.max(2.2, r || 2.4);
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = rgba(col, a);
+          ctx.fillRect(-rr * 0.45, -rr * 0.45, rr * 0.9, rr * 0.9);
+          ctx.restore();
           ctx.strokeStyle = rgba(col, a * 0.9);
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = 0.9;
           ctx.beginPath();
-          ctx.moveTo(x - 3.5, y);
-          ctx.lineTo(x + 3.5, y);
-          ctx.moveTo(x, y - 3.5);
-          ctx.lineTo(x, y + 3.5);
+          ctx.moveTo(x - rr * 1.25, y);
+          ctx.lineTo(x + rr * 1.25, y);
+          ctx.moveTo(x, y - rr * 1.25);
+          ctx.lineTo(x, y + rr * 1.25);
           ctx.stroke();
-          ctx.fillStyle = rgba([255, 255, 240], a);
-          ctx.beginPath();
-          ctx.arc(x, y, 1.5, 0, Math.PI * 2);
-          ctx.fill();
         }
 
         for (let ci = 0; ci < g.constels.length; ci++) {
@@ -2512,28 +2531,21 @@ export function initVoidEngine() {
           if (!picked && !mine && !celebrating && ci % constelStep) continue;
           if (!constelVisible(c) && !picked && !mine && !celebrating) continue;
 
-          const raw = [];
-          for (const s of c.grains) {
-            if (!sectorVisible(s) && !picked && !mine) continue;
-            const p = sectorProj(s, g);
-            const [sx, sy] = w2s(p.x, p.y);
-            if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
-            raw.push({
-              s,
-              sx,
-              sy,
-              br:
-                (s.tier === 'MEGA' ? 3 : s.tier === 'LARGE' ? 1.6 : s.tier === 'MID' ? 0.4 : 0) +
-                (s.kind === 'fed' ? 1.2 : 0) +
-                s.hover +
-                (mine ? 2 : 0),
-            });
-          }
-          if (raw.length < 2) continue;
-          raw.sort((a, b) => b.br - a.br);
-          const stars = raw.slice(0, Math.min(raw.length, maxStars));
+          // Same silhouette as cabinet LotFigure (stable per lot id)
+          const profile = figureForConstel(c);
+          const center = constelWorld(c, g);
+          const [hx, hy] = w2s(center.x, center.y);
+          if (hx < -80 || hy < -80 || hx > W + 80 || hy > H + 80) continue;
 
-          const hot = picked || mine || celebrating || c.hover > 0.15 || stars.some((p) => p.s.hover > 0.2);
+          const figScale = clamp(g.R * scale * 0.11, 18, 78);
+          const stars = (profile?.stars || []).map((s) => ({
+            sx: hx + s.x * figScale,
+            sy: hy - s.y * figScale,
+            r: Math.max(2.2, (s.r || 1.6) * (scale < 2 ? 0.9 : 1.15)),
+          }));
+          if (stars.length < 2) continue;
+
+          const hot = picked || mine || celebrating || c.hover > 0.15;
           const pulse = 0.85 + 0.15 * Math.sin(t * (mine || celebrating ? 2.4 : 1.6) + c.a0 * 3);
           const aMain = (picked || mine ? 1 : hot ? 0.88 : 0.62 * vis) * pulse;
           const strokeCol = mine || picked || celebrating ? LIME : c.col;
@@ -2544,41 +2556,17 @@ export function initVoidEngine() {
                 ? LIME
                 : [Math.min(255, c.col[0] + 40), Math.min(255, c.col[1] + 40), Math.min(255, c.col[2] + 40)];
 
-          const edges = mstEdges(stars);
-          const lineW = celebrating ? 2.6 : mine ? 2.2 : picked ? 2.1 : hot ? 1.55 : 1.25;
-          for (const [a, b] of edges) {
-            strokePath([a, b], false, glowCol, aMain * (mine ? 0.35 : 0.22), mine || celebrating ? 7 : picked ? 5.5 : 3.6);
+          const edges = profile.edges || [];
+          const lineW = celebrating ? 2.4 : mine ? 2.0 : picked ? 1.9 : hot ? 1.45 : 1.2;
+          for (const [ai, bi] of edges) {
+            const a = stars[ai];
+            const b = stars[bi];
+            if (!a || !b) continue;
+            strokePath([a, b], false, glowCol, aMain * (mine ? 0.32 : 0.2), mine || celebrating ? 6 : picked ? 5 : 3.2);
             strokePath([a, b], false, strokeCol, aMain, lineW);
           }
 
-          // Extra figure outline when zoomed into constellation scale
-          if (stars.length >= 3 && (picked || mine || celebrating || scale > 1.6)) {
-            let cx = 0,
-              cy = 0;
-            for (const p of stars) {
-              cx += p.sx;
-              cy += p.sy;
-            }
-            cx /= stars.length;
-            cy /= stars.length;
-            const ring = stars
-              .map((p) => {
-                p.ang = Math.atan2(p.sy - cy, p.sx - cx);
-                return p;
-              })
-              .sort((a, b) => a.ang - b.ang);
-            strokePath(ring, true, strokeCol, aMain * (mine ? 0.5 : 0.35), mine || celebrating ? 1.6 : picked ? 1.2 : 0.7);
-          }
-
           if (picked || celebrating) {
-            let hx = 0,
-              hy = 0;
-            for (const p of stars) {
-              hx += p.sx;
-              hy += p.sy;
-            }
-            hx /= stars.length;
-            hy /= stars.length;
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
             const rad = (celebrating ? 68 : 52) + boom * 24;
             const halo = ctx.createRadialGradient(hx, hy, 4, hx, hy, rad);
@@ -2599,14 +2587,6 @@ export function initVoidEngine() {
               ctx.stroke();
             }
           } else if (mine && scale > 1.2) {
-            let hx = 0,
-              hy = 0;
-            for (const p of stars) {
-              hx += p.sx;
-              hy += p.sy;
-            }
-            hx /= stars.length;
-            hy /= stars.length;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, 42);
             halo.addColorStop(0, 'rgba(204,255,0,.14)');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
@@ -2617,7 +2597,7 @@ export function initVoidEngine() {
           }
 
           for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked || mine || celebrating ? 1 : hot ? 0.95 : 0.7) * vis * pulse);
+            diamondSpark(p.sx, p.sy, strokeCol, (picked || mine || celebrating ? 1 : hot ? 0.95 : 0.7) * vis * pulse, p.r);
           }
         }
       }
