@@ -2587,7 +2587,7 @@ export function initVoidEngine() {
 
         const placed = [];
         const crowdRef = scale < 1.15 ? 16 : scale < 1.8 ? 20 : 26;
-        // Soft arm bridges so spiral doesn't read as huge slits between lots
+        // Fill arm slits with bead chains — especially when zoomed (large px gaps)
         {
           const byArm = new Map();
           for (const item of scored) {
@@ -2602,19 +2602,29 @@ export function initVoidEngine() {
               const b = list[i + 1];
               if (inCore(a.hx, a.hy, 6) || inCore(b.hx, b.hy, 6)) continue;
               const gap = Math.hypot(a.hx - b.hx, a.hy - b.hy);
-              if (gap < 18 || gap > 90) continue;
-              const midX = (a.hx + b.hx) * 0.5;
-              const midY = (a.hy + b.hy) * 0.5;
-              if (inCore(midX, midY, 8)) continue;
+              // Only skip if already overlapping; never skip large gaps (those are the "пролёты")
+              if (gap < 16) continue;
+              const col = a.c.col || LIME;
+              const beads = Math.min(10, Math.max(1, Math.round(gap / 26)));
               strokeLink(
                 { sx: a.hx, sy: a.hy },
                 { sx: b.hx, sy: b.hy },
-                a.c.col || LIME,
-                scale < 1.2 ? 0.08 : 0.12,
-                0.55,
+                col,
+                clamp(0.1 + gap / 400, 0.1, 0.22),
+                0.65,
               );
-              // tiny dust bead in the gap
-              prettyStar(midX, midY, a.c.col || LIME, 0.35, 1.2, 0.9);
+              for (let bi = 1; bi <= beads; bi++) {
+                const t = bi / (beads + 1);
+                // slight sideways wobble so it reads as a star lane, not a ruler
+                const nx = -(b.hy - a.hy) / gap;
+                const ny = (b.hx - a.hx) / gap;
+                const wob = Math.sin(t * Math.PI * 2 + (a.c.a0 || 0)) * Math.min(6, gap * 0.04);
+                const x = a.hx + (b.hx - a.hx) * t + nx * wob;
+                const y = a.hy + (b.hy - a.hy) * t + ny * wob;
+                if (inCore(x, y, 8)) continue;
+                const mag = 0.9 + (bi % 3 === 0 ? 0.55 : 0.15);
+                prettyStar(x, y, col, 0.45 + mag * 0.25, 1.1 + mag * 0.7, 0.92);
+              }
             }
           }
         }
