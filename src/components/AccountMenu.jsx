@@ -84,10 +84,10 @@ export function AccountMenu() {
             {wallet ? (
               <div className="space-y-3">
                 <div className="border border-white/10 bg-void/80 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted">robinhood chain</p>
+                  <p className="text-[10px] uppercase tracking-wider text-muted">linked now</p>
                   <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
                   <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                    account = this wallet. cabinet unlocks after connect.
+                    Switch below to replace this wallet. Lots stay on this browser account.
                   </p>
                 </div>
                 <Link
@@ -97,6 +97,7 @@ export function AccountMenu() {
                 >
                   OPEN CABINET / ЛК
                 </Link>
+                <WalletPanel user={user} onUser={onUserChange} />
               </div>
             ) : (
               <div className="space-y-3">
@@ -105,7 +106,7 @@ export function AccountMenu() {
                     connect <span className="text-lime">wallet</span>
                   </h3>
                   <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                    On phone: Open in Trust, or Connect → Trust in the list.
+                    Pick any wallet from the list, or use a Chrome extension.
                   </p>
                 </div>
                 <WalletPanel user={user} onUser={onUserChange} />
