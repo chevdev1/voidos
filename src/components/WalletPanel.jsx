@@ -1,18 +1,33 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
-import { connectAndSignLink, hasWalletConnectProject, getInjectedEvm, abortWalletConnect } from '../lib/rhWallets'
+import {
+  connectAndSignLink,
+  hasWalletConnectProject,
+  getInjectedEvm,
+  abortWalletConnect,
+  isMobileDevice,
+  isTrustInjected,
+  openSiteInTrustWallet,
+  pickConnectMode,
+} from '../lib/rhWallets'
 
 /**
- * Single connect CTA — WalletConnect QR when configured, else browser wallet.
+ * Single connect CTA — Trust deep-link on phone, WC / injected otherwise.
  */
 export function WalletPanel({ user, onUser }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [balances, setBalances] = useState(null)
   const [hasBrowser, setHasBrowser] = useState(false)
+  const [mobile, setMobile] = useState(false)
+  const [inTrust, setInTrust] = useState(false)
 
   useEffect(() => {
-    const refresh = () => setHasBrowser(Boolean(getInjectedEvm()))
+    const refresh = () => {
+      setHasBrowser(Boolean(getInjectedEvm()))
+      setMobile(isMobileDevice())
+      setInTrust(isTrustInjected())
+    }
     refresh()
     const t = setTimeout(refresh, 800)
     return () => clearTimeout(t)
@@ -33,17 +48,23 @@ export function WalletPanel({ user, onUser }) {
 
   const wcReady = useMemo(() => hasWalletConnectProject(), [])
   const canConnect = wcReady || hasBrowser
-  const connectMode = wcReady ? 'qr' : 'injected'
-  const connectHint = wcReady
-    ? 'Scan with Trust or any WalletConnect wallet'
+  const connectMode = pickConnectMode() || (wcReady ? 'qr' : 'injected')
+  const showOpenInTrust = mobile && !inTrust && !hasBrowser
+
+  const connectHint = inTrust
+    ? 'Connect inside Trust Browser'
     : hasBrowser
       ? 'Opens your browser wallet'
-      : 'WalletConnect Project ID required'
+      : wcReady
+        ? mobile
+          ? 'Opens WalletConnect → pick Trust'
+          : 'Scan with Trust or any WalletConnect wallet'
+        : 'WalletConnect Project ID required'
 
   async function cancelConnect() {
     await abortWalletConnect()
     setBusy(false)
-    setErr('connection cancelled — tap Connect wallet to try again')
+    setErr('Cancelled — tap Connect again')
   }
 
   async function linkWallet() {
@@ -61,7 +82,7 @@ export function WalletPanel({ user, onUser }) {
     } catch (e) {
       const msg = e?.message || String(e)
       if (/reject|cancel|closed|denied|User closed/i.test(msg)) {
-        setErr('connection cancelled — tap Connect wallet to try again')
+        setErr('Cancelled — tap Connect again')
       } else if (/already pending|already in progress/i.test(msg)) {
         setErr(msg)
       } else if (/timed out/i.test(msg)) {
@@ -91,6 +112,23 @@ export function WalletPanel({ user, onUser }) {
     ? `${user.wallet.slice(0, 6)}…${user.wallet.slice(-4)}`
     : null
 
+  const busySub =
+    connectMode === 'injected'
+      ? 'Approve in Trust / MetaMask'
+      : mobile
+        ? 'Pick Trust in the list — approve in the app'
+        : 'QR should open — scan with Trust'
+
+  const idleSub = inTrust
+    ? 'Trust Browser · one tap'
+    : showOpenInTrust
+      ? 'Or use WalletConnect below'
+      : wcReady
+        ? mobile
+          ? 'Trust · WalletConnect'
+          : 'QR · Trust · WalletConnect'
+        : 'Browser wallet'
+
   return (
     <div className="border border-lime/25 bg-black/45 p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
@@ -106,8 +144,17 @@ export function WalletPanel({ user, onUser }) {
 
       {!user?.wallet && (
         <p className="mt-2 max-w-md text-[12px] leading-relaxed text-muted">
-          One tap to link. Works with <span className="text-lime/90">Trust</span>, MetaMask, and
-          other WalletConnect wallets. Cabinet, lots, and train stay with this address.
+          {mobile ? (
+            <>
+              On phone: open the site in <span className="text-lime/90">Trust Browser</span>, then
+              Connect — or use WalletConnect and pick Trust.
+            </>
+          ) : (
+            <>
+              One tap to link. Works with <span className="text-lime/90">Trust</span>, MetaMask, and
+              other WalletConnect wallets.
+            </>
+          )}
         </p>
       )}
 
@@ -132,6 +179,20 @@ export function WalletPanel({ user, onUser }) {
         </div>
       ) : (
         <div className="mt-5 space-y-2">
+          {showOpenInTrust && (
+            <button
+              type="button"
+              onClick={openSiteInTrustWallet}
+              className="w-full border border-lime/50 bg-lime/10 px-4 py-3.5 text-left transition hover:bg-lime/20"
+            >
+              <span className="block text-[13px] font-semibold tracking-[0.14em] text-lime uppercase">
+                Open in Trust
+              </span>
+              <span className="mt-0.5 block text-[10px] tracking-wide text-muted">
+                Best on phone — then tap Connect inside Trust
+              </span>
+            </button>
+          )}
           <button
             type="button"
             disabled={busy || !canConnect}
@@ -146,11 +207,7 @@ export function WalletPanel({ user, onUser }) {
                   {busy ? 'Waiting for wallet…' : 'Connect wallet'}
                 </span>
                 <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
-                  {busy
-                    ? 'QR should open — scan with Trust'
-                    : wcReady
-                      ? 'QR · Trust · WalletConnect'
-                      : 'Browser wallet'}
+                  {busy ? busySub : idleSub}
                 </span>
               </span>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
@@ -173,7 +230,7 @@ export function WalletPanel({ user, onUser }) {
             <button
               type="button"
               onClick={cancelConnect}
-              className="w-full border border-white/25 px-3 py-2 text-[11px] text-muted transition hover:border-lime/40 hover:text-lime"
+              className="w-full border border-white/25 px-3 py-2.5 text-[11px] text-muted transition hover:border-lime/40 hover:text-lime"
             >
               Cancel
             </button>
@@ -192,7 +249,7 @@ export function WalletPanel({ user, onUser }) {
           >
             cloud.reown.com
           </a>{' '}
-          on Vercel + Redeploy.
+          on Vercel + Redeploy. Or open the site in Trust Browser.
         </p>
       )}
 

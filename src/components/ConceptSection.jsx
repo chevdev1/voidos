@@ -56,7 +56,7 @@ function CardShell({ className = '', tag, title, children, float = 0 }) {
 
 export function ConceptSection() {
   return (
-    <section id="concept" className="relative px-5 py-28 sm:px-10">
+    <section id="concept" className="relative px-4 py-16 sm:px-10 sm:py-28">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}

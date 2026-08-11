@@ -4,8 +4,8 @@ import { mindSession, loadUser, saveUser } from '../lib/mindClient'
 import { WalletPanel } from './WalletPanel'
 
 /**
- * Account panel — identity = Robinhood Wallet.
- * Cabinet link only appears after wallet is connected.
+ * Account panel — identity = linked wallet.
+ * On phone: full-screen sheet so connect UI / WC is usable.
  */
 export function AccountMenu() {
   const [open, setOpen] = useState(false)
@@ -26,6 +26,15 @@ export function AccountMenu() {
     return () => window.removeEventListener('void-user', onUser)
   }, [])
 
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
+
   function onUserChange(next) {
     saveUser(next)
     setUser(next)
@@ -39,59 +48,71 @@ export function AccountMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-white/15 px-3 py-2 text-[11px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime"
-        title={wallet || 'connect Robinhood Wallet'}
+        className="flex items-center gap-2 rounded-full border border-white/15 px-2.5 py-2 text-[10px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime sm:px-3 sm:text-[11px]"
+        title={wallet || 'connect wallet'}
       >
         {short || 'wallet'}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-[60] mt-2 w-[20rem] border border-lime/40 bg-black/95 p-4 shadow-[0_0_40px_rgba(204,255,0,0.08)] backdrop-blur-md">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <p className="text-[10px] uppercase tracking-[0.22em] text-lime">
-              {wallet ? 'wallet' : 'access'}
-            </p>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className="text-[11px] text-muted hover:text-lime"
-              aria-label="close"
-            >
-              ✕
-            </button>
-          </div>
-
-          {wallet ? (
-            <div className="space-y-3">
-              <div className="border border-white/10 bg-void/80 p-3">
-                <p className="text-[10px] uppercase tracking-wider text-muted">robinhood chain</p>
-                <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
-                <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                  account = this wallet. cabinet unlocks after connect.
-                </p>
-              </div>
-              <Link
-                to="/cabinet"
+        <>
+          <button
+            type="button"
+            aria-label="close overlay"
+            className="fixed inset-0 z-[55] bg-black/70 backdrop-blur-sm md:bg-black/40"
+            onClick={() => setOpen(false)}
+          />
+          <div
+            className="fixed inset-x-0 bottom-0 z-[60] max-h-[92dvh] overflow-y-auto border-t border-lime/40 bg-black/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(80vh,36rem)] md:w-[22rem] md:border md:border-lime/40 md:pb-4 md:shadow-[0_0_40px_rgba(204,255,0,0.08)]"
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-lime">
+                {wallet ? 'wallet' : 'access'}
+              </p>
+              <button
+                type="button"
                 onClick={() => setOpen(false)}
-                className="block border border-lime bg-lime px-3 py-2.5 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
+                className="min-h-10 min-w-10 text-[14px] text-muted hover:text-lime"
+                aria-label="close"
               >
-                OPEN CABINET / ЛК
-              </Link>
+                ✕
+              </button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div>
-                <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">
-                  connect <span className="text-lime">wallet</span>
-                </h3>
-                <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                  cabinet appears only after Robinhood Wallet is linked.
-                </p>
+
+            {wallet ? (
+              <div className="space-y-3">
+                <div className="border border-white/10 bg-void/80 p-3">
+                  <p className="text-[10px] uppercase tracking-wider text-muted">robinhood chain</p>
+                  <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
+                  <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                    account = this wallet. cabinet unlocks after connect.
+                  </p>
+                </div>
+                <Link
+                  to="/cabinet"
+                  onClick={() => setOpen(false)}
+                  className="block border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
+                >
+                  OPEN CABINET / ЛК
+                </Link>
               </div>
-              <WalletPanel user={user} onUser={onUserChange} />
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="space-y-3">
+                <div>
+                  <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">
+                    connect <span className="text-lime">wallet</span>
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                    On phone: Open in Trust, or Connect → Trust in the list.
+                  </p>
+                </div>
+                <WalletPanel user={user} onUser={onUserChange} />
+              </div>
+            )}
+          </div>
+        </>
       )}
     </div>
   )

@@ -83,22 +83,22 @@ export function MarketSection() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.08 }}
-        className="mt-6 flex flex-col gap-3 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5"
+        className="mt-6 flex flex-col gap-4 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-5"
       >
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $exo</p>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
             {dex
               ? 'Open the Dex to swap into $EXO on Robinhood Chain.'
               : ca
                 ? 'Token CA is live — copy it into your wallet / Dex.'
-                : 'Token not listed yet. Set VITE_DEX_URL (or VITE_EXO_CA) on Vercel when mint is live. Until then claim lots in test mode on the map.'}
+                : 'Token not listed yet. Claim lots in test mode on the map until mint is live.'}
           </p>
           {ca ? (
             <button
               type="button"
               onClick={onCopyCa}
-              className="mt-2 truncate font-mono text-[11px] text-lime/90 hover:text-lime"
+              className="mt-2 max-w-full truncate font-mono text-[11px] text-lime/90 hover:text-lime"
               title="Copy contract address"
             >
               {copied ? 'copied ✓' : ca}
@@ -107,11 +107,15 @@ export function MarketSection() {
             <p className="mt-2 font-mono text-[11px] text-muted">CA TBA</p>
           )}
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
-          <BuyExoButton filled label={dex ? 'Buy on Dex ↗' : ca ? 'Copy CA' : 'Buy $EXO · soon'} />
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap">
+          <BuyExoButton
+            filled
+            className="!w-full !justify-center sm:!w-auto"
+            label={dex ? 'Buy on Dex ↗' : ca ? 'Copy CA' : 'Buy $EXO · soon'}
+          />
           <button
             type="button"
-            className="rounded-full border border-white/20 px-4 py-2 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime"
+            className="w-full rounded-full border border-white/20 px-4 py-2.5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime sm:w-auto sm:py-2"
             onClick={() => {
               if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
               else if (window.__openFullMap) window.__openFullMap()

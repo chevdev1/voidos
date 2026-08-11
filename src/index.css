@@ -17,6 +17,7 @@
 html {
   background: var(--color-void);
   color-scheme: dark;
+  overflow-x: clip;
 }
 
 body {
@@ -24,8 +25,44 @@ body {
   background: var(--color-void);
   color: var(--color-ink);
   font-family: var(--font-mono);
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  overflow-x: clip;
+  min-width: 0;
+}
+
+/* Mobile rhythm: readable type, no horizontal bleed */
+@media (max-width: 640px) {
+  .section {
+    padding-top: 48px !important;
+    padding-bottom: 48px !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  .cta {
+    width: 100%;
+  }
+
+  .cta > * {
+    flex: 1 1 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .lead,
+  .price-note,
+  .ca-row {
+    max-width: 100% !important;
+  }
+
+  .hero-left {
+    min-width: 0;
+    width: 100%;
+  }
 }
 
 ::selection {
@@ -104,4 +141,31 @@ wui-flex {
   -webkit-overflow-scrolling: touch !important;
   overscroll-behavior: contain;
   max-height: min(72vh, 560px);
+}
+
+/* Mobile: WC modal full-bleed, readable, above account sheet */
+@media (max-width: 640px) {
+  wcm-modal,
+  w3m-modal,
+  #w3m-modal,
+  .wcm-overlay,
+  .w3m-overlay {
+    z-index: 200000 !important;
+  }
+  wcm-modal .wcm-container,
+  w3m-modal,
+  wui-card {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  wcm-modal .wcm-container,
+  wcm-modal [class*='scroll'],
+  w3m-modal [class*='scroll'],
+  wcm-view-all-wallets,
+  wui-card,
+  wui-flex {
+    max-height: min(88dvh, 100%) !important;
+  }
 }

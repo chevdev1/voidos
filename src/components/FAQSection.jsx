@@ -96,7 +96,7 @@ export function FAQSection() {
   const [openIndex, setOpenIndex] = useState(0)
 
   return (
-    <section id="faq" className="relative px-5 py-28 sm:px-10">
+    <section id="faq" className="relative px-4 py-16 sm:px-10 sm:py-28">
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         whileInView={{ opacity: 1, y: 0 }}
@@ -110,7 +110,7 @@ export function FAQSection() {
         </h2>
       </motion.div>
 
-      <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-black/40 p-6 backdrop-blur-sm sm:p-8">
+      <div className="mx-auto max-w-2xl rounded-2xl border border-white/10 bg-black/40 p-4 backdrop-blur-sm sm:p-8">
         {FAQS.map((faq, i) => (
           <FAQItem
             key={faq.q}

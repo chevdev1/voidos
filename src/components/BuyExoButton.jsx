@@ -34,8 +34,8 @@ export function BuyExoButton({
 
   const base =
     filled
-      ? 'rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black transition-all duration-200 ease-out hover:bg-[#d8ff33] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] active:scale-[0.98]'
-      : 'rounded-full border border-lime/50 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black'
+      ? 'inline-flex items-center justify-center rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black transition-all duration-200 ease-out hover:bg-[#d8ff33] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] active:scale-[0.98]'
+      : 'inline-flex items-center justify-center rounded-full border border-lime/50 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black'
 
   const title = dex
     ? 'Open Dex to buy $EXO'
@@ -58,12 +58,12 @@ export function BuyExoButton({
   }
 
   return (
-    <span className="relative inline-flex flex-col items-stretch">
+    <span className="relative inline-flex max-w-full flex-col items-stretch">
       <button type="button" onClick={onClick} className={`${base} ${className}`} title={title}>
         {label}
       </button>
       {note ? (
-        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded border border-lime/40 bg-black/95 px-2 py-0.5 text-[9px] tracking-wide text-lime">
+        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded border border-lime/40 bg-black/95 px-2 py-0.5 text-[9px] tracking-wide text-lime shadow-[0_4px_16px_rgba(0,0,0,0.6)]">
           {note}
         </span>
       ) : null}

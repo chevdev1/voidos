@@ -6,6 +6,7 @@ import {
   getAddress,
   formatEther,
   formatUnits,
+  toHex,
 } from 'viem'
 import {
   RH_CHAIN_MAIN,
@@ -57,12 +58,46 @@ export function hasWalletConnectProject() {
   return Boolean(String(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '').trim())
 }
 
-/** Any injected EVM wallet (Robinhood in-app, Trust, MetaMask, …). */
+/** Phone / tablet — Trust deep-link path is better than desktop QR grid. */
+export function isMobileDevice() {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  if (/Android|iPhone|iPad|iPod|Mobile/i.test(ua)) return true
+  return Boolean(navigator.maxTouchPoints > 1 && /Mac/i.test(navigator.platform || ''))
+}
+
+/** Trust / MetaMask / any injected EVM (incl. Trust dApp browser). */
 export function getInjectedEvm() {
   if (typeof window === 'undefined') return null
   const eth = window.ethereum
   if (!eth?.request) return null
   return eth
+}
+
+export function isTrustInjected() {
+  const eth = getInjectedEvm()
+  if (!eth) return false
+  if (eth.isTrust || eth.isTrustWallet) return true
+  const list = Array.isArray(eth.providers) ? eth.providers : []
+  return list.some((p) => p?.isTrust || p?.isTrustWallet)
+}
+
+/** Open current page inside Trust Wallet browser (best mobile path). */
+export function openSiteInTrustWallet() {
+  if (typeof window === 'undefined') return
+  const url = encodeURIComponent(window.location.href)
+  window.location.href = `https://link.trustwallet.com/open_url?coin_id=60&url=${url}`
+}
+
+/**
+ * Best connect path for this device:
+ * - injected when Trust/MetaMask browser already present
+ * - WalletConnect QR/deeplink otherwise
+ */
+export function pickConnectMode() {
+  if (getInjectedEvm()) return 'injected'
+  if (hasWalletConnectProject()) return 'qr'
+  return null
 }
 
 /** Robinhood in-app EVM provider (not Solana). */
@@ -74,6 +109,14 @@ export function getRobinhoodInjected() {
   const list = Array.isArray(eth.providers) ? eth.providers : []
   const hit = list.find((p) => p?.isRobinhood || p?.isRobinhoodWallet)
   return hit || null
+}
+
+/** Ethereum mainnet — Trust always accepts this for WC session + personal_sign. */
+const ETH_MAINNET = {
+  id: 1,
+  name: 'Ethereum',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: ['https://ethereum.publicnode.com'] } },
 }
 
 function publicClient() {
@@ -139,11 +182,82 @@ async function ensureChain(provider) {
 
 async function connectInjected() {
   const provider = getRobinhoodInjected() || getInjectedEvm()
-  if (!provider?.request) throw new Error('no EVM wallet — use Trust / MetaMask / Robinhood, or WalletConnect QR')
-  await ensureChain(provider)
+  if (!provider?.request) {
+    throw new Error(
+      isMobileDevice()
+        ? 'Open this site inside Trust Wallet (Browser), then tap Connect.'
+        : 'No browser wallet found — use Trust / MetaMask or WalletConnect.',
+    )
+  }
+  // Do NOT switch to Robinhood Chain here — Trust cannot personal_sign on RH
+  // ("signRawData not supported for RobinhoodChain"). Link uses ETH mainnet.
   const accounts = await provider.request({ method: 'eth_requestAccounts' })
-  const address = getAddress(accounts[0])
-  return { provider, address }
+  if (!accounts?.[0]) throw new Error('No account returned from wallet')
+  return { provider, address: getAddress(accounts[0]) }
+}
+
+/** Trust / many mobiles only support EIP-191 on Ethereum, not Robinhood Chain. */
+async function preferEthereumForSign(provider) {
+  if (!provider?.request) return
+  try {
+    const current = await provider.request({ method: 'eth_chainId' })
+    if (String(current).toLowerCase() === '0x1') return
+  } catch {
+    /* continue */
+  }
+  try {
+    await provider.request({
+      method: 'wallet_switchEthereumChain',
+      params: [{ chainId: '0x1' }],
+    })
+  } catch (e) {
+    console.warn('[void] switch to Ethereum for sign skipped', e)
+  }
+}
+
+/**
+ * personal_sign for wallet link — never bind to Robinhood Chain.
+ * Trust mobile rejects signRawData on RH.
+ */
+async function signLinkMessage(provider, address, message) {
+  await preferEthereumForSign(provider)
+  const text = String(message)
+  const hexMsg = toHex(text)
+
+  try {
+    const sig = await provider.request({
+      method: 'personal_sign',
+      params: [hexMsg, address],
+    })
+    if (sig) return sig
+  } catch (e1) {
+    const m1 = String(e1?.message || e1 || '')
+    if (/reject|cancel|denied|User rejected/i.test(m1)) throw e1
+    // Some wallets want address first
+    try {
+      const sig = await provider.request({
+        method: 'personal_sign',
+        params: [address, hexMsg],
+      })
+      if (sig) return sig
+    } catch (e2) {
+      const m2 = String(e2?.message || e2 || '')
+      if (/reject|cancel|denied|User rejected/i.test(m2)) throw e2
+      if (/signRawData|RobinhoodChain|not supported/i.test(m1 + m2)) {
+        throw new Error(
+          'Trust cannot sign on Robinhood Chain. Stay on Ethereum (or Open in Trust Browser) and Connect again.',
+        )
+      }
+    }
+  }
+
+  // Last resort: viem on Ethereum mainnet only (never RH)
+  const walletClient = createWalletClient({
+    account: address,
+    chain: ETH_MAINNET,
+    transport: custom(provider),
+  })
+  return walletClient.signMessage({ account: address, message: text })
 }
 
 let wcProvider = null
@@ -158,17 +272,13 @@ export async function abortWalletConnect() {
   } catch {
     /* ignore */
   }
-  try {
-    wcProvider = null
-  } catch {
-    wcProvider = null
-  }
+  wcProvider = null
 }
 
 function withTimeout(promise, ms, label) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => {
-      reject(new Error(`${label} timed out. Tap Cancel, then Connect again.`))
+      reject(new Error(label + ' timed out. Tap Cancel, then try again.'))
     }, ms)
     promise.then(
       (v) => {
@@ -183,17 +293,29 @@ function withTimeout(promise, ms, label) {
   })
 }
 
+function friendlyWcError(e) {
+  const msg = String(e?.message || e || '')
+  if (/reject|cancel|closed|denied|User closed/i.test(msg)) return 'Connection cancelled'
+  if (/signRawData|RobinhoodChain|not supported/i.test(msg)) {
+    return 'Trust cannot sign on Robinhood Chain — Connect again (Ethereum). Or Open in Trust Browser.'
+  }
+  if (/project id|Unauthorized|401/i.test(msg)) return 'WalletConnect Project ID invalid — check Vercel env'
+  if (/Chain|unrecognized|4902|switch/i.test(msg)) {
+    return 'Network error — open the site in Trust Browser and Connect again'
+  }
+  if (/timed out/i.test(msg)) return msg
+  return msg || 'WalletConnect failed'
+}
+
 async function connectWalletConnect() {
   const projectId = String(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '').trim()
   if (!projectId) throw new Error('set VITE_WALLETCONNECT_PROJECT_ID (Reown)')
-  if (wcBusy) throw new Error('connection already in progress — tap Cancel first')
+  if (wcBusy) throw new Error('Connection already in progress — tap Cancel first')
   wcBusy = true
   try {
     if (typeof document !== 'undefined') document.body.classList.add('wc-modal-open')
-    // Required for showQrModal — without it enable() hangs forever
     await import('@walletconnect/modal')
     const { EthereumProvider } = await import('@walletconnect/ethereum-provider')
-    const chain = getRhChain()
     if (wcProvider) {
       try {
         await wcProvider.disconnect()
@@ -202,28 +324,38 @@ async function connectWalletConnect() {
       }
       wcProvider = null
     }
+    // Ethereum-only WC session for link/sign.
+    // Including RH makes Trust try signRawData on RobinhoodChain → hard fail.
     wcProvider = await withTimeout(
       EthereumProvider.init({
         projectId,
         showQrModal: true,
-        optionalChains: [chain.id, RH_CHAIN_MAIN, RH_CHAIN_TEST],
-        chains: [chain.id],
+        chains: [ETH_MAINNET.id],
+        optionalChains: [ETH_MAINNET.id],
         rpcMap: {
-          [chain.id]: rpcUrl(),
-          [RH_CHAIN_MAIN]: 'https://rpc.mainnet.chain.robinhood.com',
-          [RH_CHAIN_TEST]: 'https://rpc.testnet.chain.robinhood.com/rpc',
+          [ETH_MAINNET.id]: 'https://ethereum.publicnode.com',
         },
         qrModalOptions: {
           themeMode: 'dark',
           themeVariables: {
             '--wcm-z-index': '100000',
-            '--wcm-max-width': '400px',
+            '--wcm-max-width': '100vw',
+            '--wcm-padding': '12px',
           },
-          // Keep wallet grid scrollable; explorer list is long on mobile
           enableExplorer: true,
           explorerRecommendedWalletIds: [
-            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0', // Trust
-            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96', // MetaMask
+            '4622a2b2d6af1c9844944291e5e7351a6aa24cd7b23099efac1b2fd875da31a0',
+            'c57ca95b47569778a828d19178114f4db188b89b763c899ba0be274e97267d96',
+          ],
+          mobileWallets: [
+            {
+              id: 'trust',
+              name: 'Trust Wallet',
+              links: {
+                native: 'trust://',
+                universal: 'https://link.trustwallet.com',
+              },
+            },
           ],
         },
         metadata: {
@@ -232,7 +364,7 @@ async function connectWalletConnect() {
           url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
           icons: [
             typeof window !== 'undefined'
-              ? `${window.location.origin}/assets/void-logo.png`
+              ? window.location.origin + '/assets/void-logo.png'
               : 'https://void.os/assets/void-logo.png',
           ],
         },
@@ -240,17 +372,11 @@ async function connectWalletConnect() {
       25000,
       'WalletConnect init',
     )
-    await withTimeout(wcProvider.enable(), 120000, 'WalletConnect QR')
-    try {
-      await ensureChain(wcProvider)
-    } catch (e) {
-      const msg = String(e?.message || e || '')
-      if (!/already pending|MetaMask/i.test(msg)) throw e
-    }
+    await withTimeout(wcProvider.enable(), 120000, 'WalletConnect')
     const accounts = wcProvider.accounts?.length
       ? wcProvider.accounts
       : await wcProvider.request({ method: 'eth_accounts' })
-    if (!accounts?.[0]) throw new Error('no account from WalletConnect')
+    if (!accounts?.[0]) throw new Error('No account from WalletConnect')
     return { provider: wcProvider, address: getAddress(accounts[0]) }
   } catch (e) {
     try {
@@ -259,7 +385,7 @@ async function connectWalletConnect() {
       /* ignore */
     }
     wcProvider = null
-    throw e
+    throw new Error(friendlyWcError(e))
   } finally {
     wcBusy = false
     if (typeof document !== 'undefined') document.body.classList.remove('wc-modal-open')
@@ -269,40 +395,56 @@ async function connectWalletConnect() {
 /**
  * Link wallet + EIP-191 sign.
  * mode: 'qr' | 'injected' | 'auto'
- * 'qr' NEVER falls back to MetaMask — needs VITE_WALLETCONNECT_PROJECT_ID.
  */
 export async function connectAndSignLink(message, opts = {}) {
-  const mode = opts.mode || 'qr'
+  let mode = opts.mode || 'auto'
+  if (mode === 'auto') mode = pickConnectMode() || 'qr'
   let provider
   let address
 
-  if (mode === 'qr') {
-    if (!hasWalletConnectProject()) {
-      throw new Error(
-        'Нет VITE_WALLETCONNECT_PROJECT_ID на Vercel. Добавь Project ID → Redeploy. Без этого QR для Trust не работает (MetaMask тут ни при чём).',
-      )
+  try {
+    if (mode === 'qr') {
+      if (!hasWalletConnectProject()) {
+        throw new Error(
+          'No WalletConnect Project ID. On phone: open the site in Trust Browser, then Connect.',
+        )
+      }
+      ;({ provider, address } = await connectWalletConnect())
+    } else if (mode === 'injected') {
+      ;({ provider, address } = await connectInjected())
+    } else if (getInjectedEvm()) {
+      ;({ provider, address } = await connectInjected())
+    } else if (hasWalletConnectProject()) {
+      ;({ provider, address } = await connectWalletConnect())
+    } else {
+      throw new Error('No wallet available')
     }
-    ;({ provider, address } = await connectWalletConnect())
-  } else if (mode === 'injected') {
-    ;({ provider, address } = await connectInjected())
-  } else if (getRobinhoodInjected()) {
-    ;({ provider, address } = await connectInjected())
-  } else if (hasWalletConnectProject()) {
-    ;({ provider, address } = await connectWalletConnect())
-  } else {
-    throw new Error('Нет WalletConnect Project ID и нет browser wallet')
+  } catch (e) {
+    if (mode === 'qr' && getInjectedEvm()) {
+      ;({ provider, address } = await connectInjected())
+    } else {
+      throw e
+    }
   }
 
-  const walletClient = createWalletClient({
-    account: address,
-    chain: getRhChain(),
-    transport: custom(provider),
-  })
-  const signature = await walletClient.signMessage({
-    account: address,
-    message: String(message),
-  })
-  return { pubkey: address, address, signature, walletLabel: mode === 'injected' ? 'browser' : 'WalletConnect' }
+  try {
+    const signature = await signLinkMessage(provider, address, message)
+    return {
+      pubkey: address,
+      address,
+      signature,
+      walletLabel: mode === 'injected' ? 'browser' : 'WalletConnect',
+    }
+  } catch (e) {
+    const msg = String(e?.message || e || '')
+    if (/reject|cancel|denied/i.test(msg)) throw new Error('Signature cancelled in wallet')
+    if (/signRawData|RobinhoodChain|not supported/i.test(msg)) {
+      throw new Error(
+        'Trust cannot sign on Robinhood Chain. Open in Trust Browser (Ethereum) and Connect again.',
+      )
+    }
+    throw new Error(friendlyWcError(e) || msg || 'Sign failed')
+  }
 }
 
 export async function readBalances(address) {
