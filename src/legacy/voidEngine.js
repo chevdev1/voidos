@@ -2148,6 +2148,24 @@ export function initVoidEngine() {
         if (d < eh * 0.72) return [sx, sy, true];
         return [sx, sy, false];
       }
+      /** Hard black-core radius — nothing should paint on top of it. */
+      const coreR = eh > 0 ? eh * 0.72 : 0;
+      function inCore(sx, sy, pad) {
+        if (coreR < 1) return false;
+        return Math.hypot(sx - gcx, sy - gcy) < coreR + (pad || 0);
+      }
+      function paintBlackCore() {
+        if (coreR < 1) return;
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, coreR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = rgba(LIME, 0.55);
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.arc(gcx, gcy, coreR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       {
         const R = g.R * scale * 0.85;
@@ -2369,6 +2387,7 @@ export function initVoidEngine() {
         ctx.beginPath();
         ctx.arc(gcx, gcy, eh * 0.72, 0, Math.PI * 2);
         ctx.stroke();
+        // Black disk is painted again after constellations so nothing draws over it.
       }
 
       {
@@ -2573,6 +2592,9 @@ export function initVoidEngine() {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
           const forced = picked || mine || celebrating || c.hover > 0.15;
 
+          // Whole figure sits on the black core — skip (core is painted over anyway)
+          if (inCore(hx, hy, 4)) continue;
+
           let figMul = 1;
           if (!forced) {
             for (const p of placed) {
@@ -2592,19 +2614,25 @@ export function initVoidEngine() {
             (forced ? 0.088 : scale < 1.15 ? 0.06 : scale < 2 ? 0.07 : 0.08);
           const figScale = clamp(baseScale * figMul, forced ? 26 : 15, forced ? 74 : 58);
 
-          const stars = profile.stars.map((s, i) => {
-            const mag = 0.75 + ((s.r || 1.6) / 3.2) * 0.55;
-            return {
-              sx: hx + s.x * figScale,
-              sy: hy - s.y * figScale,
-              r: Math.max(
+          const stars = profile.stars
+            .map((s, i) => {
+              const mag = 0.75 + ((s.r || 1.6) / 3.2) * 0.55;
+              const sx = hx + s.x * figScale;
+              const sy = hy - s.y * figScale;
+              const r = Math.max(
                 1.5,
                 mag * (forced ? 2.4 : scale < 1.4 ? 1.7 : 2.05) * Math.max(0.7, figMul),
-              ),
-              mag,
-              ph: i * 1.7 + c.a0,
-            };
-          });
+              );
+              return {
+                sx,
+                sy,
+                r,
+                mag,
+                ph: i * 1.7 + c.a0,
+                occluded: inCore(sx, sy, r * 0.6),
+              };
+            })
+            .filter((s) => !s.occluded);
           if (stars.length < 2) continue;
 
           placed.push({ x: hx, y: hy });
@@ -2627,7 +2655,7 @@ export function initVoidEngine() {
               ];
           const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.0 : 0.75;
 
-          if (forced) {
+          if (forced && !inCore(hx, hy, figScale * 0.4)) {
             const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.95);
             plate.addColorStop(0, rgba(strokeCol, 0.1));
             plate.addColorStop(1, rgba(strokeCol, 0));
@@ -2637,16 +2665,44 @@ export function initVoidEngine() {
             ctx.fill();
           }
 
-          const edges = profile.edges || [];
-          for (const [ai, bi] of edges) {
-            const a = stars[ai];
-            const b = stars[bi];
-            if (!a || !b) continue;
-            strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
-            strokeLink(a, b, strokeCol, lineA, lineW);
+          // Rebuild edges against surviving stars (indices changed after filter)
+          // Use spatial MST on visible stars so links never cross the hole.
+          {
+            const n = stars.length;
+            const used = new Array(n).fill(false);
+            used[0] = true;
+            for (let k = 1; k < n; k++) {
+              let bi = -1,
+                bj = -1,
+                bd = 1e15;
+              for (let i = 0; i < n; i++) {
+                if (!used[i]) continue;
+                for (let j = 0; j < n; j++) {
+                  if (used[j]) continue;
+                  const dx = stars[i].sx - stars[j].sx;
+                  const dy = stars[i].sy - stars[j].sy;
+                  const d = dx * dx + dy * dy;
+                  // reject links that cut through the black core
+                  if (coreR > 1) {
+                    const midX = (stars[i].sx + stars[j].sx) * 0.5;
+                    const midY = (stars[i].sy + stars[j].sy) * 0.5;
+                    if (inCore(midX, midY, 2)) continue;
+                  }
+                  if (d < bd) {
+                    bd = d;
+                    bi = i;
+                    bj = j;
+                  }
+                }
+              }
+              if (bj < 0) break;
+              used[bj] = true;
+              strokeLink(stars[bi], stars[bj], strokeCol, lineA * 0.22, lineW + 1.6);
+              strokeLink(stars[bi], stars[bj], strokeCol, lineA, lineW);
+            }
           }
 
-          if (picked || celebrating) {
+          if ((picked || celebrating) && !inCore(hx, hy, 8)) {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
             const rad = (celebrating ? 56 : 40) + boom * 18;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
@@ -2668,6 +2724,9 @@ export function initVoidEngine() {
         }
       }
 
+      // Occlude anything that still bled onto the event horizon
+      paintBlackCore();
+
       if (scale > 0.95 && scale < 9) {
         const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
         const yoursLabels = [];
@@ -2681,6 +2740,7 @@ export function initVoidEngine() {
           if (c.grains.length < 2 && !picked && !mine) return;
           const p = constelWorld(c, g);
           const [sx, sy] = w2s(p.x, p.y);
+          if (inCore(sx, sy, 10)) return;
           if (sx < 18 || sy < 18 || sx > W - 18 || sy > H - 18) return;
           const dist2 = (sx - W * 0.5) ** 2 + (sy - H * 0.5) ** 2;
           const showBadge =
