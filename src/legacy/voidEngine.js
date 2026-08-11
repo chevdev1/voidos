@@ -2461,23 +2461,8 @@ export function initVoidEngine() {
       }
 
       // Premium constellation figures (same silhouette as cabinet LotFigure).
-      // Budget + spacing so they read as buyable sky-art, not a glyph carpet.
+      // Draw every on-screen lot — shrink when crowded instead of hiding half.
       {
-        const budget =
-          quality === 'low'
-            ? scale < 1.2
-              ? 14
-              : 22
-            : scale < 1.0
-              ? 16
-              : scale < 1.5
-                ? 24
-                : scale < 2.3
-                  ? 36
-                  : scale < 3.5
-                    ? 52
-                    : 80;
-
         function strokeLink(a, b, col, alpha, w) {
           if (alpha < 0.04) return;
           ctx.strokeStyle = rgba(col, alpha);
@@ -2491,31 +2476,31 @@ export function initVoidEngine() {
 
         /** Classic diamond sparkle — same language as LotFigure / cabinet. */
         function diamondSpark(x, y, col, a, r) {
-          const rr = Math.max(1.6, r || 2.2);
-          if (a > 0.35) {
-            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 2.8);
-            grd.addColorStop(0, rgba(col, a * 0.28));
+          const rr = Math.max(1.8, r || 2.4);
+          if (a > 0.3) {
+            const grd = ctx.createRadialGradient(x, y, 0, x, y, rr * 3);
+            grd.addColorStop(0, rgba(col, a * 0.32));
             grd.addColorStop(1, rgba(col, 0));
             ctx.fillStyle = grd;
             ctx.beginPath();
-            ctx.arc(x, y, rr * 2.8, 0, Math.PI * 2);
+            ctx.arc(x, y, rr * 3, 0, Math.PI * 2);
             ctx.fill();
           }
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = rgba([255, 255, 210], Math.min(1, a * 1.05));
-          ctx.fillRect(-rr * 0.28, -rr * 0.28, rr * 0.56, rr * 0.56);
+          ctx.fillStyle = rgba([255, 255, 220], Math.min(1, a * 1.08));
+          ctx.fillRect(-rr * 0.3, -rr * 0.3, rr * 0.6, rr * 0.6);
           ctx.fillStyle = rgba(col, a);
-          ctx.fillRect(-rr * 0.48, -rr * 0.48, rr * 0.96, rr * 0.96);
+          ctx.fillRect(-rr * 0.52, -rr * 0.52, rr * 1.04, rr * 1.04);
           ctx.restore();
-          ctx.strokeStyle = rgba(col, a * 0.85);
-          ctx.lineWidth = Math.max(0.7, rr * 0.22);
+          ctx.strokeStyle = rgba(col, a * 0.9);
+          ctx.lineWidth = Math.max(0.85, rr * 0.28);
           ctx.beginPath();
-          ctx.moveTo(x - rr * 1.45, y);
-          ctx.lineTo(x + rr * 1.45, y);
-          ctx.moveTo(x, y - rr * 1.45);
-          ctx.lineTo(x, y + rr * 1.45);
+          ctx.moveTo(x - rr * 1.55, y);
+          ctx.lineTo(x + rr * 1.55, y);
+          ctx.moveTo(x, y - rr * 1.55);
+          ctx.lineTo(x, y + rr * 1.55);
           ctx.stroke();
         }
 
@@ -2532,7 +2517,7 @@ export function initVoidEngine() {
           if (!constelVisible(c) && !picked && !mine && !celebrating) continue;
           const center = constelWorld(c, g);
           const [hx, hy] = w2s(center.x, center.y);
-          if (hx < -90 || hy < -90 || hx > W + 90 || hy > H + 90) continue;
+          if (hx < -100 || hy < -100 || hx > W + 100 || hy > H + 100) continue;
           const dist2 = (hx - viewCx) ** 2 + (hy - viewCy) ** 2;
           const hot = picked || mine || celebrating || c.hover > 0.1;
           const priority =
@@ -2543,74 +2528,73 @@ export function initVoidEngine() {
             dist2;
           scored.push({ c, picked, mine, celebrating, hot, hx, hy, priority, dist2 });
         }
-        scored.sort((a, b) => b.priority - a.priority);
+        // Far ones first, then bright/hot on top
+        scored.sort((a, b) => a.priority - b.priority);
 
         const placed = [];
-        let drawn = 0;
-        const minGap = scale < 1.2 ? 38 : scale < 2 ? 44 : 52;
+        const crowdRef = scale < 1.15 ? 26 : scale < 1.8 ? 32 : 40;
 
         for (const item of scored) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
-          const forced = picked || mine || celebrating || c.hover > 0.18;
-          if (!forced && drawn >= budget) continue;
+          const forced = picked || mine || celebrating || c.hover > 0.15;
 
-          // Keep figures from stacking into mush
+          // Shrink when neighbors are close — never drop a lot just for density
+          let figMul = 1;
           if (!forced) {
-            let clash = false;
             for (const p of placed) {
-              if (Math.hypot(p.x - hx, p.y - hy) < minGap) {
-                clash = true;
-                break;
+              const d = Math.hypot(p.x - hx, p.y - hy);
+              if (d < crowdRef) {
+                figMul = Math.min(figMul, 0.42 + (d / crowdRef) * 0.58);
               }
             }
-            if (clash) continue;
           }
 
           const profile = figureForConstel(c);
           if (!profile?.stars?.length) continue;
 
-          const figScale = clamp(
+          const baseScale =
             g.R *
-              scale *
-              (forced ? 0.072 : scale < 1.2 ? 0.048 : scale < 2 ? 0.055 : 0.062),
-            forced ? 22 : 16,
-            forced ? 64 : 48,
-          );
+            scale *
+            (forced ? 0.085 : scale < 1.15 ? 0.058 : scale < 2 ? 0.068 : 0.078);
+          const figScale = clamp(baseScale * figMul, forced ? 24 : 14, forced ? 72 : 56);
 
           const stars = profile.stars.map((s) => ({
             sx: hx + s.x * figScale,
             sy: hy - s.y * figScale,
             r: Math.max(
-              1.8,
-              (s.r || 1.6) * (forced ? 1.35 : scale < 1.4 ? 0.95 : 1.15),
+              2.0,
+              (s.r || 1.6) * (forced ? 1.45 : scale < 1.4 ? 1.05 : 1.25) * Math.max(0.75, figMul),
             ),
           }));
           if (stars.length < 2) continue;
 
-          if (!forced) {
-            drawn++;
-            placed.push({ x: hx, y: hy });
-          }
+          placed.push({ x: hx, y: hy });
 
           const pulse =
             mine || celebrating
               ? 0.88 + 0.12 * Math.sin(t * 2.2 + c.a0 * 3)
               : 0.94 + 0.06 * Math.sin(t * 1.2 + c.a0 * 2);
           const lineA =
-            (forced ? 0.72 : hot ? 0.48 : scale < 1.2 ? 0.38 : 0.45) * pulse;
+            (forced ? 0.85 : hot ? 0.62 : scale < 1.2 ? 0.52 : 0.58) * pulse;
           const starA =
-            (forced ? 1 : hot ? 0.88 : scale < 1.2 ? 0.72 : 0.82) * pulse;
+            (forced ? 1 : hot ? 0.92 : scale < 1.2 ? 0.8 : 0.88) * pulse;
           const strokeCol = mine || picked || celebrating ? LIME : c.col;
-          const lineW = celebrating ? 1.85 : mine || picked ? 1.45 : hot ? 1.15 : 0.95;
+          const lineW = celebrating
+            ? 2.1
+            : mine || picked
+              ? 1.7
+              : hot
+                ? 1.4
+                : 1.15;
 
-          // soft plate under figure — premium, not neon soup
-          if (forced || scale > 1.1) {
-            const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.85);
-            plate.addColorStop(0, rgba(strokeCol, forced ? 0.12 : 0.05));
+          // soft plate under figure
+          {
+            const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.9);
+            plate.addColorStop(0, rgba(strokeCol, forced ? 0.14 : 0.07));
             plate.addColorStop(1, rgba(strokeCol, 0));
             ctx.fillStyle = plate;
             ctx.beginPath();
-            ctx.arc(hx, hy, figScale * 0.85, 0, Math.PI * 2);
+            ctx.arc(hx, hy, figScale * 0.9, 0, Math.PI * 2);
             ctx.fill();
           }
 
@@ -2619,10 +2603,7 @@ export function initVoidEngine() {
             const a = stars[ai];
             const b = stars[bi];
             if (!a || !b) continue;
-            // faint outer glow stroke then crisp line
-            if (forced || hot) {
-              strokeLink(a, b, strokeCol, lineA * 0.25, lineW + 2.2);
-            }
+            strokeLink(a, b, strokeCol, lineA * 0.3, lineW + 2.4);
             strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
@@ -2644,8 +2625,8 @@ export function initVoidEngine() {
         }
       }
 
-      if (scale > 1.15 && scale < 9) {
-        const step = (scale < 1.6 ? 5 : scale < 2.4 ? 3 : 2) * (quality === 'low' ? 2 : 1);
+      if (scale > 0.95 && scale < 9) {
+        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
         const yoursLabels = [];
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
@@ -2665,12 +2646,12 @@ export function initVoidEngine() {
             yoursLabels.push({ c, sx, sy, picked, mine, celebrating, dist2, showBadge, idx });
             return;
           }
-          if (!picked && c.hover < 0.25 && scale < 2.0) return;
+          if (!picked && c.hover < 0.15 && scale < 1.35) return;
           const pulse = 0.75 + 0.25 * Math.sin(t * 1.6 + idx);
           const a = clamp(
-            0.25 + c.hover * 0.55 + (picked ? 0.5 : 0) + (scale > 2.2 ? 0.2 : 0) * pulse,
+            0.35 + c.hover * 0.55 + (picked ? 0.55 : 0) + (scale > 1.5 ? 0.28 : 0.12) * pulse,
             0,
-            0.9,
+            0.95,
           );
           const fs = scale < 1.4 ? 8 : scale < 2.8 ? 11 : 10;
           ctx.font = '600 ' + fs + 'px IBM Plex Mono';
