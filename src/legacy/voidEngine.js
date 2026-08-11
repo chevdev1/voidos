@@ -154,6 +154,7 @@ export function initVoidEngine() {
           col: limeShade(n + meta.arm * 2),
           arm: meta.arm,
           u: meta.u,
+          lane: meta.lane,
           spread: meta.spread,
           figure: meta.figure,
         });
@@ -179,8 +180,9 @@ export function initVoidEngine() {
     function buildMegaGalaxy(m) {
       const R = 210 * m.s;
       const constels = CONSTEL_DEFS.map((d) => {
-        const a0 = (d.arm / m.arms) * Math.PI * 2 + d.u * m.twist;
-        const r = d.u * R;
+        const a0 =
+          (d.arm / m.arms) * Math.PI * 2 + d.u * m.twist + (d.lane || 0) * 0.055;
+        const r = d.u * R * (1 + (d.lane || 0) * 0.012);
         return { ...d, r, a0, x: r * Math.cos(a0), y: r * Math.sin(a0), grains: [], hover: 0 };
       });
 
@@ -328,27 +330,66 @@ export function initVoidEngine() {
         return { size: 32 + Math.floor(rng() * 77), tier: 'MICRO', viz: 1.15 + rng() * 0.7 };
       }
 
-      // One small star cluster per lot — every lot is claimable; no O(n²) packing.
+      // Distinct mini-silhouettes per kind (local unit offsets)
+      const FIGURE_LOCAL = [
+        [
+          [0, -1],
+          [0, 0],
+          [0, 1],
+        ], // Spire
+        [
+          [0.95, 0],
+          [-0.48, 0.82],
+          [-0.48, -0.82],
+        ], // Coil
+        [
+          [-1, 0.35],
+          [0, -0.95],
+          [1, 0.35],
+        ], // Crown
+        [
+          [-0.85, -0.85],
+          [0.85, -0.85],
+          [0, 0.95],
+        ], // Lattice
+        [
+          [0, -1],
+          [0, 0.15],
+          [0.95, 0.85],
+        ], // Vein
+        [
+          [0, -1],
+          [0.86, 0.5],
+          [-0.86, 0.5],
+        ], // Halo
+      ];
+
+      // One small star cluster per lot — shaped by kind so lots read as individuals
       const sectors = [];
       for (const c of constels) {
         const rng = mulberry32(hashStr(c.id) ^ 0x91a2b3c4);
-        const nStars = 3; // tight mini-figures — less web clutter
-        for (let i = 0; i < nStars; i++) {
+        const shape = FIGURE_LOCAL[c.figure % FIGURE_LOCAL.length];
+        const tx = -Math.sin(c.a0);
+        const ty = Math.cos(c.a0);
+        const rx = Math.cos(c.a0);
+        const ry = Math.sin(c.a0);
+        const figScale = R * (0.009 + (c.spread || 0.05) * 0.05);
+        for (let i = 0; i < shape.length; i++) {
           const mass = rollSeededMass(rng);
-          const ang = rng() * Math.PI * 2;
-          const rad = (0.0035 + rng() * 0.012) * R * (0.7 + c.spread * 0.6);
-          const x = c.x + Math.cos(ang) * rad;
-          const y = c.y + Math.sin(ang) * rad;
+          const lx = shape[i][0] * figScale;
+          const ly = shape[i][1] * figScale;
+          const x = c.x + tx * lx + rx * ly * 0.35;
+          const y = c.y + ty * lx + ry * ly * 0.35;
           const r = Math.max(1.5, Math.hypot(x, y));
           const a0 = Math.atan2(y, x);
           const sec = {
             id: 1000 + sectors.length,
             r,
             a0,
-            off: (rng() - 0.5) * 10,
+            off: (rng() - 0.5) * 4,
             u: clamp(r / R, 0, 1),
-            radius: mass.viz,
-            viz: mass.viz,
+            radius: mass.viz * 0.55,
+            viz: mass.viz * 0.55,
             size: mass.size,
             tier: mass.tier,
             kind: 'empty',
@@ -367,14 +408,7 @@ export function initVoidEngine() {
           sectors.push(sec);
           c.grains.push(sec);
         }
-        let sx = 0,
-          sy = 0;
-        for (const s of c.grains) {
-          sx += s.r * Math.cos(s.a0);
-          sy += s.r * Math.sin(s.a0);
-        }
-        c.x = sx / c.grains.length;
-        c.y = sy / c.grains.length;
+        // Keep geometric center on the lot seat (don't drift into neighbours)
         c.r = Math.hypot(c.x, c.y);
         c.a0 = Math.atan2(c.y, c.x);
       }
@@ -2269,110 +2303,59 @@ export function initVoidEngine() {
       }
 
       {
-        const sectorStep =
-          scale < 1.2
-            ? quality === 'low'
-              ? 22
-              : quality === 'medium'
-                ? 16
-                : 10
-            : scale < 2.5
-              ? quality === 'low'
-                ? 10
-                : quality === 'medium'
-                  ? 6
-                  : 3
-              : quality === 'high'
-                ? 2
-                : quality === 'medium'
-                  ? 3
-                  : 5;
-        for (let si = 0; si < g.sectors.length; si += sectorStep) {
-          const s = g.sectors[si];
-          if (!sectorVisible(s)) continue;
-          const p = sectorProj(s, g);
-          let [sx, sy] = w2s(p.x, p.y);
-          const L = lensPoint(sx, sy);
-          if (L[2]) continue;
-          sx = L[0];
-          sy = L[1];
-          if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
-          const grainR = Math.max(0.65, (s.viz || 2.1) * 0.4);
-          let col = s.cCol;
-          if (heatMode) {
-            // Live heat: trained yours > yours > reserved by others > free
-            const cid = String(s.constel || '');
-            const mine = yoursSet.has(s.id);
-            const trained = mine && trainedLots.has(cid);
-            const reserved = !mine && takenMap.has(cid);
-            const taught = trained ? 1 : mine ? 0.72 : reserved ? 0.4 : 0.06;
-            const h = clamp(taught, 0, 1);
-            col = [
-              Math.floor(40 + h * 215),
-              Math.floor(30 + h * 40),
-              Math.floor(60 + h * 195),
-            ];
-          }
-          if (yoursSet.has(s.id)) col = [180, 255, 120];
-          const empty = s.kind === 'empty' && !heatMode;
-          const inConstelSel = selectedConstels.has(s.constel);
-          const selected = selectedSet.has(s.id) || inConstelSel;
-          ctx.fillStyle = empty ? rgba([70, 82, 48], 0.4) : rgba(col, 0.65);
-          ctx.beginPath();
-          ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
-          ctx.fill();
-          if ((s.tier === 'MEGA' || s.tier === 'LARGE') && scale > 2) {
-            ctx.strokeStyle = rgba(col, s.tier === 'MEGA' ? 0.28 : 0.14);
-            ctx.lineWidth = 0.6;
+        // Grain dots mostly off — figures carry the look
+        const showGrains = scale > 4 || selectedConstels.size > 0;
+        if (showGrains) {
+          const sectorStep = scale < 5.5 ? (quality === 'low' ? 14 : 8) : quality === 'high' ? 2 : 4;
+          for (let si = 0; si < g.sectors.length; si += sectorStep) {
+            const s = g.sectors[si];
+            if (!sectorVisible(s)) continue;
+            const inConstelSel = selectedConstels.has(s.constel);
+            if (!inConstelSel && !yoursSet.has(s.id) && scale < 5) continue;
+            const p = sectorProj(s, g);
+            let [sx, sy] = w2s(p.x, p.y);
+            const Lpt = lensPoint(sx, sy);
+            if (Lpt[2]) continue;
+            sx = Lpt[0];
+            sy = Lpt[1];
+            if (sx < -20 || sy < -20 || sx > W + 20 || sy > H + 20) continue;
+            const grainR = Math.max(0.5, (s.viz || 2.1) * 0.3);
+            let col = s.cCol;
+            if (heatMode) {
+              const cid = String(s.constel || '');
+              const mine = yoursSet.has(s.id);
+              const trained = mine && trainedLots.has(cid);
+              const reserved = !mine && takenMap.has(cid);
+              const taught = trained ? 1 : mine ? 0.72 : reserved ? 0.4 : 0.06;
+              const h = clamp(taught, 0, 1);
+              col = [Math.floor(40 + h * 215), Math.floor(30 + h * 40), Math.floor(60 + h * 195)];
+            }
+            if (yoursSet.has(s.id)) col = [180, 255, 120];
+            const empty = s.kind === 'empty' && !heatMode;
+            const selected = selectedSet.has(s.id) || inConstelSel;
+            ctx.fillStyle = empty ? rgba([70, 82, 48], 0.32) : rgba(col, 0.5);
             ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (s.tier === 'MEGA' ? 1.6 : 0.9), 0, Math.PI * 2);
-            ctx.stroke();
-          }
-          if (selected) {
-            ctx.strokeStyle = inConstelSel && !selectedSet.has(s.id)
-              ? 'rgba(204,255,0,.5)'
-              : 'rgba(204,255,0,.8)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.arc(sx, sy, grainR + (inConstelSel ? 2.8 : 2.1), 0, Math.PI * 2);
-            ctx.stroke();
-          } else if (s.hover > 0.28) {
-            ctx.strokeStyle = rgba(col, 0.5);
-            ctx.lineWidth = 0.7;
-            ctx.beginPath();
-            ctx.arc(sx, sy, grainR + 1.4, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.arc(sx, sy, grainR, 0, Math.PI * 2);
+            ctx.fill();
+            if (selected) {
+              ctx.strokeStyle = 'rgba(204,255,0,.7)';
+              ctx.lineWidth = 0.85;
+              ctx.beginPath();
+              ctx.arc(sx, sy, grainR + 2, 0, Math.PI * 2);
+              ctx.stroke();
+            }
           }
         }
       }
 
-      // Constellation = connected LINE figures (stripes), not just dots.
-      // Always draw — even on low quality — or the map reads as only points.
+      // Sparse individual constellation figures (screen-separated, kind-shaped)
       {
-        const vis = scale < 1.1 ? 0.45 : scale < 3 ? 0.7 : 0.85;
-        const maxStars = quality === 'low' ? 3 : quality === 'medium' ? 3 : 4;
-        // Sparse figures — far zoom is dots only; mid zoom samples hard.
-        const constelStep =
-          scale < 1.2
-            ? quality === 'low'
-              ? 22
-              : quality === 'medium'
-                ? 16
-                : 12
-            : scale < 2.5
-              ? quality === 'low'
-                ? 10
-                : quality === 'medium'
-                  ? 7
-                  : 5
-              : scale < 4
-                ? quality === 'low'
-                  ? 4
-                  : 3
-                : quality === 'low'
-                  ? 2
-                  : 1;
-        const farSparkOnly = scale < 2.1;
+        const vis = scale < 1.1 ? 0.38 : scale < 3 ? 0.58 : 0.72;
+        const farSparkOnly = scale < 2.6;
+        const minSep = scale < 2.8 ? 36 : scale < 4.5 ? 28 : 20;
+        const maxFull = quality === 'low' ? 24 : quality === 'medium' ? 36 : 48;
+        const drawn = [];
+        let fullDrawn = 0;
 
         function strokePath(pts, close, col, a, w) {
           if (pts.length < 2) return;
@@ -2387,7 +2370,6 @@ export function initVoidEngine() {
           ctx.stroke();
         }
 
-        // Minimal spanning tree so every constellation reads as connected stripes
         function mstEdges(pts) {
           const n = pts.length;
           if (n < 2) return [];
@@ -2395,21 +2377,13 @@ export function initVoidEngine() {
           used[0] = true;
           const edges = [];
           for (let k = 1; k < n; k++) {
-            let bi = -1,
-              bj = -1,
-              bd = 1e15;
+            let bi = -1, bj = -1, bd = 1e15;
             for (let i = 0; i < n; i++) {
               if (!used[i]) continue;
               for (let j = 0; j < n; j++) {
                 if (used[j]) continue;
-                const d =
-                  (pts[i].sx - pts[j].sx) * (pts[i].sx - pts[j].sx) +
-                  (pts[i].sy - pts[j].sy) * (pts[i].sy - pts[j].sy);
-                if (d < bd) {
-                  bd = d;
-                  bi = i;
-                  bj = j;
-                }
+                const d = (pts[i].sx - pts[j].sx) ** 2 + (pts[i].sy - pts[j].sy) ** 2;
+                if (d < bd) { bd = d; bi = i; bj = j; }
               }
             }
             if (bj < 0) break;
@@ -2420,28 +2394,55 @@ export function initVoidEngine() {
         }
 
         function spark(x, y, col, a) {
-          ctx.fillStyle = rgba([255, 255, 240], a * 0.95);
+          ctx.fillStyle = rgba([255, 255, 245], a * 0.85);
           ctx.beginPath();
-          ctx.arc(x, y, 1.05, 0, Math.PI * 2);
+          ctx.arc(x, y, 0.85, 0, Math.PI * 2);
           ctx.fill();
-          ctx.fillStyle = rgba(col, a * 0.55);
+          ctx.fillStyle = rgba(col, a * 0.35);
           ctx.beginPath();
-          ctx.arc(x, y, 2.1, 0, Math.PI * 2);
+          ctx.arc(x, y, 1.55, 0, Math.PI * 2);
           ctx.fill();
         }
 
+        function tooClose(sx, sy) {
+          for (let i = 0; i < drawn.length; i++) {
+            if (Math.hypot(drawn[i].x - sx, drawn[i].y - sy) < minSep) return true;
+          }
+          return false;
+        }
+
+        const candidates = [];
         for (let ci = 0; ci < g.constels.length; ci++) {
           const c = g.constels[ci];
           const picked = selectedConstels.has(c.id);
-          if (!picked && ci % constelStep) continue;
           if (!constelVisible(c) && !picked) continue;
-
           const center = constelWorld(c, g);
           const [cx0, cy0] = w2s(center.x, center.y);
-          if (!picked && (cx0 < -50 || cy0 < -50 || cx0 > W + 50 || cy0 > H + 50)) continue;
+          if (!picked && (cx0 < -40 || cy0 < -40 || cx0 > W + 40 || cy0 > H + 40)) continue;
+          const score = picked
+            ? -1e9
+            : mx != null
+              ? Math.hypot(cx0 - mx, cy0 - my)
+              : Math.hypot(cx0 - W / 2, cy0 - H / 2);
+          candidates.push({ c, cx0, cy0, picked, score });
+        }
+        candidates.sort((a, b) => a.score - b.score);
+
+        for (const item of candidates) {
+          const { c, cx0, cy0, picked } = item;
 
           if (farSparkOnly && !picked) {
-            spark(cx0, cy0, c.col, 0.28 * vis);
+            if (tooClose(cx0, cy0)) continue;
+            spark(cx0, cy0, c.col, 0.2 * vis);
+            drawn.push({ x: cx0, y: cy0 });
+            continue;
+          }
+
+          if (!picked && (fullDrawn >= maxFull || tooClose(cx0, cy0))) {
+            if (!tooClose(cx0, cy0)) {
+              spark(cx0, cy0, c.col, 0.16 * vis);
+              drawn.push({ x: cx0, y: cy0 });
+            }
             continue;
           }
 
@@ -2451,106 +2452,52 @@ export function initVoidEngine() {
             const p = sectorProj(s, g);
             const [sx, sy] = w2s(p.x, p.y);
             if (sx < -60 || sy < -60 || sx > W + 60 || sy > H + 60) continue;
-            raw.push({
-              s,
-              sx,
-              sy,
-              br:
-                (s.tier === 'MEGA' ? 3 : s.tier === 'LARGE' ? 1.6 : s.tier === 'MID' ? 0.4 : 0) +
-                (s.kind === 'fed' ? 1.2 : 0) +
-                s.hover,
-            });
+            raw.push({ s, sx, sy });
           }
           if (raw.length < 2) {
-            if (picked) spark(cx0, cy0, LIME, 0.85);
+            spark(cx0, cy0, picked ? LIME : c.col, picked ? 0.8 : 0.22);
+            drawn.push({ x: cx0, y: cy0 });
             continue;
           }
-          raw.sort((a, b) => b.br - a.br);
-          const stars = raw.slice(0, Math.min(raw.length, maxStars));
 
-          const hot = picked || c.hover > 0.2 || stars.some((p) => p.s.hover > 0.25);
-          const pulse = 0.92 + 0.08 * Math.sin(t * 1.2 + c.a0 * 3);
-          const aMain = (picked ? 0.85 : hot ? 0.48 : 0.28 * vis) * pulse;
+          const stars = raw.slice(0, 3);
+          const hot = picked || c.hover > 0.28 || stars.some((p) => p.s.hover > 0.3);
+          const pulse = 0.95 + 0.05 * Math.sin(t * 1.05 + c.a0 * 2);
+          const aMain = (picked ? 0.8 : hot ? 0.38 : 0.2 * vis) * pulse;
           const strokeCol = picked ? LIME : c.col;
 
-          const edges = mstEdges(stars);
-          for (const [a, b] of edges) {
-            if (picked || hot) {
-              strokePath([a, b], false, strokeCol, aMain * 0.18, picked ? 2.4 : 1.6);
-            }
-            strokePath([a, b], false, strokeCol, aMain, picked ? 1.15 : hot ? 0.75 : 0.55);
-          }
-
-          // Closed ring only for selected / hovered — keeps the field quiet
-          if (stars.length >= 3 && picked) {
-            let cx = 0,
-              cy = 0;
-            for (const p of stars) {
-              cx += p.sx;
-              cy += p.sy;
-            }
-            cx /= stars.length;
-            cy /= stars.length;
-            const ring = stars
-              .map((p) => {
-                p.ang = Math.atan2(p.sy - cy, p.sx - cx);
-                return p;
-              })
-              .sort((a, b) => a.ang - b.ang);
-            strokePath(ring, true, strokeCol, aMain * 0.22, 0.7);
+          for (const [a, b] of mstEdges(stars)) {
+            strokePath([a, b], false, strokeCol, aMain, picked ? 1.0 : hot ? 0.6 : 0.42);
           }
 
           if (picked) {
-            let hx = 0,
-              hy = 0;
-            for (const p of stars) {
-              hx += p.sx;
-              hy += p.sy;
-            }
-            hx /= stars.length;
-            hy /= stars.length;
-            const halo = ctx.createRadialGradient(hx, hy, 3, hx, hy, 28);
-            halo.addColorStop(0, 'rgba(204,255,0,.18)');
+            const halo = ctx.createRadialGradient(cx0, cy0, 2, cx0, cy0, 20);
+            halo.addColorStop(0, 'rgba(204,255,0,.14)');
             halo.addColorStop(1, 'rgba(204,255,0,0)');
             ctx.fillStyle = halo;
             ctx.beginPath();
-            ctx.arc(hx, hy, 28, 0, Math.PI * 2);
+            ctx.arc(cx0, cy0, 20, 0, Math.PI * 2);
             ctx.fill();
           }
 
           for (const p of stars) {
-            spark(p.sx, p.sy, strokeCol, (picked ? 0.9 : hot ? 0.55 : 0.35) * vis * pulse);
+            spark(p.sx, p.sy, strokeCol, (picked ? 0.82 : hot ? 0.45 : 0.28) * vis * pulse);
           }
+
+          if (picked || c.hover > 0.45 || (hover && hover.s && hover.s.constel === c.id)) {
+            const short = String(c.name || '').replace(/\s+\d+$/, '').slice(0, 16);
+            ctx.font = '600 9px IBM Plex Mono';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.fillText(short, cx0 + 1, cy0 + 14);
+            ctx.fillStyle = rgba(picked ? LIME : c.col, picked ? 0.9 : 0.68);
+            ctx.fillText(short, cx0, cy0 + 13);
+          }
+
+          drawn.push({ x: cx0, y: cy0 });
+          if (!picked) fullDrawn++;
         }
       }
-
-      // Names only when close / selected / hovered — no wallpaper of text
-      if (scale > 3.2) {
-        const step = (scale < 4.5 ? 14 : scale < 6 ? 6 : 2) * (quality === 'low' ? 2 : 1);
-        g.constels.forEach((c, idx) => {
-          const picked = selectedConstels.has(c.id);
-          const hot = picked || c.hover > 0.35;
-          if (!picked && !hot && idx % step) return;
-          if (!hot && scale < 4.2) return;
-          if (!constelVisible(c) && !picked) return;
-          if (c.grains.length < 2 && !picked) return;
-          const p = constelWorld(c, g);
-          const [sx, sy] = w2s(p.x, p.y);
-          if (sx < 24 || sy < 24 || sx > W - 24 || sy > H - 24) return;
-          const a = clamp(picked ? 0.9 : hot ? 0.7 : 0.32, 0, 0.95);
-          const short = String(c.name || '')
-            .replace(/\s+\d+$/, '')
-            .slice(0, 14);
-          const fs = hot ? 9 : 7;
-          ctx.font = `${hot ? 600 : 500} ${fs}px IBM Plex Mono`;
-          ctx.textAlign = 'center';
-          ctx.fillStyle = `rgba(0,0,0,${a * 0.4})`;
-          ctx.fillText(short, sx + 1, sy + 1);
-          ctx.fillStyle = rgba(picked ? LIME : c.col, a);
-          ctx.fillText(short, sx, sy);
-        });
-      }
-
       if (scale < 1.15) {
         ctx.font = '11px IBM Plex Mono';
         ctx.textAlign = 'center';

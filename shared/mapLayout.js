@@ -17,14 +17,17 @@ export function lotDefMeta(index) {
   const n = Number(index) | 0
   const arm = Math.floor(n / MAP_LOTS_PER_ARM) % MAP_ARMS
   const k = n % MAP_LOTS_PER_ARM
-  const jitter = (((arm * 5 + k * 3) % 7) - 3) * 0.004
-  const u = clamp01(0.03 + k * (0.94 / Math.max(1, MAP_LOTS_PER_ARM - 1)) + jitter, 0.02, 0.98)
+  const jitter = (((arm * 5 + k * 3) % 7) - 3) * 0.0035
+  const u = clamp01(0.04 + k * (0.92 / Math.max(1, MAP_LOTS_PER_ARM - 1)) + jitter, 0.03, 0.97)
+  // Lateral offset so neighbouring lots sit beside the arm, not stacked on one ribbon
+  const lane = ((n * 5) % 5) - 2 // -2…+2
   return {
     id: 'c' + n,
     index: n,
     arm,
     u,
+    lane,
     figure: n % 6,
-    spread: 0.07 + (n % 7) * 0.01,
+    spread: 0.045 + (n % 5) * 0.008,
   }
 }
