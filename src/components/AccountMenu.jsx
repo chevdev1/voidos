@@ -87,7 +87,7 @@ export function AccountMenu() {
                   <p className="text-[10px] uppercase tracking-wider text-muted">linked now</p>
                   <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
                   <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                    Switch below to replace this wallet. Lots stay on this browser account.
+                    Already connected — open cabinet. Change wallet only if you need another address.
                   </p>
                 </div>
                 <Link
