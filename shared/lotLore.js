@@ -167,241 +167,183 @@ export function getLotKind(idOrIndex) {
 function layoutStars(kindIdx, starCount, rnd) {
   const stars = []
   const k = kindIdx % 6
-  const n = Math.max(5, starCount)
-  const variant = Math.floor(rnd() * 3) // 0–2 sub-shape per kind
+  const n = Math.max(6, starCount)
+  const variant = Math.floor(rnd() * 3)
 
   if (k === 0) {
-    // Spire — needle / lean blade / stepped tower
-    for (let i = 0; i < n; i++) {
-      const t = i / (n - 1)
-      const lean = variant === 1 ? (t - 0.5) * 0.28 : variant === 2 ? Math.sin(t * Math.PI) * 0.12 : 0
-      const step = variant === 2 ? ((i % 2) - 0.5) * 0.08 : 0
+    // Spire — lance: shaft + crossguard (sword / Orion feel)
+    const shaft = Math.max(4, n - 2)
+    for (let i = 0; i < shaft; i++) {
+      const t = i / (shaft - 1)
       stars.push({
-        x: lean + step + (rnd() - 0.5) * 0.03,
-        y: (t - 0.5) * (variant === 0 ? 1.4 : 1.25),
-        z: (rnd() - 0.5) * 0.05,
-        r: 1.15 + (1 - t) * (variant === 0 ? 2.0 : 1.5) + rnd() * 0.35,
-        mark: 'diamond',
+        x: (rnd() - 0.5) * 0.05 + (variant === 1 ? (t - 0.5) * 0.12 : 0),
+        y: -0.55 + t * 1.15,
+        z: (rnd() - 0.5) * 0.04,
+        r: 1.2 + t * 1.6 + rnd() * 0.3,
       })
     }
+    stars.push({ x: -0.28 - variant * 0.06, y: 0.05, z: 0.02, r: 1.5 + rnd() * 0.4 })
+    while (stars.length < n) {
+      stars.push({ x: 0.28 + variant * 0.06, y: 0.05, z: -0.02, r: 1.5 + rnd() * 0.4 })
+    }
   } else if (k === 1) {
-    // Coil — helix / flat swirl / double-turn
-    const turns = variant === 0 ? 3.2 : variant === 1 ? 2.1 : 4.0
-    const rad0 = variant === 1 ? 0.38 : 0.2
+    // Coil — scorpion curve + stinger
     for (let i = 0; i < n; i++) {
       const t = i / (n - 1)
-      const ang = t * Math.PI * turns
-      const rad = rad0 + t * (variant === 1 ? 0.12 : 0.22)
+      const ang = -0.2 + t * (variant === 2 ? 4.2 : 3.4)
+      const rad = 0.18 + t * 0.38
+      const sting = i === n - 1 ? 0.22 : 0
       stars.push({
         x: Math.cos(ang) * rad,
-        y: variant === 1 ? Math.sin(ang) * rad * 0.55 : (t - 0.5) * 1.05,
-        z: variant === 1 ? (t - 0.5) * 0.2 : Math.sin(ang) * rad,
-        r: 1.3 + rnd() * 1.15,
-        mark: 'diamond',
+        y: Math.sin(ang) * rad * 0.85 + sting,
+        z: Math.sin(ang * 0.5) * 0.08,
+        r: 1.2 + (i === n - 1 ? 1.4 : rnd() * 1.0),
       })
     }
   } else if (k === 2) {
-    // Crown — U-arc / wide throne / asymmetric crest
-    for (let i = 0; i < n; i++) {
-      const t = i / (n - 1)
-      const span = variant === 1 ? 1.35 : 1.1
-      const ang = -Math.PI * (0.5 + variant * 0.05) + t * Math.PI * span
-      const lift = variant === 2 && i === Math.floor(n / 2) ? 0.22 : 0
+    // Crown — classic dipper / ladle
+    const bowl = Math.min(4, n - 2)
+    for (let i = 0; i < bowl; i++) {
+      const t = i / Math.max(1, bowl - 1)
       stars.push({
-        x: Math.sin(ang) * (variant === 1 ? 0.62 : 0.52) + (variant === 2 ? (t - 0.5) * 0.08 : 0),
-        y: -0.02 + Math.cos(ang) * (variant === 0 ? 0.36 : 0.28) + lift,
-        z: Math.cos(ang) * 0.1,
-        r: 1.4 + (i === 0 || i === n - 1 ? 1.1 : 0.55) + rnd() * 0.45,
-        mark: 'diamond',
+        x: -0.35 + t * 0.7,
+        y: 0.12 + Math.sin(t * Math.PI) * (variant === 1 ? 0.22 : 0.14),
+        z: 0,
+        r: 1.5 + rnd() * 0.7,
+      })
+    }
+    const handle = n - bowl
+    for (let i = 0; i < handle; i++) {
+      const t = (i + 1) / handle
+      stars.push({
+        x: 0.35 + t * 0.35,
+        y: 0.12 - t * (variant === 2 ? 0.55 : 0.42),
+        z: t * 0.05,
+        r: 1.3 + (1 - t) * 0.8,
       })
     }
   } else if (k === 3) {
-    // Lattice — X / # grid / skewed cross
-    const a = Math.ceil(n / 2)
-    const skew = variant === 2 ? 0.35 : 0
-    const flat = variant === 1
-    for (let i = 0; i < a; i++) {
-      const t = i / Math.max(1, a - 1)
-      stars.push({
-        x: (t - 0.5) * 1.0,
-        y: flat ? (i % 2 === 0 ? -0.28 : 0.28) : (t - 0.5) * 1.0 + skew * (t - 0.5),
-        z: 0,
-        r: 1.4 + rnd() * 0.75,
-        mark: 'diamond',
-      })
+    // Lattice — kite + long tail
+    const kite = [
+      { x: 0, y: 0.42, r: 2.0 },
+      { x: -0.32, y: 0.05, r: 1.5 },
+      { x: 0.32, y: 0.05, r: 1.5 },
+      { x: 0, y: -0.22, r: 1.7 },
+    ]
+    for (const p of kite.slice(0, Math.min(4, n))) {
+      stars.push({ x: p.x * (variant === 1 ? 1.15 : 1), y: p.y, z: 0, r: p.r + rnd() * 0.3 })
     }
-    for (let i = 0; i < n - a; i++) {
-      const t = i / Math.max(1, n - a - 1)
+    const tail = n - stars.length
+    for (let i = 0; i < tail; i++) {
+      const t = (i + 1) / (tail + 0.5)
       stars.push({
-        x: flat ? (t - 0.5) * 1.0 : (t - 0.5) * 1.0,
-        y: flat ? (i % 2 === 0 ? 0.28 : -0.28) : (0.5 - t) * 1.0 - skew * (t - 0.5),
-        z: 0.05,
-        r: 1.4 + rnd() * 0.75,
-        mark: 'diamond',
+        x: (variant === 2 ? 0.12 : -0.08) * t,
+        y: -0.22 - t * 0.55,
+        z: 0.02,
+        r: 1.2 + (1 - t) * 0.9,
       })
     }
   } else if (k === 4) {
-    // Vein — Y / one-sided branch / triple fork
-    const trunk = Math.max(3, Math.floor(n * (variant === 2 ? 0.3 : 0.4)))
-    for (let i = 0; i < trunk; i++) {
-      const t = i / Math.max(1, trunk - 1)
-      stars.push({
-        x: variant === 1 ? t * 0.08 : 0,
-        y: -0.55 + t * 0.7,
-        z: 0,
-        r: 1.55 + rnd() * 0.65,
-        mark: 'diamond',
-      })
+    // Vein — hunter: belt + shoulders + legs
+    const belt = Math.min(3, n)
+    for (let i = 0; i < belt; i++) {
+      const t = i / Math.max(1, belt - 1)
+      stars.push({ x: -0.28 + t * 0.56, y: 0.05, z: 0, r: 1.8 + rnd() * 0.4 })
     }
-    const rest = n - trunk
-    if (variant === 1) {
-      // one-sided sweep
-      for (let i = 0; i < rest; i++) {
-        const t = (i + 1) / (rest + 1)
-        stars.push({
-          x: t * 0.55,
-          y: 0.1 + t * 0.42,
-          z: t * 0.06,
-          r: 1.25 + rnd() * 0.85,
-          mark: 'diamond',
-        })
-      }
-    } else {
-      const left = Math.ceil(rest / (variant === 2 ? 3 : 2))
-      for (let i = 0; i < left; i++) {
-        const t = (i + 1) / (left + 1)
-        stars.push({
-          x: -t * 0.48,
-          y: 0.15 + t * 0.4,
-          z: -t * 0.08,
-          r: 1.25 + rnd() * 0.85,
-          mark: 'diamond',
-        })
-      }
-      let used = left
-      const mid = variant === 2 ? Math.ceil((rest - left) / 2) : 0
-      for (let i = 0; i < mid; i++) {
-        const t = (i + 1) / (mid + 1)
-        stars.push({
-          x: (rnd() - 0.5) * 0.06,
-          y: 0.2 + t * 0.48,
-          z: t * 0.04,
-          r: 1.2 + rnd() * 0.8,
-          mark: 'diamond',
-        })
-        used++
-      }
-      for (let i = 0; i < rest - used; i++) {
-        const t = (i + 1) / (rest - used + 1)
-        stars.push({
-          x: t * 0.48,
-          y: 0.15 + t * 0.4,
-          z: t * 0.08,
-          r: 1.25 + rnd() * 0.85,
-          mark: 'diamond',
-        })
-      }
+    if (stars.length < n) stars.push({ x: -0.38, y: 0.42, z: 0.02, r: 1.6 })
+    if (stars.length < n) stars.push({ x: 0.38, y: 0.42, z: -0.02, r: 1.6 })
+    if (stars.length < n && variant !== 1) stars.push({ x: 0, y: 0.58, z: 0, r: 2.1 })
+    while (stars.length < n) {
+      const side = stars.length % 2 === 0 ? -1 : 1
+      const t = (stars.length - 5) / Math.max(1, n - 5)
+      stars.push({
+        x: side * (0.18 + t * 0.2),
+        y: -0.15 - t * 0.4,
+        z: side * 0.03,
+        r: 1.3 + rnd() * 0.5,
+      })
     }
   } else {
-    // Halo — open asterism ring (not a perfect wireframe wheel)
-    const ring = n - 1
-    const open = variant !== 0
-    const oval = variant === 1 ? 0.68 : 0.88 + rnd() * 0.2
-    const start = open ? 0.15 : 0
-    const span = open ? 0.78 : 1
-    for (let i = 0; i < ring; i++) {
-      const t = i / Math.max(1, ring - (open ? 0 : 1))
-      const ang = -Math.PI / 2 + (start + t * span) * Math.PI * 2
-      const radJ = 0.42 + rnd() * 0.12
+    // Halo — lyre / harp (two pillars), not a wheel
+    const left = Math.ceil(n / 2)
+    for (let i = 0; i < left; i++) {
+      const t = i / Math.max(1, left - 1)
       stars.push({
-        x: Math.cos(ang) * radJ,
-        y: Math.sin(ang) * radJ * oval,
-        z: (rnd() - 0.5) * 0.06,
-        r: 1.2 + rnd() * 0.9,
-        mark: 'diamond',
+        x: -0.28 - Math.sin(t * Math.PI) * (variant === 1 ? 0.12 : 0.06),
+        y: -0.45 + t * 0.95,
+        z: 0,
+        r: 1.3 + (i === left - 1 ? 0.9 : 0.4) + rnd() * 0.3,
       })
     }
-    // occasional heart — only sometimes, keeps some lots with a focus star
-    if (variant === 0 || rnd() > 0.45) {
-      stars.push({ x: (rnd() - 0.5) * 0.08, y: (rnd() - 0.5) * 0.08, z: 0, r: 2.1 + rnd() * 0.5, mark: 'diamond' })
-    }
-    while (stars.length < n) {
-      const ang = rnd() * Math.PI * 2
+    for (let i = 0; i < n - left; i++) {
+      const t = i / Math.max(1, n - left - 1)
       stars.push({
-        x: Math.cos(ang) * 0.35,
-        y: Math.sin(ang) * 0.35 * oval,
-        z: 0,
-        r: 1.2 + rnd() * 0.5,
-        mark: 'diamond',
+        x: 0.28 + Math.sin(t * Math.PI) * (variant === 1 ? 0.12 : 0.06),
+        y: -0.45 + t * 0.95,
+        z: 0.02,
+        r: 1.3 + (i === n - left - 1 ? 0.9 : 0.4) + rnd() * 0.3,
       })
     }
   }
 
-  // Organic sky pose — still kind-readable, not stamped geometry
-  const yaw = (rnd() - 0.5) * 1.35
-  const roll = (rnd() - 0.5) * 0.95
-  const pitch = (rnd() - 0.5) * 0.65
-  const sx = 0.78 + rnd() * 0.4
-  const sy = 0.78 + rnd() * 0.4
+  // Mild pose — keep silhouette readable
+  const yaw = (rnd() - 0.5) * 0.9
+  const roll = (rnd() - 0.5) * 0.55
+  const sc = 0.9 + rnd() * 0.2
   const cy = Math.cos(yaw)
   const syw = Math.sin(yaw)
   const cr = Math.cos(roll)
   const sr = Math.sin(roll)
-  const cp = Math.cos(pitch)
-  const sp = Math.sin(pitch)
   for (const s of stars) {
-    // tiny local jitter so points don't sit on perfect grid/ring
-    let x = s.x * sx + (rnd() - 0.5) * 0.04
-    let y = s.y * sy + (rnd() - 0.5) * 0.04
-    let z = (s.z || 0) * ((sx + sy) * 0.5) + (rnd() - 0.5) * 0.03
+    let x = s.x * sc + (rnd() - 0.5) * 0.025
+    let y = s.y * sc + (rnd() - 0.5) * 0.025
+    let z = (s.z || 0) * sc
     const x1 = x * cy + z * syw
     const z1 = -x * syw + z * cy
-    const y2 = y * cp - z1 * sp
-    const z2 = y * sp + z1 * cp
-    s.x = x1 * cr - y2 * sr
-    s.y = x1 * sr + y2 * cr
-    s.z = z2
-    s.r = Math.max(1.0, (s.r || 1.5) * (0.8 + rnd() * 0.45))
+    s.x = x1 * cr - y * sr
+    s.y = x1 * sr + y * cr
+    s.z = z1
+    s.r = Math.max(1.1, (s.r || 1.5) * (0.9 + rnd() * 0.3))
     s.mark = 'diamond'
   }
   return stars
 }
 
-/** Kind-specific edge list so figures read as shapes, not random MST webs. */
+/** Classic stick-figure edges per kind. */
 function kindEdges(kindIdx, stars) {
   const n = stars.length
   if (n < 2) return []
   const k = kindIdx % 6
   const edges = []
-  if (k === 0 || k === 1) {
-    // chain
-    for (let i = 0; i < n - 1; i++) edges.push([i, i + 1])
-  } else if (k === 2) {
-    // arc chain
+  if (k === 0) {
+    const shaft = Math.max(4, n - 2)
+    for (let i = 0; i < shaft - 1; i++) edges.push([i, i + 1])
+    const mid = Math.floor(shaft * 0.45)
+    for (let i = shaft; i < n; i++) edges.push([mid, i])
+  } else if (k === 1 || k === 2) {
     for (let i = 0; i < n - 1; i++) edges.push([i, i + 1])
   } else if (k === 3) {
-    // two diagonals of X
-    const a = Math.ceil(n / 2)
-    for (let i = 0; i < a - 1; i++) edges.push([i, i + 1])
-    for (let i = a; i < n - 1; i++) edges.push([i, i + 1])
+    if (n >= 4) {
+      edges.push([0, 1], [0, 2], [1, 3], [2, 3])
+      for (let i = 3; i < n - 1; i++) edges.push([i, i + 1])
+    } else {
+      for (let i = 0; i < n - 1; i++) edges.push([i, i + 1])
+    }
   } else if (k === 4) {
-    // trunk chain + fork from branch point
-    const trunk = Math.max(3, Math.floor(n * 0.4))
-    for (let i = 0; i < trunk - 1; i++) edges.push([i, i + 1])
-    const tip = trunk - 1
-    for (let i = trunk; i < n; i++) edges.push([tip, i])
+    const belt = Math.min(3, n)
+    for (let i = 0; i < belt - 1; i++) edges.push([i, i + 1])
+    const mid = Math.floor((belt - 1) / 2)
+    for (let i = belt; i < n; i++) {
+      const anchor = i < belt + 2 ? (i === belt ? 0 : belt - 1) : mid
+      edges.push([Math.min(anchor, belt - 1), i])
+    }
   } else {
-    // sparse ring / arc — avoid full hub wheel (reads as glyph, not sky)
-    const hub = n - 1
-    const hasHub =
-      Math.hypot(stars[hub]?.x || 0, stars[hub]?.y || 0) < 0.15 && (stars[hub]?.r || 0) > 1.8
-    const ring = hasHub ? hub : n
-    for (let i = 0; i < ring - 1; i++) edges.push([i, i + 1])
-    if (!hasHub && ring > 2) edges.push([ring - 1, 0])
-    else if (hasHub) {
-      // one or two spokes max, not every node
-      edges.push([0, hub])
-      if (ring > 3) edges.push([Math.floor(ring / 2), hub])
+    const left = Math.ceil(n / 2)
+    for (let i = 0; i < left - 1; i++) edges.push([i, i + 1])
+    for (let i = left; i < n - 1; i++) edges.push([i, i + 1])
+    if (left > 0 && n > left) {
+      edges.push([left - 1, n - 1])
+      if (left > 2 && n - left > 2) edges.push([1, left + 1])
     }
   }
   return edges

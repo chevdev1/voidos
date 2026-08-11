@@ -2586,21 +2586,52 @@ export function initVoidEngine() {
         scored.sort((a, b) => a.priority - b.priority);
 
         const placed = [];
-        const crowdRef = scale < 1.15 ? 28 : scale < 1.8 ? 34 : 42;
+        const crowdRef = scale < 1.15 ? 16 : scale < 1.8 ? 20 : 26;
+        // Soft arm bridges so spiral doesn't read as huge slits between lots
+        {
+          const byArm = new Map();
+          for (const item of scored) {
+            const arm = item.c.arm ?? 0;
+            if (!byArm.has(arm)) byArm.set(arm, []);
+            byArm.get(arm).push(item);
+          }
+          for (const list of byArm.values()) {
+            list.sort((a, b) => (a.c.u || 0) - (b.c.u || 0));
+            for (let i = 0; i < list.length - 1; i++) {
+              const a = list[i];
+              const b = list[i + 1];
+              if (inCore(a.hx, a.hy, 6) || inCore(b.hx, b.hy, 6)) continue;
+              const gap = Math.hypot(a.hx - b.hx, a.hy - b.hy);
+              if (gap < 18 || gap > 90) continue;
+              const midX = (a.hx + b.hx) * 0.5;
+              const midY = (a.hy + b.hy) * 0.5;
+              if (inCore(midX, midY, 8)) continue;
+              strokeLink(
+                { sx: a.hx, sy: a.hy },
+                { sx: b.hx, sy: b.hy },
+                a.c.col || LIME,
+                scale < 1.2 ? 0.08 : 0.12,
+                0.55,
+              );
+              // tiny dust bead in the gap
+              prettyStar(midX, midY, a.c.col || LIME, 0.35, 1.2, 0.9);
+            }
+          }
+        }
 
         for (const item of scored) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
           const forced = picked || mine || celebrating || c.hover > 0.15;
 
-          // Whole figure sits on the black core — skip (core is painted over anyway)
-          if (inCore(hx, hy, 4)) continue;
+          // Whole figure sits on the black core — skip
+          if (inCore(hx, hy, 6)) continue;
 
           let figMul = 1;
           if (!forced) {
             for (const p of placed) {
               const d = Math.hypot(p.x - hx, p.y - hy);
               if (d < crowdRef) {
-                figMul = Math.min(figMul, 0.45 + (d / crowdRef) * 0.55);
+                figMul = Math.min(figMul, 0.7 + (d / crowdRef) * 0.3);
               }
             }
           }
@@ -2611,29 +2642,29 @@ export function initVoidEngine() {
           const baseScale =
             g.R *
             scale *
-            (forced ? 0.088 : scale < 1.15 ? 0.06 : scale < 2 ? 0.07 : 0.08);
-          const figScale = clamp(baseScale * figMul, forced ? 26 : 15, forced ? 74 : 58);
+            (forced ? 0.1 : scale < 1.15 ? 0.078 : scale < 2 ? 0.088 : 0.095);
+          const figScale = clamp(baseScale * figMul, forced ? 28 : 20, forced ? 78 : 62);
 
-          const stars = profile.stars
-            .map((s, i) => {
-              const mag = 0.75 + ((s.r || 1.6) / 3.2) * 0.55;
-              const sx = hx + s.x * figScale;
-              const sy = hy - s.y * figScale;
-              const r = Math.max(
-                1.5,
-                mag * (forced ? 2.4 : scale < 1.4 ? 1.7 : 2.05) * Math.max(0.7, figMul),
-              );
-              return {
-                sx,
-                sy,
-                r,
-                mag,
-                ph: i * 1.7 + c.a0,
-                occluded: inCore(sx, sy, r * 0.6),
-              };
-            })
-            .filter((s) => !s.occluded);
-          if (stars.length < 2) continue;
+          // Keep original indices for kind edges; only skip drawing occluded nodes
+          const stars = profile.stars.map((s, i) => {
+            const mag = 0.75 + ((s.r || 1.6) / 3.2) * 0.55;
+            const sx = hx + s.x * figScale;
+            const sy = hy - s.y * figScale;
+            const r = Math.max(
+              1.6,
+              mag * (forced ? 2.5 : scale < 1.4 ? 1.85 : 2.2) * Math.max(0.75, figMul),
+            );
+            return {
+              sx,
+              sy,
+              r,
+              mag,
+              ph: i * 1.7 + c.a0,
+              occluded: inCore(sx, sy, Math.max(4, r * 1.2)),
+            };
+          });
+          const visible = stars.filter((s) => !s.occluded);
+          if (visible.length < 2) continue;
 
           placed.push({ x: hx, y: hy });
 
@@ -2642,10 +2673,9 @@ export function initVoidEngine() {
               ? 0.9 + 0.1 * Math.sin(t * 2.0 + c.a0 * 3)
               : 0.96 + 0.04 * Math.sin(t * 1.0 + c.a0 * 2);
           const lineA =
-            (forced ? 0.55 : hot ? 0.38 : scale < 1.2 ? 0.28 : 0.34) * pulse;
+            (forced ? 0.62 : hot ? 0.44 : scale < 1.2 ? 0.34 : 0.4) * pulse;
           const starA =
-            (forced ? 1 : hot ? 0.9 : scale < 1.2 ? 0.78 : 0.86) * pulse;
-          // warmer / cooler tint per lot so arms aren't one flat neon
+            (forced ? 1 : hot ? 0.92 : scale < 1.2 ? 0.82 : 0.9) * pulse;
           const strokeCol = mine || picked || celebrating
             ? LIME
             : [
@@ -2653,7 +2683,7 @@ export function initVoidEngine() {
                 Math.min(255, c.col[1] + 10),
                 Math.min(120, c.col[2] + 15),
               ];
-          const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.0 : 0.75;
+          const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.05 : 0.85;
 
           if (forced && !inCore(hx, hy, figScale * 0.4)) {
             const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.95);
@@ -2665,41 +2695,16 @@ export function initVoidEngine() {
             ctx.fill();
           }
 
-          // Rebuild edges against surviving stars (indices changed after filter)
-          // Use spatial MST on visible stars so links never cross the hole.
-          {
-            const n = stars.length;
-            const used = new Array(n).fill(false);
-            used[0] = true;
-            for (let k = 1; k < n; k++) {
-              let bi = -1,
-                bj = -1,
-                bd = 1e15;
-              for (let i = 0; i < n; i++) {
-                if (!used[i]) continue;
-                for (let j = 0; j < n; j++) {
-                  if (used[j]) continue;
-                  const dx = stars[i].sx - stars[j].sx;
-                  const dy = stars[i].sy - stars[j].sy;
-                  const d = dx * dx + dy * dy;
-                  // reject links that cut through the black core
-                  if (coreR > 1) {
-                    const midX = (stars[i].sx + stars[j].sx) * 0.5;
-                    const midY = (stars[i].sy + stars[j].sy) * 0.5;
-                    if (inCore(midX, midY, 2)) continue;
-                  }
-                  if (d < bd) {
-                    bd = d;
-                    bi = i;
-                    bj = j;
-                  }
-                }
-              }
-              if (bj < 0) break;
-              used[bj] = true;
-              strokeLink(stars[bi], stars[bj], strokeCol, lineA * 0.22, lineW + 1.6);
-              strokeLink(stars[bi], stars[bj], strokeCol, lineA, lineW);
-            }
+          // Use designed kind edges (not MST) so silhouettes stay beautiful
+          for (const [ai, bi] of profile.edges || []) {
+            const a = stars[ai];
+            const b = stars[bi];
+            if (!a || !b || a.occluded || b.occluded) continue;
+            const midX = (a.sx + b.sx) * 0.5;
+            const midY = (a.sy + b.sy) * 0.5;
+            if (inCore(midX, midY, 3)) continue;
+            strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
+            strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
           if ((picked || celebrating) && !inCore(hx, hy, 8)) {
@@ -2714,10 +2719,9 @@ export function initVoidEngine() {
             ctx.fill();
           }
 
-          // draw dim stars first, bright last
-          const order = stars.map((_, i) => i).sort((i, j) => stars[i].mag - stars[j].mag);
+          const order = visible.map((_, i) => i).sort((i, j) => visible[i].mag - visible[j].mag);
           for (const i of order) {
-            const p = stars[i];
+            const p = visible[i];
             const tw = 0.88 + 0.12 * Math.sin(t * 2.4 + p.ph);
             prettyStar(p.sx, p.sy, strokeCol, starA * (0.7 + p.mag * 0.35), p.r, tw);
           }
