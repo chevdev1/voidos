@@ -59,3 +59,12 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* WalletConnect / Reown QR modal above app chrome */
+w3m-modal,
+wcm-modal,
+#w3m-modal,
+.wcm-overlay,
+.w3m-overlay {
+  z-index: 100000 !important;
+}

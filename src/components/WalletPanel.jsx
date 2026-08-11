@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { mindWalletLink, mindWalletUnlink, mindWalletBalance, loadGuestKey } from '../lib/mindClient'
-import { connectAndSignLink, hasWalletConnectProject, getInjectedEvm } from '../lib/rhWallets'
+import { connectAndSignLink, hasWalletConnectProject, getInjectedEvm, abortWalletConnect } from '../lib/rhWallets'
 
 /**
  * Single connect CTA — WalletConnect QR when configured, else browser wallet.
@@ -40,8 +40,14 @@ export function WalletPanel({ user, onUser }) {
       ? 'Opens your browser wallet'
       : 'WalletConnect Project ID required'
 
+  async function cancelConnect() {
+    await abortWalletConnect()
+    setBusy(false)
+    setErr('connection cancelled — tap Connect wallet to try again')
+  }
+
   async function linkWallet() {
-    if (!canConnect) return
+    if (!canConnect || busy) return
     setBusy(true)
     setErr('')
     try {
@@ -54,10 +60,14 @@ export function WalletPanel({ user, onUser }) {
       await refreshBal(pubkey)
     } catch (e) {
       const msg = e?.message || String(e)
-      if (/reject|cancel|closed|denied/i.test(msg)) setErr('connection cancelled')
-      else if (/already pending/i.test(msg)) {
-        setErr('Wallet popup stuck — open the extension, Reject, then try again')
+      if (/reject|cancel|closed|denied|User closed/i.test(msg)) {
+        setErr('connection cancelled — tap Connect wallet to try again')
+      } else if (/already pending|already in progress/i.test(msg)) {
+        setErr(msg)
+      } else if (/timed out/i.test(msg)) {
+        setErr(msg)
       } else setErr(msg || 'wallet failed')
+      await abortWalletConnect()
     } finally {
       setBusy(false)
     }
@@ -121,22 +131,26 @@ export function WalletPanel({ user, onUser }) {
           </button>
         </div>
       ) : (
-        <div className="mt-5">
+        <div className="mt-5 space-y-2">
           <button
             type="button"
             disabled={busy || !canConnect}
             onClick={linkWallet}
             title={connectHint}
-            className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:opacity-45"
+            className="group relative w-full overflow-hidden border border-lime/60 bg-lime px-4 py-3.5 text-left transition enabled:hover:shadow-[0_0_28px_rgba(204,255,0,0.35)] enabled:active:translate-y-px disabled:cursor-wait disabled:opacity-80"
           >
             <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent opacity-0 transition group-hover:opacity-100" />
             <span className="relative flex items-center justify-between gap-3">
               <span>
                 <span className="block text-[13px] font-semibold tracking-[0.14em] text-black uppercase">
-                  {busy ? 'Connecting…' : 'Connect wallet'}
+                  {busy ? 'Waiting for wallet…' : 'Connect wallet'}
                 </span>
                 <span className="mt-0.5 block text-[10px] tracking-wide text-black/65">
-                  {wcReady ? 'QR · Trust · WalletConnect' : 'Browser wallet'}
+                  {busy
+                    ? 'QR should open — scan with Trust'
+                    : wcReady
+                      ? 'QR · Trust · WalletConnect'
+                      : 'Browser wallet'}
                 </span>
               </span>
               <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-black/25 text-black">
@@ -155,6 +169,15 @@ export function WalletPanel({ user, onUser }) {
               </span>
             </span>
           </button>
+          {busy && (
+            <button
+              type="button"
+              onClick={cancelConnect}
+              className="w-full border border-white/25 px-3 py-2 text-[11px] text-muted transition hover:border-lime/40 hover:text-lime"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       )}
 

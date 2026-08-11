@@ -54,7 +54,7 @@ export function isClaimLiveClient() {
 }
 
 export function hasWalletConnectProject() {
-  return Boolean(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID)
+  return Boolean(String(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '').trim())
 }
 
 /** Any injected EVM wallet (Robinhood in-app, Trust, MetaMask, …). */
@@ -147,51 +147,113 @@ async function connectInjected() {
 }
 
 let wcProvider = null
+let wcBusy = false
+
+export async function abortWalletConnect() {
+  wcBusy = false
+  if (!wcProvider) return
+  try {
+    await wcProvider.disconnect()
+  } catch {
+    /* ignore */
+  }
+  try {
+    wcProvider = null
+  } catch {
+    wcProvider = null
+  }
+}
+
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      reject(new Error(`${label} timed out. Tap Cancel, then Connect again.`))
+    }, ms)
+    promise.then(
+      (v) => {
+        clearTimeout(t)
+        resolve(v)
+      },
+      (e) => {
+        clearTimeout(t)
+        reject(e)
+      },
+    )
+  })
+}
 
 async function connectWalletConnect() {
-  const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+  const projectId = String(import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '').trim()
   if (!projectId) throw new Error('set VITE_WALLETCONNECT_PROJECT_ID (Reown)')
-  const { EthereumProvider } = await import('@walletconnect/ethereum-provider')
-  const chain = getRhChain()
-  if (wcProvider) {
+  if (wcBusy) throw new Error('connection already in progress — tap Cancel first')
+  wcBusy = true
+  try {
+    // Required for showQrModal — without it enable() hangs forever
+    await import('@walletconnect/modal')
+    const { EthereumProvider } = await import('@walletconnect/ethereum-provider')
+    const chain = getRhChain()
+    if (wcProvider) {
+      try {
+        await wcProvider.disconnect()
+      } catch {
+        /* ignore */
+      }
+      wcProvider = null
+    }
+    wcProvider = await withTimeout(
+      EthereumProvider.init({
+        projectId,
+        showQrModal: true,
+        optionalChains: [chain.id, RH_CHAIN_MAIN, RH_CHAIN_TEST],
+        chains: [chain.id],
+        rpcMap: {
+          [chain.id]: rpcUrl(),
+          [RH_CHAIN_MAIN]: 'https://rpc.mainnet.chain.robinhood.com',
+          [RH_CHAIN_TEST]: 'https://rpc.testnet.chain.robinhood.com/rpc',
+        },
+        qrModalOptions: {
+          themeMode: 'dark',
+          themeVariables: {
+            '--wcm-z-index': '100000',
+          },
+        },
+        metadata: {
+          name: 'VOID.OS',
+          description: 'ExoMind constellation lots on Robinhood Chain',
+          url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
+          icons: [
+            typeof window !== 'undefined'
+              ? `${window.location.origin}/assets/void-logo.png`
+              : 'https://void.os/assets/void-logo.png',
+          ],
+        },
+      }),
+      25000,
+      'WalletConnect init',
+    )
+    await withTimeout(wcProvider.enable(), 120000, 'WalletConnect QR')
     try {
-      await wcProvider.disconnect()
+      await ensureChain(wcProvider)
+    } catch (e) {
+      const msg = String(e?.message || e || '')
+      if (!/already pending|MetaMask/i.test(msg)) throw e
+    }
+    const accounts = wcProvider.accounts?.length
+      ? wcProvider.accounts
+      : await wcProvider.request({ method: 'eth_accounts' })
+    if (!accounts?.[0]) throw new Error('no account from WalletConnect')
+    return { provider: wcProvider, address: getAddress(accounts[0]) }
+  } catch (e) {
+    try {
+      if (wcProvider) await wcProvider.disconnect()
     } catch {
       /* ignore */
     }
     wcProvider = null
+    throw e
+  } finally {
+    wcBusy = false
   }
-  wcProvider = await EthereumProvider.init({
-    projectId,
-    showQrModal: true,
-    chains: [chain.id],
-    optionalChains: [RH_CHAIN_MAIN, RH_CHAIN_TEST],
-    rpcMap: { [chain.id]: rpcUrl() },
-    metadata: {
-      name: 'VOID.OS',
-      description: 'ExoMind constellation lots on Robinhood Chain',
-      url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
-      icons: [
-        typeof window !== 'undefined'
-          ? `${window.location.origin}/assets/void-logo.png`
-          : 'https://void.os/assets/void-logo.png',
-      ],
-    },
-  })
-  await wcProvider.enable()
-  // Do not force wallet_addEthereumChain on WC — Trust may already be on testnet from faucet.
-  try {
-    await ensureChain(wcProvider)
-  } catch (e) {
-    const msg = String(e?.message || e || '')
-    if (!/already pending|MetaMask/i.test(msg)) throw e
-    // Continue — sign/link can still work; wrong chain shows later on balance/claim.
-  }
-  const accounts = wcProvider.accounts?.length
-    ? wcProvider.accounts
-    : await wcProvider.request({ method: 'eth_accounts' })
-  if (!accounts?.[0]) throw new Error('no account from WalletConnect')
-  return { provider: wcProvider, address: getAddress(accounts[0]) }
 }
 
 /**
