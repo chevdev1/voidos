@@ -203,6 +203,19 @@ export function MindChat() {
 
   return (
     <div className="mind-chat" role="dialog" aria-modal="true" aria-label="ask the mind">
+      {/* Mobile-only: the in-card ✕ sits under the fixed nav header (nav is
+          z-[200], this modal is z-140) once the card goes full-height below
+          768px, so it's effectively unreachable there. This floats above
+          the nav instead. Desktop keeps just the in-card ✕. */}
+      <button
+        type="button"
+        className="mind-chat-x-float"
+        onClick={() => setOpen(false)}
+        aria-label="close ask the mind"
+      >
+        ✕
+      </button>
+
       <div className="mind-chat-card">
         <div className="mind-chat-top">
           <div>
@@ -252,7 +265,15 @@ export function MindChat() {
           {busy && (
             <div className="mind-chat-msg assistant">
               <span className="who">mind</span>
-              <p>{status || 'listening…'}</p>
+              {status && status !== 'listening…' ? (
+                <p>{status}</p>
+              ) : (
+                <p className="mind-listening" aria-label="listening">
+                  <i />
+                  <i />
+                  <i />
+                </p>
+              )}
             </div>
           )}
         </div>

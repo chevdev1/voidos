@@ -1696,6 +1696,8 @@ export function initVoidEngine() {
       exitArena,
       openMap: enterArena,
       closeMap: exitArena,
+      pauseDemo,
+      resumeDemo,
       relocateTo(parent) {
         if (parent && frame) {
           parent.appendChild(frame);
@@ -2033,9 +2035,23 @@ export function initVoidEngine() {
     // scrolled away, not just "less work."
     let inView = true;
     let pageVisible = !document.hidden;
+    // Hero-slot teaser gate: the small demo pauses itself once the "open
+    // full map" prompt card covers it (see Hero.jsx) — no point spending a
+    // render loop on a canvas sitting under an opaque blur. Doesn't apply
+    // once the user is actually in the full-screen arena.
+    let demoActive = true;
     let rafId = null;
     function kickDraw() {
-      if (alive && inView && pageVisible && rafId == null) rafId = requestAnimationFrame(draw);
+      if (alive && inView && pageVisible && (demoActive || arenaMode) && rafId == null) {
+        rafId = requestAnimationFrame(draw);
+      }
+    }
+    function pauseDemo() {
+      demoActive = false;
+    }
+    function resumeDemo() {
+      demoActive = true;
+      kickDraw();
     }
     const visibilityObserver = new IntersectionObserver(
       ([entry]) => {
@@ -2065,7 +2081,7 @@ export function initVoidEngine() {
       // permanent; !inView / !pageVisible are temporary and get restarted
       // by IO / visibilitychange once work should resume.
       rafId = null;
-      if (!alive || !inView || !pageVisible) return;
+      if (!alive || !inView || !pageVisible || (!demoActive && !arenaMode)) return;
       sampleFrameTime(now);
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;

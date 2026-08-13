@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { MagneticButton } from './MagneticButton'
 import { CosmosPanel } from './CosmosPanel'
@@ -14,9 +14,25 @@ const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
 const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()
 const caLive = Boolean(CA)
 
+// Let the visitor spin the demo for a beat before nudging them toward the
+// real thing — long enough to feel like their own discovery, short enough
+// not to stall the funnel.
+const MAP_PROMPT_DELAY_MS = 4000
+
 export function Hero() {
   const lenisRef = useLenis()
   const [copied, setCopied] = useState(false)
+  const [showMapPrompt, setShowMapPrompt] = useState(false)
+  const settledRef = useRef(false) // true once the user has acted (either way) — stops the timer from firing late
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (settledRef.current) return
+      setShowMapPrompt(true)
+      window.__voidCosmos?.pauseDemo?.()
+    }, MAP_PROMPT_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [])
 
   function goTo(target) {
     lenisRef?.current?.scrollTo(target, { offset: -20, duration: 1.4 })
@@ -27,6 +43,23 @@ export function Hero() {
     navigator.clipboard?.writeText(CA)
     setCopied(true)
     setTimeout(() => setCopied(false), 800)
+  }
+
+  // Shared by every "leave the demo" action in this section — the CTA row,
+  // the panel's own action bar, and the prompt card — so the auto-prompt
+  // timer can't fire late over a demo the visitor already left.
+  function openFullMap() {
+    settledRef.current = true
+    setShowMapPrompt(false)
+    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+    else if (window.__openFullMap) window.__openFullMap()
+    else window.__voidCosmosPendingEnter = true
+  }
+
+  function keepSpinning() {
+    settledRef.current = true
+    setShowMapPrompt(false)
+    window.__voidCosmos?.resumeDemo?.()
   }
 
   return (
@@ -87,22 +120,12 @@ export function Hero() {
             className="mt-3 flex flex-wrap gap-2"
           >
             {X_URL ? (
-              <a
-                href={X_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-ghost"
-              >
+              <a href={X_URL} target="_blank" rel="noopener noreferrer" className="btn-ghost">
                 Follow
               </a>
             ) : null}
             {TG_URL ? (
-              <a
-                href={TG_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-ghost"
-              >
+              <a href={TG_URL} target="_blank" rel="noopener noreferrer" className="btn-ghost">
                 Telegram
               </a>
             ) : null}
@@ -133,15 +156,7 @@ export function Hero() {
             What is this?
           </MagneticButton>
 
-          <button
-            type="button"
-            className="btn-ghost"
-            onClick={() => {
-              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-              else if (window.__openFullMap) window.__openFullMap()
-              else window.__voidCosmosPendingEnter = true
-            }}
-          >
+          <button type="button" className="btn-ghost" onClick={openFullMap}>
             Open full map
           </button>
         </motion.div>
@@ -164,7 +179,56 @@ export function Hero() {
         className="hero-cosmos-slot"
         id="heroCosmosSlot"
       >
-        <CosmosPanel />
+        {/* Wrapper is just a positioning context for the overlay below — kept
+            separate from CosmosPanel's own DOM node (#cosmosFrame), which
+            the engine relocates wholesale into the arena on "open full
+            map" (see voidEngine.js relocateTo/enterArena). If the overlay
+            lived inside that node it would get dragged into the arena. */}
+        <div className="relative">
+          <CosmosPanel />
+
+          {/* Teaser → conversion: darkens/blurs the live demo underneath and
+              pauses its render loop (see voidEngine.js pauseDemo/resumeDemo)
+              once the visitor's had a few seconds with it. */}
+          <AnimatePresence>
+            {showMapPrompt && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5, ease: EASE_OUT }}
+                className="absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-md"
+              >
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.92, y: 10 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+                  className="mx-4 max-w-xs rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
+                >
+                  <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
+                  <h3 className="mb-2 font-display text-lg font-extrabold text-white">
+                    This is one corner of it.
+                  </h3>
+                  <p className="mb-5 text-[13px] leading-relaxed text-muted">
+                    500 systems, 50,000 sectors, and the claim book — all open in the full map.
+                  </p>
+                  <button type="button" className="btn-lime block w-full" onClick={openFullMap}>
+                    Open full map
+                  </button>
+                  <button
+                    type="button"
+                    onClick={keepSpinning}
+                    className="mt-3 text-[11px] text-muted-2 transition-colors duration-150 ease-out hover:text-lime"
+                  >
+                    ‹ keep spinning this one
+                  </button>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
         <div className="hero-map-actions" aria-label="map actions">
           <button
             type="button"
@@ -173,15 +237,7 @@ export function Hero() {
           >
             Explore map
           </button>
-          <button
-            type="button"
-            className="btn-lime"
-            onClick={() => {
-              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-              else if (window.__openFullMap) window.__openFullMap()
-              else window.__voidCosmosPendingEnter = true
-            }}
-          >
+          <button type="button" className="btn-lime" onClick={openFullMap}>
             Open full map
           </button>
           <button type="button" className="btn-ghost" onClick={() => window.__openMindChat?.()}>

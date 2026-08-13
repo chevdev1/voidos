@@ -9,6 +9,7 @@ import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
   { label: 'MAP', target: '#map' },
+  { label: 'ASK THE MIND', target: '#mind' },
   { label: 'CONCEPT', target: '#concept' },
   { label: 'MARKET', target: '#market' },
   { label: 'FAQ', target: '#faq' },
@@ -52,6 +53,10 @@ export function Nav() {
       if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
       else if (window.__openFullMap) window.__openFullMap()
       else window.__voidCosmosPendingEnter = true
+      return
+    }
+    if (target === '#mind') {
+      window.__openMindChat?.()
       return
     }
     const lenis = lenisRef?.current
