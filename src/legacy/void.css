@@ -217,6 +217,22 @@ body.arena-live{
 .arena-home em{font-style:normal;color:var(--lime)}
 .arena-home:hover{border-color:var(--lime);background:rgba(204,255,0,.08)}
 
+/* /map's title row sits the home pill and "FULL MAP" side by side (unlike
+   CosmosArena's stacked version) — both elements carry a margin-bottom
+   tuned for stacking that would otherwise throw off items-center here. */
+.arena-title-row .arena-home,
+.arena-title-row .arena-eyebrow{margin:0}
+
+.arena-close{
+  pointer-events:auto;
+  position:absolute;z-index:21;top:18px;right:16px;
+  top:max(18px, env(safe-area-inset-top));
+  border:1px solid rgba(255,255,255,.18);color:var(--muted);
+  padding:8px 12px;border-radius:999px;font-size:11px;background:rgba(0,0,0,.65);
+  backdrop-filter:blur(6px);
+}
+.arena-close:hover{border-color:var(--lime);color:var(--lime)}
+
 body.arena-live .cosmos-map-pop .filters,
 body.arena-live .cosmos-map-pop .minimap,
 body.arena-live .cosmos-map-pop .vc{

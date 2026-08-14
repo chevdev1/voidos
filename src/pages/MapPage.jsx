@@ -109,14 +109,22 @@ export default function MapPage() {
 
       <div className="arena-hud">
         <div className="arena-hud-top">
-          <Link to="/" className="arena-home" aria-label="back to home">
-            <img src="/assets/void-logo.png" alt="" />
-            VOID<em>.OS</em>
-          </Link>
-          <p className="arena-eyebrow">FULL MAP</p>
-          <h2>
-            Enter the <em>void</em>
-          </h2>
+          <div>
+            <div className="arena-title-row flex flex-row flex-wrap items-center gap-4">
+              <Link
+                to="/"
+                className="arena-home shrink-0 whitespace-nowrap"
+                aria-label="back to home"
+              >
+                <img src="/assets/void-logo.png" alt="" />
+                VOID<em>.OS</em>
+              </Link>
+              <p className="arena-eyebrow whitespace-nowrap">FULL MAP</p>
+            </div>
+            <h2>
+              Enter the <em>void</em>
+            </h2>
+          </div>
         </div>
         <p className="arena-lead">
           Tap constellations to buy — stack as many as you want · each glows alone · claim all at
