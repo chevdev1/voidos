@@ -458,11 +458,13 @@ export function initVoidEngine() {
         if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
         const saveData = navigator.connection && navigator.connection.saveData;
         if (saveData) return 'low';
+        const coarse = matchMedia('(pointer: coarse)').matches;
+        const narrow = matchMedia('(max-width: 960px)').matches;
+        if (coarse || narrow) return 'low';
         const mem = navigator.deviceMemory; // Chrome-ish; undefined elsewhere
         if (mem != null && mem <= 4) return 'low';
         const cores = navigator.hardwareConcurrency || 8;
-        const coarse = matchMedia('(pointer: coarse)').matches;
-        if (cores <= 4 || coarse || (mem != null && mem <= 6)) return 'medium';
+        if (cores <= 4 || (mem != null && mem <= 6)) return 'medium';
       } catch (_) {
         /* ignore */
       }
@@ -513,7 +515,7 @@ export function initVoidEngine() {
       }
     }
 
-    const bgStars = Array.from({ length: 240 }, () => ({
+    const bgStars = Array.from({ length: quality === 'low' ? 80 : quality === 'medium' ? 140 : 240 }, () => ({
       x: rnd(-1500, 1500),
       y: rnd(-1100, 1100),
       r: rnd(0.3, 1.9),
