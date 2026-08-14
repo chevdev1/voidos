@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { MagneticButton } from './MagneticButton'
@@ -38,6 +39,7 @@ function UnderlineLink({ onClick, children }) {
 
 export function Hero() {
   const lenisRef = useLenis()
+  const navigate = useNavigate()
   const [copied, setCopied] = useState(false)
   const [showMapPrompt, setShowMapPrompt] = useState(false)
   const settledRef = useRef(false) // true once the user has acted (either way) — stops the timer from firing late
@@ -65,12 +67,14 @@ export function Hero() {
   // Shared by every "leave the demo" action in this section — the CTA row,
   // the panel's own action bar, and the prompt card — so the auto-prompt
   // timer can't fire late over a demo the visitor already left.
+  // Navigates to the dedicated /map route instead of relocating this
+  // page's own canvas into an in-page popup (the old mechanism, kept only
+  // as a fallback the engine itself still uses for clicking a sector
+  // directly in this small demo) — see MapPage.jsx for why.
   function openFullMap() {
     settledRef.current = true
     setShowMapPrompt(false)
-    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-    else if (window.__openFullMap) window.__openFullMap()
-    else window.__voidCosmosPendingEnter = true
+    navigate('/map')
   }
 
   function keepSpinning() {

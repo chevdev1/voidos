@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { useEffect, useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 import { AccountMenu } from './AccountMenu'
@@ -17,6 +17,7 @@ const LINKS = [
 
 export function Nav() {
   const lenisRef = useLenis()
+  const navigate = useNavigate()
   const loc = useLocation()
   const onHome = loc.pathname === '/'
   const [hasWallet, setHasWallet] = useState(() => Boolean(loadUser()?.wallet))
@@ -50,9 +51,7 @@ export function Nav() {
   function goTo(target) {
     setMenuOpen(false)
     if (target === '#map') {
-      if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-      else if (window.__openFullMap) window.__openFullMap()
-      else window.__voidCosmosPendingEnter = true
+      navigate('/map')
       return
     }
     if (target === '#mind') {

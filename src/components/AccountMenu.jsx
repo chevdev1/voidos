@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { mindSession, loadUser, saveUser } from '../lib/mindClient'
 import { WalletPanel } from './WalletPanel'
 
@@ -7,6 +8,7 @@ import { WalletPanel } from './WalletPanel'
  * On phone: full-screen sheet so connect UI / WC is usable.
  */
 export function AccountMenu() {
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [user, setUser] = useState(() => loadUser())
 
@@ -93,9 +95,7 @@ export function AccountMenu() {
                   type="button"
                   onClick={() => {
                     setOpen(false)
-                    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
-                    else if (window.__openFullMap) window.__openFullMap()
-                    else window.__voidCosmosPendingEnter = true
+                    navigate('/map')
                   }}
                   className="block w-full border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
                 >
