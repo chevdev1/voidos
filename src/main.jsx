@@ -8,3 +8,4 @@ import App from './App.jsx'
 // twice and briefly double every loop/listener before the first copy tears
 // down — harmless in prod (StrictMode is a no-op there) but noisy in dev.
 createRoot(document.getElementById('root')).render(<App />)
+window.dispatchEvent(new Event('void-boot-html-off'))
