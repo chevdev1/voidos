@@ -104,11 +104,17 @@ export function saveUser(user) {
   }
 }
 
+function lotTrainedFlag(o) {
+  const n = Number(o?.trained)
+  if (Number.isFinite(n) && n !== 0) return n > 0
+  if (o?.trained === true) return true
+  return Boolean(o?.trained_at) || String(o?.status || '').toLowerCase() === 'fed'
+}
+
 function normalizeOwn(o) {
   const id = String(o?.constel_id || o?.id || '').trim()
   if (!id) return null
-  const trained =
-    Boolean(o.trained) || Boolean(o.trained_at) || String(o.status || '').toLowerCase() === 'fed'
+  const trained = lotTrainedFlag(o)
   return {
     constel_id: id,
     constel_name: String(o.constel_name || o.name || id),
@@ -398,8 +404,8 @@ export function peekMapOwnerships() {
   return _mapOwnsCache
 }
 
-/** Mark a claimed lot as trained (test mode — no real $EXO burn). */
-export function mindTrainLot(constelId) {
+/** Mark a claimed lot as trained (persists to Turso when online). */
+export async function mindTrainLot(constelId) {
   const id = String(constelId || '').trim()
   if (!id) return loadOwnerships()
   const list = loadOwnerships()
@@ -421,7 +427,20 @@ export function mindTrainLot(constelId) {
     /* ignore */
   }
   notifyOwnershipHydrate(next)
-  return next
+  try {
+    const data = await api('/api/lot-train', {
+      guestKey: loadGuestKey(),
+      constelId: id,
+    })
+    const state = applyServerState(data)
+    notifyOwnershipHydrate(state.ownerships)
+    _mapOwnsAt = 0
+    mindMapOwnerships({ force: true }).catch(() => {})
+    return state.ownerships
+  } catch (err) {
+    console.warn('[void] train sync failed', err)
+    return next
+  }
 }
 
 export function voidToast(text, ms = 2800) {

@@ -109,15 +109,15 @@ export default function Cabinet() {
     window.__openMindChat?.()
   }
 
-  function trainActiveLot() {
+  async function trainActiveLot() {
     if (!active?.lot?.constel_id) return
     if (active.lot.trained) {
       setTrainNote('already trained — map filter sees this patch as fed.')
       return
     }
-    const next = mindTrainLot(active.lot.constel_id)
+    const next = await mindTrainLot(active.lot.constel_id)
     setOwnerships(next)
-    setTrainNote('trained (test) — free until $EXO mint is live.')
+    setTrainNote('trained — saved to ledger. Map trained count updates.')
     setTimeout(() => setTrainNote(''), 3200)
   }
 

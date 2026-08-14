@@ -32,6 +32,7 @@ import {
   unlinkWallet,
   syncOwnedLotNames,
   listMapOwnerships,
+  markLotTrained,
 } from '../shared/voidDb.js'
 import { getAddress } from 'viem'
 import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt } from '../shared/rhVerify.js'
@@ -245,6 +246,23 @@ app.post('/api/claim-verify', async (req, res) => {
       })
     }
     res.status(400).json({ error: err.message || 'claim verify failed' })
+  }
+})
+
+app.post('/api/lot-train', async (req, res) => {
+  try {
+    const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
+    const user = await getOrCreateUser(guestKey)
+    if (!user.wallet_pubkey || !isEvmAddress(user.wallet_pubkey)) {
+      return res.status(401).json({ error: 'link wallet first', code: 'WALLET_REQUIRED' })
+    }
+    const constelId = String(req.body?.constelId || req.body?.constel_id || req.body?.id || '').trim()
+    if (!constelId) return res.status(400).json({ error: 'missing constelId' })
+    const ownerships = await markLotTrained(user.id, constelId)
+    res.json({ ok: true, guestKey: user.guest_key, user: publicUser(user), ownerships })
+  } catch (err) {
+    console.error(err)
+    res.status(400).json({ error: err.message || 'train failed' })
   }
 })
 

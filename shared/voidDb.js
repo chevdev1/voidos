@@ -73,6 +73,14 @@ export async function migrate() {
     }
   }
 
+  for (const col of ['trained INTEGER NOT NULL DEFAULT 0', 'trained_at TEXT']) {
+    try {
+      await db.execute(`ALTER TABLE ownerships ADD COLUMN ${col}`)
+    } catch {
+      /* exists */
+    }
+  }
+
   // Exclusive lots: drop duplicate constel_id rows (keep earliest claim), then unique index
   try {
     await db.execute(`
@@ -184,15 +192,27 @@ export async function loginUser(displayName, password) {
   return user
 }
 
+function lotTrainedFlag(r) {
+  const n = Number(r?.trained)
+  if (Number.isFinite(n) && n !== 0) return n > 0
+  return Boolean(r?.trained_at)
+}
+
 export async function listOwnerships(userId) {
   await migrate()
   return rows(
     await getDb().execute({
-      sql: `SELECT constel_id, constel_name, claimed_at FROM ownerships
+      sql: `SELECT constel_id, constel_name, claimed_at, trained, trained_at FROM ownerships
             WHERE user_id = ? ORDER BY claimed_at DESC`,
       args: [userId],
     }),
-  )
+  ).map((r) => ({
+    constel_id: String(r.constel_id),
+    constel_name: String(r.constel_name || r.constel_id),
+    claimed_at: r.claimed_at || null,
+    trained: lotTrainedFlag(r),
+    trained_at: r.trained_at || null,
+  }))
 }
 
 /** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */
@@ -253,6 +273,26 @@ export async function upsertOwnerships(userId, lots) {
   return listOwnerships(userId)
 }
 
+export async function markLotTrained(userId, constelId) {
+  await migrate()
+  const id = String(constelId || '').trim().slice(0, 64)
+  if (!id) throw new Error('missing lot')
+  const mine = row(
+    await getDb().execute({
+      sql: 'SELECT id FROM ownerships WHERE user_id = ? AND constel_id = ?',
+      args: [userId, id],
+    }),
+  )
+  if (!mine) throw new Error('lot not owned')
+  await getDb().execute({
+    sql: `UPDATE ownerships
+          SET trained = 1, trained_at = COALESCE(trained_at, datetime('now'))
+          WHERE user_id = ? AND constel_id = ?`,
+    args: [userId, id],
+  })
+  return listOwnerships(userId)
+}
+
 /**
  * Session/chat sync: only refresh names for lots this user already owns.
  * Does not create new claims (claim goes through /api/claim-sync).
@@ -270,6 +310,16 @@ export async function syncOwnedLotNames(userId, lots) {
       sql: 'UPDATE ownerships SET constel_name = ? WHERE user_id = ? AND constel_id = ?',
       args: [name, userId, id],
     })
+    const trained =
+      lotTrainedFlag(l) || String(l.status || '').toLowerCase() === 'fed'
+    if (trained) {
+      await db.execute({
+        sql: `UPDATE ownerships
+              SET trained = 1, trained_at = COALESCE(trained_at, datetime('now'))
+              WHERE user_id = ? AND constel_id = ?`,
+        args: [userId, id],
+      })
+    }
   }
   return listOwnerships(userId)
 }
@@ -279,7 +329,7 @@ export async function listMapOwnerships() {
   await migrate()
   const lotRows = rows(
     await getDb().execute({
-      sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, u.wallet_pubkey AS wallet
+      sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at, u.wallet_pubkey AS wallet
             FROM ownerships o
             LEFT JOIN users u ON u.id = o.user_id
             ORDER BY o.claimed_at ASC`,
@@ -290,6 +340,8 @@ export async function listMapOwnerships() {
     constel_name: String(r.constel_name || r.constel_id),
     wallet: r.wallet ? String(r.wallet) : null,
     claimed_at: r.claimed_at || null,
+    trained: Boolean(Number(r.trained) || r.trained_at),
+    trained_at: r.trained_at || null,
   }))
 
   const leaderRows = rows(
