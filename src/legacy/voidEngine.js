@@ -104,7 +104,7 @@ export function initVoidEngine() {
     const selectedConstels = new Set(); // multi-select whole constellations
     let lastTermSector = null;
     let lastTermConstel = null;
-    let arenaMode = false;
+    let arenaMode = Boolean(document.getElementById('mapRoute'));
     let heatMode = false;
     let panelMode = null; // 'standings' | 'what' | 'personality' | null
     let inView = true;
@@ -1145,7 +1145,10 @@ export function initVoidEngine() {
         if (sessionStorage.getItem('void_open_arena')) {
           sessionStorage.removeItem('void_open_arena');
         }
-        enterArena();
+        if (!arenaMode) {
+          location.assign('/map');
+          return;
+        }
         // enterArena snaps to home view on rAF — focus after that lands.
         const tryFocus = () => {
           if (!g0?.constels) return false;
@@ -1651,17 +1654,10 @@ export function initVoidEngine() {
     }
 
     function enterArena() {
-      // The boot splash (see BootSplash.jsx / LandingPage.jsx) sits at
-      // z-[400000] — above the arena popup (z-index:80) — and its own
-      // ready->fade sequence takes at least 2 rAFs + 520ms even after the
-      // engine signals it's loaded. If the map is opened early (e.g. a
-      // #map URL hash on cold load, or a very fast click), the arena was
-      // opening correctly *underneath* the still-visible splash: exactly
-      // "black screen but clickable" (click-through starts as soon as the
-      // splash's fade-out flips on pointer-events:none, well before the
-      // pixels are actually gone). This tells the boot sequence to skip
-      // straight to done instead of racing it.
-      window.dispatchEvent(new Event('void-map-opened'));
+      if (!document.getElementById('mapRoute')) {
+        location.assign('/map');
+        return;
+      }
       const pop = document.getElementById('map');
       const stage = document.getElementById('arenaStage');
       const placeholder = document.getElementById('arenaPlaceholder');
@@ -1763,9 +1759,19 @@ export function initVoidEngine() {
       },
     };
     window.dispatchEvent(new Event('void-cosmos-ready'));
-    if (window.__voidCosmosPendingEnter) {
+    if (arenaMode) {
+      frame.classList.add('in-arena');
+      document.body.classList.add('arena-live');
+      setMapActive(true);
+      requestAnimationFrame(() => {
+        resize();
+        applyHomeView(true);
+        kickDraw('mapRoute');
+        requestAnimationFrame(resize);
+      });
+    } else if (window.__voidCosmosPendingEnter) {
       window.__voidCosmosPendingEnter = false;
-      enterArena();
+      location.assign('/map');
     }
     onCleanup(() => {
       if (window.__voidCosmos) delete window.__voidCosmos;

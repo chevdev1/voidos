@@ -3,16 +3,15 @@ import { useNavigate } from 'react-router-dom'
 import { CosmosPanel } from '../components/CosmosPanel'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
-import { BootSplash } from '../components/BootSplash'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
+/** Full map is its own page — not a popup over the landing nav. */
 export default function MapPage() {
   const navigate = useNavigate()
-  const [ready, setReady] = useState(false)
-  const [booting, setBooting] = useState(true)
+  const [loading, setLoading] = useState(true)
 
-  function closeMap() {
+  function goHome() {
     document.body.classList.remove('arena-live')
     navigate('/')
   }
@@ -23,14 +22,11 @@ export default function MapPage() {
     window.__voidMapPainted = false
 
     const onFrame = () => {
-      if (!cancelled) {
-        setReady(true)
-        setBooting(false)
-      }
+      if (!cancelled) setLoading(false)
     }
     const failSafe = setTimeout(() => {
-      if (!cancelled) setReady(true)
-    }, 16000)
+      if (!cancelled) setLoading(false)
+    }, 12000)
 
     window.addEventListener('void-cosmos-frame', onFrame)
 
@@ -38,7 +34,6 @@ export default function MapPage() {
       const { initVoidEngine } = await import('../legacy/voidEngine')
       if (cancelled) return
       destroy = initVoidEngine()
-      window.__voidCosmos?.enterArena?.()
     })()
 
     return () => {
@@ -50,33 +45,40 @@ export default function MapPage() {
     }
   }, [])
 
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key === 'Escape') goHome()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
-    <div id="map" className="void cosmos-map-pop open map-page" role="dialog" aria-label="Full void map">
-      {booting && <BootSplash ready={ready} onDone={() => setBooting(false)} />}
+    <div id="mapRoute" className="map-route">
+      <header className="map-top">
+        <button type="button" className="map-home" onClick={goHome}>
+          ← home
+        </button>
+        <span className="map-top-title">
+          VOID<em>.OS</em> map
+        </span>
+        <button type="button" className="map-close" onClick={goHome}>
+          ✕ close
+        </button>
+      </header>
 
-      <button type="button" className="arena-close" onClick={closeMap}>
-        ✕ close
-      </button>
-
-      <div className="arena-stage" id="arenaStage">
-        <div className="arena-placeholder" id="arenaPlaceholder">
+      {loading && (
+        <div className="map-load" aria-live="polite">
           <p className="arena-ph-title">LOADING VOID…</p>
-          <p>charting 200 lots</p>
+          <p>charting lots — this can take a few seconds</p>
+        </div>
+      )}
+
+      <div className="map-stage" id="arenaStage">
+        <div className="arena-placeholder" id="arenaPlaceholder" hidden>
+          <p className="arena-ph-title">LOADING VOID…</p>
         </div>
         <CosmosPanel />
-      </div>
-
-      <div className="arena-hud">
-        <div className="arena-hud-top">
-          <p className="arena-eyebrow">FULL MAP</p>
-          <h2>
-            Enter the <em>void</em>
-          </h2>
-        </div>
-        <p className="arena-lead">
-          Tap constellations to buy — stack as many as you want · each glows alone · claim all at
-          once
-        </p>
       </div>
 
       <SectorTerminal />

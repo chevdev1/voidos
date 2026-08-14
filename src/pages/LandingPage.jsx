@@ -35,20 +35,6 @@ export default function LandingPage() {
       })
     }
 
-    // The boot splash is a z-[400000] overlay above everything, including
-    // the full-map popup — if the map gets opened while it's still up
-    // (URL #map hash on cold load, an early click, the pending-enter
-    // replay once the engine mounts), the map was rendering correctly
-    // *underneath* a splash that takes 2 rAFs + a 520ms fade to actually
-    // clear: "black screen" over a live, clickable map. Skip both the
-    // ready delay and the splash's own exit fade the instant the map is
-    // asked for — voidEngine.js's enterArena() fires this unconditionally.
-    const onMapOpened = () => {
-      if (cancelled) return
-      setReady(true)
-      setBooting(false)
-    }
-
     const start = async () => {
       if (cancelled) return
       const { initVoidEngine } = await import('../legacy/voidEngine')
@@ -58,14 +44,12 @@ export default function LandingPage() {
     }
 
     window.addEventListener('void-cosmos-ready', onReady)
-    window.addEventListener('void-map-opened', onMapOpened)
     start()
 
     return () => {
       cancelled = true
       clearTimeout(failSafe)
       window.removeEventListener('void-cosmos-ready', onReady)
-      window.removeEventListener('void-map-opened', onMapOpened)
       destroy?.()
     }
   }, [])

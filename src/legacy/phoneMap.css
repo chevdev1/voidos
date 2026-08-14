@@ -4,7 +4,7 @@
 */
 
 .hero-map-actions {
-  display: none;
+  display: flex;
 }
 
 .mind-dock-row,
