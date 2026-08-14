@@ -1,8 +1,16 @@
 import { useMemo, useState } from 'react'
-import { getDexUrl, getExoCa, openDexBuy, copyExoCa } from '../lib/buyExo'
+import {
+  getDexUrl,
+  getGeckoUrl,
+  getExoCa,
+  openDexBuy,
+  copyExoCa,
+  shouldBuyInSameTab,
+} from '../lib/buyExo'
+import { isTrustInjected } from '../lib/rhWallets'
 
 /**
- * Real Buy $EXO control — Dex when VITE_DEX_URL is set, else copy CA / soon.
+ * Buy $TEST. On Trust / phone: pause the map and stay in this tab — Dex popups freeze Trust.
  */
 export function BuyExoButton({
   className = '',
@@ -11,61 +19,132 @@ export function BuyExoButton({
   label = 'Buy $TEST',
 }) {
   const dex = useMemo(() => getDexUrl(), [])
+  const gecko = useMemo(() => getGeckoUrl(), [])
   const ca = useMemo(() => getExoCa(), [])
   const [note, setNote] = useState('')
-
-  async function onClick(e) {
-    e.preventDefault()
-    if (dex) {
-      openDexBuy()
-      return
-    }
-    if (ca) {
-      const ok = await copyExoCa()
-      setNote(ok ? 'CA copied' : 'copy failed')
-      setTimeout(() => setNote(''), 1600)
-      onFallback?.('ca')
-      return
-    }
-    setNote('token TBA')
-    setTimeout(() => setNote(''), 1600)
-    onFallback?.('soon')
-  }
+  const [sheet, setSheet] = useState(false)
 
   const base =
     filled
       ? 'inline-flex items-center justify-center rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black transition-all duration-200 ease-out hover:bg-[#d8ff33] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] active:scale-[0.98]'
       : 'inline-flex items-center justify-center rounded-full border border-lime/50 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black'
 
-  const title = dex
-    ? 'Open Dex to buy $TEST'
-    : ca
-      ? 'Copy $TEST contract address'
-      : 'Set VITE_DEX_URL or VITE_EXO_CA on Vercel when token is live'
-
-  if (dex) {
-    return (
-      <a
-        href={dex}
-        target="_blank"
-        rel="noopener noreferrer"
-        className={`${base} ${className}`}
-        title={title}
-      >
-        {label}
-      </a>
-    )
+  function flash(msg) {
+    setNote(msg)
+    setTimeout(() => setNote(''), 1800)
   }
+
+  async function onCopy() {
+    const ok = await copyExoCa()
+    flash(ok ? 'CA copied — paste in Trust Swap' : 'copy failed')
+    onFallback?.('ca')
+  }
+
+  function onClick(e) {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!dex && !ca) {
+      flash('token TBA')
+      onFallback?.('soon')
+      return
+    }
+    if (shouldBuyInSameTab()) {
+      try {
+        document.body.classList.add('wallet-ui-open')
+      } catch {
+        /* ignore */
+      }
+      setSheet(true)
+      return
+    }
+    if (dex) {
+      openDexBuy(dex)
+      return
+    }
+    onCopy()
+  }
+
+  function closeSheet() {
+    setSheet(false)
+    try {
+      document.body.classList.remove('wallet-ui-open')
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const inTrust = typeof window !== 'undefined' && isTrustInjected()
 
   return (
     <span className="relative inline-flex max-w-full flex-col items-stretch">
-      <button type="button" onClick={onClick} className={`${base} ${className}`} title={title}>
+      <button type="button" onClick={onClick} className={`${base} ${className}`} title="Buy $TEST">
         {label}
       </button>
       {note ? (
-        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded border border-lime/40 bg-black/95 px-2 py-0.5 text-[9px] tracking-wide text-lime shadow-[0_4px_16px_rgba(0,0,0,0.6)]">
+        <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1.5 -translate-x-1/2 whitespace-nowrap rounded border border-lime/40 bg-black/95 px-2 py-0.5 text-[9px] tracking-wide text-lime">
           {note}
         </span>
+      ) : null}
+
+      {sheet ? (
+        <div className="fixed inset-0 z-[6400] flex items-end justify-center bg-black/80 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:items-center">
+          <div
+            className="w-full max-w-sm border border-lime/40 bg-black p-4"
+            role="dialog"
+            aria-label="Buy $TEST"
+          >
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <p className="text-[10px] uppercase tracking-[0.2em] text-lime">buy $TEST</p>
+              <button type="button" className="min-h-10 min-w-10 text-muted" onClick={closeSheet}>
+                ✕
+              </button>
+            </div>
+            <p className="text-[12px] leading-relaxed text-muted">
+              {inTrust
+                ? 'Trust freezes if Dex opens in a popup. Copy the CA and swap on Robinhood Chain, or open Dex in this same tab.'
+                : 'Copy the contract and swap on Robinhood Chain (4663). Dex opens in this tab so the map can pause first.'}
+            </p>
+            {ca ? (
+              <p className="mt-3 break-all font-mono text-[11px] text-lime">{ca}</p>
+            ) : null}
+            <div className="mt-4 space-y-2">
+              {ca ? (
+                <button
+                  type="button"
+                  onClick={onCopy}
+                  className="w-full border border-lime bg-lime px-3 py-3 text-[12px] font-semibold tracking-wide text-black"
+                >
+                  Copy CA
+                </button>
+              ) : null}
+              {dex ? (
+                <button
+                  type="button"
+                  onClick={() => openDexBuy(dex)}
+                  className="w-full border border-lime/50 px-3 py-3 text-[12px] tracking-wide text-lime"
+                >
+                  Open Dex this tab
+                </button>
+              ) : null}
+              {gecko ? (
+                <button
+                  type="button"
+                  onClick={() => openDexBuy(gecko)}
+                  className="w-full border border-white/20 px-3 py-3 text-[12px] tracking-wide text-muted"
+                >
+                  Open GeckoTerminal
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={closeSheet}
+                className="w-full border border-white/15 px-3 py-2.5 text-[11px] text-muted"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </span>
   )

@@ -27,6 +27,7 @@ export default async function handler(req, res) {
       res.setHeader('Set-Cookie', sidCookie(next.guest_key, { secure: isSecureReq(req) }))
       return res.status(200).json({
         ok: true,
+        replaceOwns: true,
         guestKey: next.guest_key,
         user: publicUser(next),
         ownerships: await listOwnerships(next.id),
@@ -58,6 +59,7 @@ export default async function handler(req, res) {
     res.setHeader('Set-Cookie', sidCookie(next.guest_key, { secure: isSecureReq(req) }))
     return res.status(200).json({
       ok: true,
+      replaceOwns: true,
       guestKey: next.guest_key,
       user: publicUser(next),
       ownerships: await listOwnerships(next.id),

@@ -5,6 +5,7 @@ import {
   hasWalletConnectProject,
   getInjectedEvm,
   abortWalletConnect,
+  prefetchWalletConnect,
   isMobileDevice,
   isTrustInjected,
   openSiteInTrustWallet,
@@ -42,6 +43,7 @@ export function WalletPanel({ user, onUser }) {
       setExtName(injectedLabel())
     }
     refresh()
+    prefetchWalletConnect()
     const t = setTimeout(refresh, 800)
     return () => clearTimeout(t)
   }, [])
@@ -119,9 +121,7 @@ export function WalletPanel({ user, onUser }) {
       }
     } catch (e) {
       const msg = e?.message || String(e)
-      if (/already linked to another/i.test(msg)) {
-        setErr('This wallet is already linked to another browser session — unlink there first')
-      } else if (/reject|cancel|closed|denied|User closed|reset/i.test(msg)) {
+      if (/reject|cancel|closed|denied|User closed|reset/i.test(msg)) {
         setErr('Cancelled or reset — try again')
       } else if (/already pending|already in progress/i.test(msg)) {
         setErr(msg)
@@ -157,7 +157,7 @@ export function WalletPanel({ user, onUser }) {
     : null
 
   return (
-    <div className="border border-lime/25 bg-black/45 p-4 sm:p-5">
+    <div className="border border-lime/25 bg-black p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-[10px] uppercase tracking-[0.18em] text-muted">wallet</p>
         <span className="border border-white/15 px-1.5 py-0.5 text-[8px] uppercase tracking-wider text-muted">
@@ -333,13 +333,13 @@ export function WalletPanel({ user, onUser }) {
 
       {linked && (
         <div className="mt-4 grid grid-cols-3 gap-2">
-          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black p-3">
             <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">ETH</p>
             <p className="mt-1 truncate text-sm text-ink">
               {balances?.eth == null ? '—' : balances.eth}
             </p>
           </div>
-          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black p-3">
             <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">$TEST</p>
             <p className="mt-1 truncate text-sm text-lime">
               {balances?.exo == null
@@ -349,7 +349,7 @@ export function WalletPanel({ user, onUser }) {
                 : balances.exo}
             </p>
           </div>
-          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black p-3">
             <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">network</p>
             <p className="mt-1 truncate text-sm text-muted">
               {balances?.network || 'Robinhood Chain'}

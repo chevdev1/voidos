@@ -127,7 +127,7 @@ export function MindChat() {
         const hj = await hr.json().catch(() => ({}))
         if (!cancelled && typeof hj.gemini === 'boolean') setLive(hj.gemini)
       } catch {
-        if (!cancelled) setLive(false)
+        /* health is optional — chat still works */
       }
 
       const data = await mindSession()

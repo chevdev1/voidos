@@ -26,6 +26,8 @@ import {
 } from '../shared/voidDb.js'
 import { cors, readBody, isSecureReq } from './_http.js'
 
+export const config = { maxDuration: 30 }
+
 const promptsPack = JSON.parse(
   readFileSync(join(process.cwd(), 'shared', 'mind-prompts.json'), 'utf8'),
 )
@@ -165,6 +167,14 @@ export default async function handler(req, res) {
     })
   } catch (err) {
     console.error('[chat]', err)
-    return res.status(500).json({ error: 'chat failed', live: false })
+    const message = String(readBody(req)?.message || '').trim().slice(0, 2000)
+    const reply = message
+      ? resilientFallback(message, [], detectTriggers(message))
+      : 'i am still here. ask again.'
+    return res.status(200).json({
+      reply,
+      live: false,
+      error: undefined,
+    })
   }
 }

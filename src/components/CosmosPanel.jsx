@@ -31,6 +31,11 @@ export function CosmosPanel() {
         <div className="zoom-lvl">
           view · <b id="zoomLabel">EXOMIND</b>
         </div>
+        <div className="hud-board" id="hudLeaders">
+          <button type="button" className="hud-board-btn" data-open-board>
+            PRETENDERS BOARD
+          </button>
+        </div>
       </div>
       <div className="tip" id="tip">
         <div className="t1" id="tip1">
@@ -64,6 +69,9 @@ export function CosmosPanel() {
         <div className="mind-dock-row">
           <button type="button" className="mind-dock-toggle" id="mindDockToggle" aria-expanded="false">
             tools
+          </button>
+          <button type="button" className="mind-btn mind-btn--ask-compact" data-act="standings" id="actBoardCompact">
+            <span className="ico">☆</span> board
           </button>
           <button type="button" className="mind-btn mind-btn--ask-compact" data-act="ask" id="actAskCompact">
             <span className="ico">◉</span> ask me

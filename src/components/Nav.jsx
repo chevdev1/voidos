@@ -8,11 +8,13 @@ import { BuyExoButton } from './BuyExoButton'
 import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
-  { label: 'MAP', target: '#map' },
-  { label: 'ASK THE MIND', target: '#mind' },
-  { label: 'CONCEPT', target: '#concept' },
-  { label: 'MARKET', target: '#market' },
-  { label: 'FAQ', target: '#faq' },
+  { label: 'MAP', to: '/map' },
+  { label: 'BOARD', to: '/board' },
+  { label: 'CABINET', to: '/cabinet' },
+  { label: 'ASK THE MIND', hash: '#mind' },
+  { label: 'CONCEPT', hash: '#concept' },
+  { label: 'MARKET', hash: '#market' },
+  { label: 'FAQ', hash: '#faq' },
 ]
 
 export function Nav() {
@@ -48,26 +50,35 @@ export function Nav() {
     }
   }, [menuOpen])
 
-  function goTo(target) {
+  function goHash(hash) {
     setMenuOpen(false)
-    if (target === '#map') {
-      navigate('/map')
+    if (hash === '#mind') {
+      window.__openMindChat?.()
       return
     }
-    if (target === '#mind') {
-      window.__openMindChat?.()
+    if (!onHome) {
+      navigate({ pathname: '/', hash: hash.replace(/^#/, '') })
       return
     }
     const lenis = lenisRef?.current
     if (lenis?.scrollTo) {
-      lenis.scrollTo(target, { offset: -24, duration: 1.3 })
+      lenis.scrollTo(hash, { offset: -24, duration: 1.3 })
       return
     }
-    const el = document.querySelector(target)
+    const el = document.querySelector(hash)
     if (el) {
       const top = el.getBoundingClientRect().top + window.scrollY - 24
       window.scrollTo({ top, behavior: 'smooth' })
     }
+  }
+
+  function goLink(link) {
+    setMenuOpen(false)
+    if (link.to) {
+      navigate(link.to)
+      return
+    }
+    if (link.hash) goHash(link.hash)
   }
 
   return (
@@ -86,7 +97,7 @@ export function Nav() {
           onClick={(e) => {
             if (onHome) {
               e.preventDefault()
-              goTo('#top')
+              goHash('#top')
             }
           }}
         >
@@ -96,44 +107,30 @@ export function Nav() {
           </span>
         </Link>
 
-        <nav className="hidden items-center gap-6 text-xs tracking-[0.08em] text-muted lg:flex">
-          {onHome &&
-            LINKS.map((link) => (
-              <button
-                key={link.target}
-                type="button"
-                onClick={() => goTo(link.target)}
-                className="transition-colors duration-150 ease-out hover:text-lime"
-              >
-                <ScrambleText text={link.label} trigger="hover" duration={400} />
-              </button>
-            ))}
-          {hasWallet && (
-            <Link
-              to="/cabinet"
-              className="transition-colors duration-150 ease-out hover:text-lime"
-              title="личный кабинет"
+        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-4 overflow-x-auto text-[11px] tracking-[0.08em] text-muted xl:flex">
+          {LINKS.map((link) => (
+            <button
+              key={link.label}
+              type="button"
+              onClick={() => goLink(link)}
+              className="shrink-0 transition-colors duration-150 ease-out hover:text-lime"
             >
-              <ScrambleText text="CABINET" trigger="hover" duration={400} />
-            </Link>
-          )}
+              <ScrambleText text={link.label} trigger="hover" duration={400} />
+            </button>
+          ))}
         </nav>
 
         <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
           <AccountMenu />
-          {onHome && (
-            <span className="hidden sm:inline-flex">
-              <BuyExoButton
-                filled
-                label="Buy $TEST"
-                onFallback={() => goTo('#market')}
-                className="!px-3 !py-2 !text-[10px]"
-              />
-            </span>
-          )}
+          <BuyExoButton
+            filled
+            label="Buy $TEST"
+            onFallback={() => goHash('#market')}
+            className="!px-2.5 !py-2 !text-[10px] sm:!px-3"
+          />
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center border border-white/20 text-ink transition hover:border-lime/50 hover:text-lime lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center border border-white/20 text-ink transition hover:border-lime/50 hover:text-lime xl:hidden"
             aria-expanded={menuOpen}
             aria-label={menuOpen ? 'Close menu' : 'Open menu'}
             onClick={() => setMenuOpen((v) => !v)}
@@ -162,7 +159,7 @@ export function Nav() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[45] bg-black/75 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[45] bg-black/75 xl:hidden"
               onClick={() => setMenuOpen(false)}
             />
             <motion.div
@@ -170,52 +167,31 @@ export function Nav() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.2 }}
-              className="absolute inset-x-3 top-[calc(100%+6px)] z-[46] max-h-[min(78dvh,520px)] overflow-y-auto border border-lime/35 bg-black/97 p-4 shadow-[0_16px_48px_rgba(0,0,0,0.65)] lg:hidden"
+              className="absolute inset-x-3 top-[calc(100%+6px)] z-[46] max-h-[min(78dvh,560px)] overflow-y-auto border border-lime/35 bg-black p-4 xl:hidden"
               role="dialog"
               aria-modal="true"
             >
               <p className="mb-3 text-[10px] uppercase tracking-[0.2em] text-lime">navigate</p>
               <div className="flex flex-col gap-1">
-                {onHome &&
-                  LINKS.map((link) => (
-                    <button
-                      key={link.target}
-                      type="button"
-                      onClick={() => goTo(link.target)}
-                      className="border border-white/10 px-3 py-3.5 text-left text-[13px] tracking-[0.12em] text-ink transition hover:border-lime/40 hover:text-lime"
-                    >
-                      {link.label}
-                    </button>
-                  ))}
-                {hasWallet && (
-                  <Link
-                    to="/cabinet"
-                    onClick={() => setMenuOpen(false)}
-                    className="border border-lime/40 bg-lime/10 px-3 py-3.5 text-[13px] tracking-[0.12em] text-lime"
+                {LINKS.map((link) => (
+                  <button
+                    key={link.label}
+                    type="button"
+                    onClick={() => goLink(link)}
+                    className="border border-white/10 px-3 py-3.5 text-left text-[13px] tracking-[0.12em] text-ink transition hover:border-lime/40 hover:text-lime"
                   >
-                    CABINET / ЛК
-                  </Link>
-                )}
-                {!onHome && (
-                  <Link
-                    to="/"
-                    onClick={() => setMenuOpen(false)}
-                    className="border border-white/10 px-3 py-3.5 text-[13px] tracking-[0.12em] text-ink"
-                  >
-                    HOME
-                  </Link>
-                )}
+                    {link.label}
+                    {link.to === '/cabinet' && hasWallet ? ' · linked' : ''}
+                  </button>
+                ))}
+                <Link
+                  to="/"
+                  onClick={() => setMenuOpen(false)}
+                  className="border border-white/10 px-3 py-3.5 text-[13px] tracking-[0.12em] text-ink"
+                >
+                  HOME
+                </Link>
               </div>
-              {onHome && (
-                <div className="mt-4 border-t border-white/10 pt-4">
-                  <BuyExoButton
-                    filled
-                    label="Buy $TEST · soon"
-                    onFallback={() => goTo('#market')}
-                    className="!w-full !justify-center !rounded-none !px-4 !py-3.5 !text-[12px]"
-                  />
-                </div>
-              )}
             </motion.div>
           </>
         )}

@@ -218,7 +218,8 @@ export function initVoidEngine() {
       // quality LOD stride at render time). Density is faked back in via
       // a slightly larger brightness/size range below, per the request to
       // trade raw particle count for rendered size rather than fill-rate.
-      for (let i = 0; i < 4200; i++) {
+      // Fewer stars = map stays live while wallet / claim run on the same thread.
+      for (let i = 0; i < 1800; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -482,17 +483,24 @@ export function initVoidEngine() {
     }
     function detectStartQuality() {
       try {
-        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'medium';
+        const coarse = matchMedia('(hover: none) and (pointer: coarse)').matches;
+        const narrow = matchMedia('(max-width: 960px)').matches;
         const saveData = navigator.connection && navigator.connection.saveData;
-        if (saveData) return 'medium';
         const mem = navigator.deviceMemory;
-        if (mem != null && mem <= 2) return 'medium';
+        if (saveData || coarse || narrow || (mem != null && mem <= 4)) return 'low';
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
       } catch (_) {
         /* ignore */
       }
-      return 'high';
+      return 'medium';
     }
     let quality = detectStartQuality(); // 'high' | 'medium' | 'low'
+    if (quality === 'low') {
+      autoSpin = false;
+      orbitMode = false;
+      document.getElementById('spinBtn')?.classList.remove('on');
+      document.getElementById('orbitBtn')?.classList.remove('on');
+    }
     let frameMs = 16.7;
     let goodStreak = 0,
       badStreak = 0;
@@ -528,16 +536,14 @@ export function initVoidEngine() {
         goodStreak = 0;
       }
       // Downgrade faster (~0.75s at 60Hz) so mid PCs don't cook before adapting
-      if (badStreak > 45 && quality !== 'low') {
-        setQuality(quality === 'high' ? 'medium' : 'low');
+      if (badStreak > 30 && quality !== 'low') {
+        setQuality('low');
         badStreak = 0;
-      } else if (goodStreak > 240 && quality !== 'high') {
-        setQuality(quality === 'low' ? 'medium' : 'high');
-        goodStreak = 0;
       }
+      // Never climb to high — that is what froze phones during connect/claim.
     }
 
-    const bgStars = Array.from({ length: 240 }, () => ({
+    const bgStars = Array.from({ length: 48 }, () => ({
       x: rnd(-1500, 1500),
       y: rnd(-1100, 1100),
       r: rnd(0.3, 1.9),
@@ -552,12 +558,12 @@ export function initVoidEngine() {
     // container's full size the whole time — same "render small, display
     // big" trick as a low-res game framebuffer.
     function dprCapForQuality() {
-      return quality === 'high' ? 1.5 : 1;
+      return 1;
     }
     function renderScaleForQuality() {
-      if (quality === 'high') return 1;
-      if (quality === 'medium') return 0.85;
-      return 0.7;
+      if (quality === 'high') return 0.85;
+      if (quality === 'medium') return 0.7;
+      return 0.55;
     }
     function fitHomeScale() {
       if (!W || !H || !g0) return 0.85;
@@ -761,6 +767,27 @@ export function initVoidEngine() {
       }
       applyTakenVisuals();
       refreshCounts();
+      paintHudLeaders();
+    }
+
+    function paintHudLeaders() {
+      const el = document.getElementById('hudLeaders');
+      if (!el) return;
+      const top = (mapLeaders || []).slice(0, 5);
+      if (!top.length) {
+        el.innerHTML =
+          '<button type="button" class="hud-board-btn" data-open-board>PRETENDERS · no claims yet</button>';
+      } else {
+        el.innerHTML =
+          '<p class="hud-board-cap">PRETENDERS · most constellations</p>' +
+          top
+            .map(
+              (r, i) =>
+                `<div class="hud-board-row"><b>#${i + 1}</b> <span>${shortWallet(r.wallet)}</span> <em>${r.count}</em></div>`,
+            )
+            .join('') +
+          '<button type="button" class="hud-board-btn" data-open-board>full board</button>';
+      }
     }
 
     window.__voidHydrateTaken = hydrateTakenFromPublic;
@@ -907,7 +934,8 @@ export function initVoidEngine() {
     function requireWalletForClaim() {
       const wallet = loadUser()?.wallet;
       if (wallet) return wallet;
-      toast('connect wallet first · open wallet menu in the nav');
+      if (typeof window.__openWalletMenu === 'function') window.__openWalletMenu();
+      toast('connect wallet to claim');
       return null;
     }
 
@@ -1299,7 +1327,7 @@ export function initVoidEngine() {
         t instanceof Element &&
         Boolean(
           t.closest(
-            '#term, .cart-dock, .arena-close, .arena-home, .mind-bar, .mind-panel, .mind-chat, .filters, .vc, .minimap, .cosmos-bar, .cosmos-explore',
+            '#term, .cart-dock, .arena-close, .arena-hud-actions, .account-menu, .arena-home, .mind-bar, .mind-panel, .mind-chat, .filters, .vc, .minimap, .cosmos-bar, .cosmos-explore',
           ),
         )
       )
@@ -2013,6 +2041,12 @@ export function initVoidEngine() {
         closeMindPanel();
         window.__openMindChat?.();
       });
+      document.getElementById('actBoardCompact')?.addEventListener('click', () => {
+        openMindPanel('standings');
+      });
+      document.getElementById('hudLeaders')?.addEventListener('click', (e) => {
+        if (e.target.closest('[data-open-board]')) openMindPanel('standings');
+      });
       const dockToggle = document.getElementById('mindDockToggle');
       if (dockToggle) {
         dockToggle.addEventListener('click', () => {
@@ -2092,7 +2126,7 @@ export function initVoidEngine() {
       mctx.strokeRect(mw / 2 - (panX / scale) * sx - vw / 2, mh / 2 - (panY / scale) * sy - vh / 2, vw, vh);
       document.getElementById('miniCap').textContent = shown + ' grains · ' + g0.constels.length + ' constellations';
     }
-    const miniIntervalId = setInterval(drawMini, 280);
+    const miniIntervalId = setInterval(drawMini, 1600);
     onCleanup(() => clearInterval(miniIntervalId));
 
     function pickSector(wx, wy) {
@@ -2128,6 +2162,8 @@ export function initVoidEngine() {
     // once the user is actually in the full-screen arena.
     let demoActive = true;
     let rafId = null;
+    let uiPaused = document.body.classList.contains('wallet-ui-open')
+      || document.body.classList.contains('wc-modal-open');
     function kickDraw(tag) {
       // arenaMode bypasses inView on purpose: #cosmosFrame gets moved via
       // appendChild from the (small, possibly off-screen) hero slot into
@@ -2140,7 +2176,7 @@ export function initVoidEngine() {
       // the arena the canvas fills the viewport by definition, so trusting
       // a possibly-stale inView here was the actual bug, not just missing
       // diagnostics.
-      const ok = alive && (inView || arenaMode) && pageVisible && (demoActive || arenaMode) && rafId == null;
+      const ok = alive && !uiPaused && (inView || arenaMode) && pageVisible && (demoActive || arenaMode) && rafId == null;
       if (ok) {
         rafId = requestAnimationFrame(draw);
       } else if (tag) {
@@ -2177,6 +2213,27 @@ export function initVoidEngine() {
     }
     document.addEventListener('visibilitychange', onPageVisibility);
     onCleanup(() => document.removeEventListener('visibilitychange', onPageVisibility));
+    function readUiPaused() {
+      return (
+        document.body.classList.contains('wallet-ui-open') ||
+        document.body.classList.contains('wc-modal-open') ||
+        document.body.classList.contains('term-open')
+      );
+    }
+    function onUiPauseChange() {
+      const next = readUiPaused();
+      if (next === uiPaused) return;
+      uiPaused = next;
+      if (uiPaused) {
+        if (rafId != null) cancelAnimationFrame(rafId);
+        rafId = null;
+      } else {
+        kickDraw('uiResume');
+      }
+    }
+    const uiPauseObserver = new MutationObserver(onUiPauseChange);
+    uiPauseObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+    onCleanup(() => uiPauseObserver.disconnect());
     // Reused every frame instead of a fresh `[]` — the array itself no
     // longer costs an allocation; entries are still short-lived per-frame
     // objects, which V8's generational GC handles cheaply, so this targets
@@ -2189,7 +2246,7 @@ export function initVoidEngine() {
       // permanent; !inView / !pageVisible are temporary and get restarted
       // by IO / visibilitychange once work should resume.
       rafId = null;
-      if (!alive || (!inView && !arenaMode) || !pageVisible || (!demoActive && !arenaMode)) return;
+      if (!alive || uiPaused || (!inView && !arenaMode) || !pageVisible || (!demoActive && !arenaMode)) return;
       // Defensive: the rAF chain is self-scheduling (the next frame is
       // requested from *inside* this one), which means a single uncaught
       // exception anywhere in a frame silently kills rendering forever —
@@ -2216,31 +2273,29 @@ export function initVoidEngine() {
       ctx.fillRect(0, 0, W, H);
       const g = g0;
 
-      const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
-      deep.addColorStop(0, '#050a18');
-      deep.addColorStop(0.55, '#02040c');
-      deep.addColorStop(1, '#000');
-      ctx.fillStyle = deep;
-      ctx.fillRect(0, 0, W, H);
+      if (quality === 'high') {
+        const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
+        deep.addColorStop(0, '#050a18');
+        deep.addColorStop(0.55, '#02040c');
+        deep.addColorStop(1, '#000');
+        ctx.fillStyle = deep;
+        ctx.fillRect(0, 0, W, H);
+      }
 
-      // Distant field stars as tiny discs — squares read as "pixels", not void.
-      const bgStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      const bgStep = quality === 'low' ? 3 : 2;
+      ctx.fillStyle = 'rgba(220,230,255,0.35)';
       for (let bi = 0; bi < bgStars.length; bi += bgStep) {
         const s = bgStars[bi];
         const [sx, sy] = w2s(s.x + panX * 0.06, s.y + panY * 0.06);
         if (sx < -10 || sy < -10 || sx > W + 10 || sy > H + 10) continue;
-        const a = 0.15 + 0.55 * s.a;
-        ctx.fillStyle = `rgba(220,230,255,${a})`;
-        ctx.beginPath();
-        ctx.arc(sx, sy, Math.max(0.6, s.r * 0.55), 0, Math.PI * 2);
-        ctx.fill();
+        ctx.fillRect(sx, sy, 1.2, 1.2);
       }
 
       hover = null;
       let bestH = 0;
       // Hit-test stride mirrors sector draw stride so hover cost tracks quality.
       const hoverStep = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
-      if (mx != null) {
+      if (mx != null && quality !== 'low') {
         for (let si = 0; si < g.sectors.length; si += hoverStep) {
           const s = g.sectors[si];
           if (!sectorVisible(s)) continue;
@@ -2989,7 +3044,9 @@ export function initVoidEngine() {
       } catch (err) {
         console.error('[void cosmos] draw() frame threw — recovering, will retry next frame', err);
       } finally {
-        rafId = requestAnimationFrame(draw);
+        if (alive && !uiPaused && pageVisible && (inView || arenaMode) && (demoActive || arenaMode)) {
+          rafId = requestAnimationFrame(draw);
+        }
       }
     }
     rafId = requestAnimationFrame(draw);

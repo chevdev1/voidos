@@ -350,9 +350,9 @@ export async function listMapOwnerships() {
             FROM ownerships o
             JOIN users u ON u.id = o.user_id
             WHERE u.wallet_pubkey IS NOT NULL AND u.wallet_pubkey != ''
-            GROUP BY u.wallet_pubkey
+            GROUP BY lower(u.wallet_pubkey)
             ORDER BY count DESC
-            LIMIT 20`,
+            LIMIT 50`,
     }),
   )
   const leaders = leaderRows.map((r) => ({
@@ -539,23 +539,56 @@ export async function linkGoogleAccount(guestKey, { sub, email, name, picture })
   return getUserById(user.id)
 }
 
+export async function getUserByWallet(pubkey) {
+  await migrate()
+  const key = String(pubkey || '').trim()
+  if (!key) return null
+  const exact = row(
+    await getDb().execute({
+      sql: 'SELECT * FROM users WHERE wallet_pubkey = ?',
+      args: [key],
+    }),
+  )
+  if (exact) return exact
+  return row(
+    await getDb().execute({
+      sql: 'SELECT * FROM users WHERE lower(wallet_pubkey) = lower(?)',
+      args: [key],
+    }),
+  )
+}
+
+/**
+ * Cabinet identity = wallet.
+ * Connecting a wallet switches into that wallet's ledger (lots / train).
+ * A new wallet gets a fresh cabinet; it never steals another wallet's lots.
+ */
 export async function linkWallet(userId, pubkey) {
   await migrate()
   const key = String(pubkey || '').trim()
-  // Robinhood Chain EVM (0x…) — Solana base58 no longer accepted
   if (!/^0x[a-fA-F0-9]{40}$/.test(key)) throw new Error('invalid wallet')
-  const clash = row(
+
+  const owner = await getUserByWallet(key)
+  if (owner) return owner
+
+  const current = await getUserById(userId)
+  if (!current) throw new Error('no user')
+  const curW = String(current.wallet_pubkey || '')
+  if (!curW) {
     await getDb().execute({
-      sql: 'SELECT id FROM users WHERE wallet_pubkey = ? AND id != ?',
+      sql: 'UPDATE users SET wallet_pubkey = ? WHERE id = ?',
       args: [key, userId],
-    }),
-  )
-  if (clash) throw new Error('wallet already linked to another account')
+    })
+    return getUserById(userId)
+  }
+  if (curW.toLowerCase() === key.toLowerCase()) return current
+
+  const fresh = await getOrCreateUser(newGuestKey())
   await getDb().execute({
     sql: 'UPDATE users SET wallet_pubkey = ? WHERE id = ?',
-    args: [key, userId],
+    args: [key, fresh.id],
   })
-  return getUserById(userId)
+  return getUserById(fresh.id)
 }
 
 export async function unlinkWallet(userId) {

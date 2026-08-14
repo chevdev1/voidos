@@ -6,6 +6,7 @@ import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
 import { WalletPanel } from '../components/WalletPanel'
+import { PretendersBoard } from '../components/PretendersBoard'
 import { isClaimLiveClient } from '../lib/rhWallets'
 
 /**
@@ -141,10 +142,13 @@ export default function Cabinet() {
         </Link>
         <div className="flex items-center gap-3">
           <Link
-            to="/"
-            className="hidden text-[11px] tracking-wide text-muted transition-colors hover:text-lime sm:inline"
+            to="/map"
+            className="text-[11px] tracking-wide text-muted hover:text-lime"
           >
-            ← map
+            map
+          </Link>
+          <Link to="/board" className="text-[11px] tracking-wide text-muted hover:text-lime">
+            board
           </Link>
           <AccountMenu />
         </div>
@@ -182,7 +186,7 @@ export default function Cabinet() {
         >
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted">
-              personal ledger · лк
+            personal ledger
             </p>
             {!isClaimLiveClient() ? (
             <span className="border border-lime/35 bg-lime/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-lime">
@@ -208,6 +212,7 @@ export default function Cabinet() {
         <div className="mt-8">
           <WalletPanel user={user} onUser={onUserChange} />
         </div>
+        <PretendersBoard compact />
 
         {!ownerships.length ? (
           <div className="mt-14 border border-lime/25 bg-black/40 p-8 sm:p-12">

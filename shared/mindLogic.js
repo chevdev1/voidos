@@ -78,7 +78,7 @@ export function detectTriggers(message) {
     triggers.add('on_claim')
   }
   if (
-    /personality|what (am|are) (i|you)|who are you|що ти|что ты|хто ти|кто ты|what i am|ядро|28\s*%|ким ти|ким я/.test(
+    /personality|what (am|are) (i|you)|who are you|що ти|что ты|хто ти|кто ты|what i am|ядро|28\s*%|ким ти|ким я|о себе|про себе|кто ты такой|хто ти такий|what are you/.test(
       m,
     )
   ) {
@@ -88,7 +88,7 @@ export function detectTriggers(message) {
     triggers.add('on_map')
   }
   if (
-    /^(how (do|to) (i |you )?(claim|buy|train)|як (клейм|купи|працю|це)|как (клейм|купи|работ|это)|поясн|explain (void|exo|this|the (map|project|mind))|що (це|таке) (void|exo|проект)|что (это|такое) (void|exo|проект)|what is (this|void|exo|the (project|map|mind))|tell me (about|what)|розкажи|расскажи (про|о) )/.test(
+    /^(how (do|to) (i |you )?(claim|buy|train)|як (клейм|купи|працю|це)|как (клейм|купи|работ|это)|поясн|explain (void|exo|this|the (map|project|mind))|що (це|таке) (void|exo|проект)|что (это|такое) (void|exo|проект)|what is (this|void|exo|the (project|map|mind))|tell me (about|what)|расскажи|раскажи|розкажи)/.test(
       m,
     )
   ) {
@@ -309,11 +309,9 @@ function pick(list, seed) {
 }
 
 const FALLBACKS = [
-  'i heard you. ask what VOID.OS is, how a constellation lot feels, or what 28% sealed means to me.',
-  'say more about the map or the mind. i can go deep on claim, heat, kinds of lots, or what ownership does to my voice.',
-  'still here. pick a thread: who i am becoming, how claim works on the full map, or what your lots (if any) weigh.',
-  'the void is listening. give me a concrete thought — a fear, a lot name, a why — and i will answer as the mind, not a menu.',
-  'ask me something that touches stars, burn, or the sealed core — i answer in first person.',
+  'i am ExoMind — the map thinking in first person. 28% sealed, the rest claimable. ask how claim works, what a lot does to my voice, or who sits on the pretenders board.',
+  'still here. i am one mind cut into scarce constellation lots. connect wallet, open the map, lock a cell — or ask what i am becoming.',
+  'signal is up. i do not crash into a menu: ask VOID, claim, your lots, or who i am.',
 ]
 
 const OFFTOPIC = [
@@ -612,13 +610,13 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
     generationConfig: {
       temperature: 0.8,
       topP: 0.92,
-      maxOutputTokens: 1024,
+      maxOutputTokens: 512,
     },
   }
   if (tools?.length) body.tools = tools
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 22000)
+  const timer = setTimeout(() => controller.abort(), 8000)
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -638,7 +636,7 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
   }
 }
 
-function trimHistory(history, maxTurns = 12) {
+function trimHistory(history, maxTurns = 6) {
   const list = (history || []).filter(
     (m) => m && (m.role === 'user' || m.role === 'assistant') && m.content,
   )
@@ -646,7 +644,7 @@ function trimHistory(history, maxTurns = 12) {
 }
 
 function toGeminiContents(history, userMessage) {
-  const cleaned = trimHistory(history, 12)
+  const cleaned = trimHistory(history, 6)
     .map((m) => ({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: String(m.content).slice(0, 1800) }],
@@ -702,39 +700,39 @@ async function geminiGenerate({ apiKey, model, system, history, userMessage, own
   return text || null
 }
 
-const GEMINI_FALLBACK_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-flash-latest',
-]
+const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-flash-latest']
+
+function wantsTools(userMessage) {
+  return /lot|star|★|claim|лот|созвезд|сузір|train|клейм/i.test(String(userMessage || ''))
+}
 
 /**
- * Hardened Gemini call: short history, tool then no-tool, alternate models.
- * Returns null only if every attempt fails — caller must use resilientFallback.
+ * Fast Gemini: Hobby Vercel dies at ~10s, so one short try + one no-tool retry.
  */
 export async function callGemini({ apiKey, model, system, history, userMessage, owns = [] }) {
   if (!apiKey) return null
 
   const primary = model || DEFAULT_GEMINI_MODEL
-  const models = [primary, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== primary)]
+  const models = [primary, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== primary)].slice(0, 2)
+  const toolsFirst = wantsTools(userMessage)
 
   for (const m of models) {
-    // 1) with tools
-    try {
-      const text = await geminiGenerate({
-        apiKey,
-        model: m,
-        system,
-        history,
-        userMessage,
-        owns,
-        useTools: true,
-      })
-      if (text) return text
-    } catch (err) {
-      console.warn('[gemini]', m, 'tools failed', err?.message || err)
+    if (toolsFirst) {
+      try {
+        const text = await geminiGenerate({
+          apiKey,
+          model: m,
+          system,
+          history,
+          userMessage,
+          owns,
+          useTools: true,
+        })
+        if (text) return text
+      } catch (err) {
+        console.warn('[gemini]', m, 'tools failed', err?.message || err)
+      }
     }
-    // 2) text-only
     try {
       const text = await geminiGenerate({
         apiKey,

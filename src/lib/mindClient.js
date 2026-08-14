@@ -15,21 +15,28 @@ function url(path) {
   return `${apiBase()}${path}`
 }
 
-async function api(path, body) {
-  const res = await fetch(url(path), {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body || {}),
-  })
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const err = new Error(data.error || `request failed ${res.status}`)
-    err.status = res.status
-    err.data = data
-    throw err
+async function api(path, body, { timeoutMs } = {}) {
+  const ctrl = timeoutMs ? new AbortController() : null
+  const timer = timeoutMs ? setTimeout(() => ctrl.abort(), timeoutMs) : null
+  try {
+    const res = await fetch(url(path), {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body || {}),
+      signal: ctrl?.signal,
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const err = new Error(data.error || `request failed ${res.status}`)
+      err.status = res.status
+      err.data = data
+      throw err
+    }
+    return data
+  } finally {
+    if (timer) clearTimeout(timer)
   }
-  return data
 }
 
 export function loadGuestKey() {
@@ -149,12 +156,15 @@ export function mergeOwnerships(serverList, localList) {
   return out
 }
 
-function applyServerState(data) {
+function applyServerState(data, opts = {}) {
   if (data.guestKey) saveGuestKey(data.guestKey)
   if (data.user) saveUser(data.user)
   let ownerships = loadOwnerships()
   if (Array.isArray(data.ownerships)) {
-    ownerships = mergeOwnerships(data.ownerships, ownerships)
+    const replace = opts.replaceOwns || data.replaceOwns
+    ownerships = replace
+      ? data.ownerships.map(normalizeOwn).filter(Boolean)
+      : mergeOwnerships(data.ownerships, ownerships)
     saveOwnerships(ownerships)
   }
   if (Array.isArray(data.history) && data.history.length) saveHistory(data.history)
@@ -222,7 +232,8 @@ export async function mindWalletLink({ pubkey, message, signature }) {
     message,
     signature,
   })
-  const state = applyServerState(data)
+  const state = applyServerState(data, { replaceOwns: true })
+  notifyOwnershipHydrate(state.ownerships)
   return state
 }
 
@@ -231,7 +242,9 @@ export async function mindWalletUnlink() {
     guestKey: loadGuestKey(),
     action: 'unlink',
   })
-  return applyServerState(data)
+  const state = applyServerState(data, { replaceOwns: true })
+  notifyOwnershipHydrate(state.ownerships)
+  return state
 }
 
 export async function mindWalletBalance(pubkey) {
@@ -245,11 +258,15 @@ export async function mindChat(message) {
   const guestKey = loadGuestKey()
   const ownerships = loadOwnerships()
   try {
-    const data = await api('/api/chat', {
-      message,
-      guestKey,
-      ownerships,
-    })
+    const data = await api(
+      '/api/chat',
+      {
+        message,
+        guestKey,
+        ownerships,
+      },
+      { timeoutMs: 18000 },
+    )
     const state = applyServerState(data)
     if (data.reply) {
       const hist = loadHistory()

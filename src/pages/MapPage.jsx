@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { CosmosPanel } from '../components/CosmosPanel'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
+import { AccountMenu } from '../components/AccountMenu'
+import { BuyExoButton } from '../components/BuyExoButton'
 import { BootSplash } from '../components/BootSplash'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
@@ -95,9 +97,19 @@ export default function MapPage() {
     <div id="map" className="void cosmos-map-pop open map-page" role="dialog" aria-label="Full void map">
       {booting && <BootSplash ready={ready} onDone={() => setBooting(false)} />}
 
-      <button type="button" className="arena-close" onClick={closeMap}>
-        ✕ close
-      </button>
+      <div className="arena-hud-actions">
+        <Link to="/board" className="arena-close" style={{ position: 'static' }}>
+          board
+        </Link>
+        <Link to="/cabinet" className="arena-close" style={{ position: 'static' }}>
+          cabinet
+        </Link>
+        <BuyExoButton filled label="Buy $TEST" className="!rounded-full !px-3 !py-2 !text-[10px]" />
+        <AccountMenu />
+        <button type="button" className="arena-close" onClick={closeMap}>
+          ✕ close
+        </button>
+      </div>
 
       <div className="arena-stage" id="arenaStage">
         <div className="arena-placeholder" id="arenaPlaceholder">

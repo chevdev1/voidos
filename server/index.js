@@ -160,6 +160,7 @@ app.post('/api/wallet-link', async (req, res) => {
     const next = await linkWallet(user.id, getAddress(pubkey))
     res.json({
       ok: true,
+      replaceOwns: true,
       guestKey: next.guest_key,
       user: publicUser(next),
       ownerships: await listOwnerships(next.id),
@@ -389,7 +390,13 @@ app.post('/api/chat', async (req, res) => {
     })
   } catch (err) {
     console.error(err)
-    res.status(500).json({ error: 'chat failed' })
+    const message = String(req.body?.message || '').trim().slice(0, 2000)
+    res.json({
+      reply: message
+        ? resilientFallback(message, [], detectTriggers(message))
+        : 'i am still here. ask again.',
+      live: false,
+    })
   }
 })
 

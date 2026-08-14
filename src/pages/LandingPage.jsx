@@ -6,6 +6,7 @@ import { CosmosArena } from '../components/CosmosArena'
 import { ConceptSection } from '../components/ConceptSection'
 import { MarketSection } from '../components/MarketSection'
 import { FAQSection } from '../components/FAQSection'
+import { PretendersBoard } from '../components/PretendersBoard'
 import { BackgroundBeams } from '../components/BackgroundBeams'
 import { Footer } from '../components/Footer'
 import { SectorTerminal } from '../components/SectorTerminal'
@@ -81,6 +82,9 @@ export default function LandingPage() {
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
         <main className="relative z-10 mx-auto max-w-6xl">
+          <div id="board" className="px-5 py-16 sm:px-10">
+            <PretendersBoard />
+          </div>
           <ConceptSection />
           <MarketSection />
           <FAQSection />
