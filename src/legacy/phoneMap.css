@@ -4,7 +4,7 @@
 */
 
 .hero-map-actions {
-  display: flex;
+  display: none;
 }
 
 .mind-dock-row,
@@ -69,10 +69,7 @@
   }
 
   .hero-map-actions {
-    display: flex;
-    gap: 8px;
-    width: 100%;
-    box-sizing: border-box;
+    display: none;
   }
 
   .hero-map-actions > button,
