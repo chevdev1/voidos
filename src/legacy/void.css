@@ -201,6 +201,22 @@ body.arena-live{
 }
 .arena-back:hover{border-color:var(--lime);color:var(--lime)}
 
+.arena-close{
+  position:fixed;
+  top:max(12px, env(safe-area-inset-top));
+  right:12px;
+  z-index:500;
+  pointer-events:auto;
+  min-height:44px;
+  padding:10px 16px;
+  border-radius:999px;
+  border:1px solid rgba(204,255,0,.55);
+  background:rgba(0,0,0,.85);
+  color:var(--lime);
+  font-size:13px;
+  letter-spacing:.08em;
+}
+
 /* Distinct from .arena-back ("✕ close" — dismiss and stay put): this is
    the only way back to the landing page from inside the map, so it needs
    its own clearly branded affordance, not just another text pill. */

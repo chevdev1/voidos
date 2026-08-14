@@ -1,74 +1,77 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { CosmosPanel } from '../components/CosmosPanel'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
+import { BootSplash } from '../components/BootSplash'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
-/**
- * Dedicated full-map route.
- *
- * The old flow ran the full map as an in-page popup: the *same* canvas +
- * engine instance got physically relocated (appendChild) out of the Hero
- * section's small demo slot into a full-screen overlay, then back again on
- * close. That "one engine, two homes" trick is what kept breaking:
- *  - the IntersectionObserver tracking the canvas's visibility didn't
- *    reliably re-fire for a target reparented out of a briefly-hidden
- *    ancestor (only minimizing/restoring the tab or a full reload forced
- *    a re-check — which is exactly what "fixed" it each time in testing),
- *  - the resize/draw-loop restart had its own ordering races across that
- *    same relocation,
- *  - it had to coordinate with the Hero teaser modal's pause state and
- *    the boot splash's z-index, neither of which have anything to do with
- *    the map itself.
- *
- * This route sidesteps all of that by not relocating anything: the canvas
- * is created once, already full-screen, in its one and only home. Same
- * engine code (initVoidEngine), same markup (CosmosPanel), just mounted
- * directly instead of teleported in from Hero.
- */
 export default function MapPage() {
+  const navigate = useNavigate()
+  const [ready, setReady] = useState(false)
+  const [booting, setBooting] = useState(true)
+
+  function closeMap() {
+    document.body.classList.remove('arena-live')
+    navigate('/')
+  }
+
   useEffect(() => {
     let destroy = null
     let cancelled = false
+    window.__voidMapPainted = false
+
+    const onFrame = () => {
+      if (!cancelled) {
+        setReady(true)
+        setBooting(false)
+      }
+    }
+    const failSafe = setTimeout(() => {
+      if (!cancelled) setReady(true)
+    }, 16000)
+
+    window.addEventListener('void-cosmos-frame', onFrame)
+
     ;(async () => {
       const { initVoidEngine } = await import('../legacy/voidEngine')
       if (cancelled) return
       destroy = initVoidEngine()
-      // #cosmosFrame is already inside #arenaStage in this page's own JSX
-      // (unlike the old popup, nothing needs to be appendChild'd here), so
-      // enterArena()'s relocation check just no-ops — this call is only
-      // for its side effects: arenaMode = true (which is what makes the
-      // full-screen CSS and the draw-loop gates apply), body classes, and
-      // snapping to the home framing.
       window.__voidCosmos?.enterArena?.()
     })()
+
     return () => {
       cancelled = true
-      window.__voidCosmos?.exitArena?.()
+      clearTimeout(failSafe)
+      window.removeEventListener('void-cosmos-frame', onFrame)
+      document.body.classList.remove('arena-live')
       destroy?.()
     }
   }, [])
 
   return (
-    <div id="map" className="void cosmos-map-pop open" role="dialog" aria-label="Full void map">
+    <div id="map" className="void cosmos-map-pop open map-page" role="dialog" aria-label="Full void map">
+      {booting && <BootSplash ready={ready} onDone={() => setBooting(false)} />}
+
+      <button type="button" className="arena-close" onClick={closeMap}>
+        ✕ close
+      </button>
+
       <div className="arena-stage" id="arenaStage">
         <div className="arena-placeholder" id="arenaPlaceholder">
           <p className="arena-ph-title">LOADING VOID…</p>
+          <p>charting 200 lots</p>
         </div>
         <CosmosPanel />
       </div>
 
       <div className="arena-hud">
         <div className="arena-hud-top">
-          <Link to="/" className="arena-home" aria-label="back to home">
-            <img src="/assets/void-logo.png" alt="" />
-            VOID<em>.OS</em>
-          </Link>
-          <Link to="/" className="arena-back" aria-label="close map">
-            ✕ close
-          </Link>
+          <p className="arena-eyebrow">FULL MAP</p>
+          <h2>
+            Enter the <em>void</em>
+          </h2>
         </div>
         <p className="arena-lead">
           Tap constellations to buy — stack as many as you want · each glows alone · claim all at

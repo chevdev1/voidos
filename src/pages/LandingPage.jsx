@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { SmoothScrollProvider } from '../lib/SmoothScroll'
 import { Nav } from '../components/Nav'
 import { Hero } from '../components/Hero'
-import { CosmosArena } from '../components/CosmosArena'
 import { ConceptSection } from '../components/ConceptSection'
 import { MarketSection } from '../components/MarketSection'
 import { FAQSection } from '../components/FAQSection'
@@ -89,7 +88,6 @@ export default function LandingPage() {
       <div className="mx-auto max-w-6xl">
         <Footer />
       </div>
-      <CosmosArena />
       <SectorTerminal />
       <MindChat />
     </SmoothScrollProvider>
