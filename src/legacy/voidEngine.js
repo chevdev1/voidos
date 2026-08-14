@@ -46,6 +46,7 @@ export function initVoidEngine() {
     document.getElementById('tNote').textContent = d.note;
     document.getElementById('term').classList.add('open');
     document.body.classList.add('term-open');
+    window.__voidDismissMapPrompt?.()
     if (typeof window.__voidSyncTermButtons === 'function') window.__voidSyncTermButtons();
   }
 

@@ -242,9 +242,9 @@ body.arena-live .cosmos-map-pop .minimap,
 body.arena-live .cosmos-map-pop .vc{
   opacity:1;
 }
-body.arena-live.term-open .arena-close{
-  pointer-events:none;
-  opacity:0;
+body.term-open .hero-map-prompt{
+  display:none !important;
+  pointer-events:none !important;
 }
 
 .btn-ghost-term{

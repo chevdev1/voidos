@@ -52,10 +52,21 @@ export function Hero() {
   useEffect(() => {
     const timer = setTimeout(() => {
       if (settledRef.current) return
+      if (document.body.classList.contains('term-open')) return
       setShowMapPrompt(true)
       window.__voidCosmos?.pauseDemo?.()
     }, MAP_PROMPT_DELAY_MS)
     return () => clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    window.__voidDismissMapPrompt = () => {
+      settledRef.current = true
+      setShowMapPrompt(false)
+    }
+    return () => {
+      delete window.__voidDismissMapPrompt
+    }
   }, [])
 
   function goTo(target) {
@@ -244,14 +255,14 @@ export function Hero() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4, ease: EASE_OUT }}
-                className="absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-md"
+                className="hero-map-prompt absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-md pointer-events-none"
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-                  className="mx-4 max-w-xs rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
+                  className="pointer-events-auto mx-4 max-w-xs rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
                 >
                   <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
                   <h3 className="mb-2 font-display text-lg font-extrabold text-white">
