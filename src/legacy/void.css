@@ -859,16 +859,44 @@ body.arena-live .void-toast.claim.show{
 .m-stat .l{color:var(--muted2);font-size:10px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
 .m-stat .v{font-family:'Syne',sans-serif;font-weight:800;font-size:22px}
 .m-stat .v.lime,.m-stat .v.up{color:var(--lime)}.m-stat .v.dn{color:#ff5a6a}
-.chart-panel{margin-top:12px;border:1px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden;background:rgba(0,0,0,.55)}
-.chart-tools{display:flex;justify-content:space-between;padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.08);font-size:12px;color:var(--muted);gap:8px;flex-wrap:wrap}
-.tfs{display:flex;gap:4px;position:relative;z-index:3;pointer-events:auto}
+.chart-panel{
+  margin-top:16px;
+  border:1px solid rgba(204,255,0,.16);
+  border-radius:16px;
+  overflow:hidden;
+  background:linear-gradient(180deg,rgba(12,14,8,.92),rgba(0,0,0,.72));
+  box-shadow:inset 0 1px 0 rgba(204,255,0,.08);
+}
+.chart-tools{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:12px 14px 10px;border-bottom:1px solid rgba(255,255,255,.06);
+  font-size:12px;color:var(--muted);gap:10px;flex-wrap:wrap
+}
+.chart-tools .pair{font-family:'Syne',sans-serif;font-weight:800;font-size:13px;letter-spacing:.04em;color:#f0f0f0}
+.chart-tools .pair em{font-style:normal;color:var(--lime)}
+.tfs{display:flex;gap:2px;padding:3px;border-radius:999px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);position:relative;z-index:3;pointer-events:auto}
 .tf{
-  padding:8px 12px;border-radius:7px;font-size:12px;color:var(--muted);
-  min-width:44px;min-height:40px;touch-action:manipulation;pointer-events:auto;
-  -webkit-tap-highlight-color:transparent;border:0;background:transparent;
+  padding:7px 11px;border-radius:999px;font-size:11px;color:var(--muted);
+  min-width:40px;min-height:34px;touch-action:manipulation;pointer-events:auto;
+  -webkit-tap-highlight-color:transparent;border:0;background:transparent;letter-spacing:.04em;
 }
 .tf.on{background:var(--lime);color:#000;font-weight:700}
-.chart-box{height:260px;position:relative}.chart-box canvas{width:100%;height:100%;display:block}
+.chart-box{height:280px;position:relative;background:radial-gradient(ellipse at 20% 0%,rgba(204,255,0,.05),transparent 55%)}
+.chart-box canvas{width:100%;height:100%;display:block}
+.market-buy{
+  margin-top:20px;
+  display:flex;flex-direction:column;gap:16px;
+  padding:18px 18px 16px;
+  border:1px solid rgba(204,255,0,.28);
+  background:linear-gradient(135deg,rgba(204,255,0,.07),rgba(0,0,0,.45));
+  border-radius:16px;
+}
+.market-buy .ca-pill{
+  display:inline-flex;align-items:center;gap:8px;max-width:100%;
+  margin-top:10px;padding:6px 10px;border-radius:999px;
+  border:1px solid rgba(204,255,0,.22);background:rgba(0,0,0,.45);
+  font-family:'IBM Plex Mono',ui-monospace,monospace;font-size:11px;color:var(--lime);
+}
 
 .term{
   /* 220: above the fixed nav header (z-[200] in Nav.jsx) and the toast
@@ -965,7 +993,7 @@ body.arena-live .void-toast.claim.show{
   .m-stats{grid-template-columns:1fr 1fr}
   .section{padding:48px max(16px, env(safe-area-inset-left)) 48px max(16px, env(safe-area-inset-right))}
   .chart-tools{flex-wrap:wrap;gap:8px;position:relative;z-index:4}
-  .chart-box{height:220px}
+  .chart-box{height:250px}
 }
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr 1fr;gap:8px}
