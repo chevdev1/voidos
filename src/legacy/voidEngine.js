@@ -457,6 +457,7 @@ export function initVoidEngine() {
         soldOfSellable,
         wallet,
         leaders: mapLeaders,
+        ledger: mapLedgerStatus,
       };
     }
     function detectStartQuality() {
@@ -684,6 +685,8 @@ export function initVoidEngine() {
     const takenMap = new Map();
     let mapLeaders = [];
     let mapTotals = { claimed: 0, available: 200, total: 200 };
+    /** live = API ok with rows · empty = API ok, 0 lots · offline = fetch failed */
+    let mapLedgerStatus = 'unknown';
 
     function shortWallet(w) {
       const s = String(w || '').trim();
@@ -746,8 +749,11 @@ export function initVoidEngine() {
       try {
         const data = await mindMapOwnerships({ force: true });
         hydrateTakenFromPublic(data);
+        const n = Array.isArray(data?.lots) ? data.lots.length : 0;
+        const claimed = Number(data?.totals?.claimed) || n;
+        mapLedgerStatus = claimed > 0 ? 'live' : 'empty';
       } catch {
-        /* ignore offline */
+        mapLedgerStatus = 'offline';
       }
     }
 
@@ -1901,6 +1907,12 @@ export function initVoidEngine() {
           }</p>`;
       } else if (act === 'personality') {
         title.textContent = 'what the personality is made of';
+        const ledgerLine =
+          st.ledger === 'offline'
+            ? 'ownership API failed — these zeros are not a mock, the ledger did not load (Turso env / redeploy).'
+            : st.ledger === 'empty'
+              ? 'ownership API is live · this host DB has 0 reserved lots. Claims in another Turso or a local file do not show here.'
+              : 'live from GET /api/map-ownerships · reserved lots move these numbers.';
         body.innerHTML = `
           <p class="mp-cap">live map composition · ExoMind ledger</p>
           <div class="mp-stat"><span>immutable core</span><b>28%</b></div>
@@ -1909,7 +1921,7 @@ export function initVoidEngine() {
           <div class="mp-stat"><span>still free</span><b>${st.free}</b></div>
           <div class="mp-stat"><span>other wallets</span><b>${st.others}</b></div>
           <div class="mp-stat"><span>your share</span><b>${st.yoursLots}</b></div>
-          <p class="mp-note">28% sealed forever. The rest is claimable — one constellation, one wallet. Numbers come from the live ownership API.</p>`;
+          <p class="mp-note">28% is lore (sealed, not from DB). The lot counts are real. ${ledgerLine}</p>`;
       }
 
       panel.hidden = false;
