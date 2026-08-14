@@ -1658,9 +1658,24 @@ export function initVoidEngine() {
       // Popup is a dedicated play surface — capture gestures immediately.
       setMapActive(true);
       atHomeView = true;
+      // Bug (found after the first fix): if the hero-slot demo had been
+      // paused, the draw() rAF chain was fully stopped (rafId === null).
+      // Setting arenaMode = true alone doesn't restart it, so kickDraw()
+      // is needed here — but calling it *before* resize()/applyHomeView()
+      // have run meant the first real draw() frame could fire using the
+      // still-stale hero-slot W/H and canvas buffer size (resize() for the
+      // new full-screen arena size only happens in the rAF below), while
+      // the canvas's on-screen CSS size had already jumped to full-screen
+      // via .in-arena — one frame drawn at the wrong buffer size, stretched
+      // by the browser to the new on-screen size: exactly the "grains are
+      // clickable but the visuals are shifted/missing" symptom. Fix: run
+      // resize() + applyHomeView() first (synchronously, inside this same
+      // rAF callback) and only kickDraw() after, so the very first frame
+      // draws already knows the correct dimensions and home view.
       requestAnimationFrame(() => {
         resize();
         applyHomeView(true);
+        kickDraw();
         requestAnimationFrame(resize);
       });
     }

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { useLenis } from '../lib/SmoothScroll'
 
 function openMapPop() {
   if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
@@ -14,6 +15,8 @@ function closeMapPop() {
  * orbit, zoom, claim terminal + stack cart. Hero keeps the demo underneath.
  */
 export function CosmosArena() {
+  const lenisRef = useLenis()
+
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') closeMapPop()
@@ -33,6 +36,17 @@ export function CosmosArena() {
     }
   }, [])
 
+  // Distinct from "✕ close" (which just dismisses the popup wherever the
+  // page happened to be scrolled): this exits the arena *and* guarantees
+  // you land back at the top of the landing page — there was previously no
+  // way back to the front of the site from inside the map.
+  function goHome() {
+    closeMapPop()
+    requestAnimationFrame(() => {
+      lenisRef?.current?.scrollTo('#top', { duration: 1.1 })
+    })
+  }
+
   return (
     <div
       id="map"
@@ -51,6 +65,10 @@ export function CosmosArena() {
       <div className="arena-hud">
         <div className="arena-hud-top">
           <div>
+            <button type="button" className="arena-home" onClick={goHome} aria-label="back to home">
+              <img src="/assets/void-logo.png" alt="" />
+              VOID<em>.OS</em>
+            </button>
             <p className="arena-eyebrow">FULL MAP · POP</p>
             <h2>
               Enter the <em>void</em>

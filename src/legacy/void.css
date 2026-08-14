@@ -34,7 +34,14 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
   grid-template-columns:minmax(260px,380px) 1fr;
   gap:8px;
   padding:80px clamp(10px,2.5vw,28px) 28px;
-  align-items:stretch;
+  /* Was align-items:stretch. .hero-cosmos-slot caps itself at
+     max-height:min(78vh,720px) (46vh/40vh on the mobile breakpoints below),
+     so on any viewport taller than that cap, "stretch" forced the grid row
+     to min-height:100vh while the slot itself couldn't fill it — leaving a
+     dead gap in that cell, sitting right before the next section starts.
+     center closes that gap by not forcing the row taller than its content
+     demands in the first place. */
+  align-items:center;
   z-index:5;
 }
 .hero-left{position:relative;z-index:12;pointer-events:auto;align-self:center}
@@ -193,6 +200,22 @@ body.arena-live{
   backdrop-filter:blur(6px);flex-shrink:0;
 }
 .arena-back:hover{border-color:var(--lime);color:var(--lime)}
+
+/* Distinct from .arena-back ("✕ close" — dismiss and stay put): this is
+   the only way back to the landing page from inside the map, so it needs
+   its own clearly branded affordance, not just another text pill. */
+.arena-home{
+  pointer-events:auto;
+  display:inline-flex;align-items:center;gap:6px;
+  margin-bottom:10px;padding:6px 10px 6px 6px;border-radius:999px;
+  border:1px solid rgba(204,255,0,.3);background:rgba(0,0,0,.6);
+  backdrop-filter:blur(6px);
+  color:var(--text);font-family:'Syne',sans-serif;font-weight:800;font-size:12px;
+  transition:border-color .18s ease-out,background .18s ease-out;
+}
+.arena-home img{width:18px;height:18px;border-radius:50%}
+.arena-home em{font-style:normal;color:var(--lime)}
+.arena-home:hover{border-color:var(--lime);background:rgba(204,255,0,.08)}
 
 body.arena-live .cosmos-map-pop .filters,
 body.arena-live .cosmos-map-pop .minimap,
@@ -574,7 +597,7 @@ body.arena-live .cart-dock{
     border-left:none;
     border-top:1px solid rgba(204,255,0,.3);
     transform:translateY(105%);
-    z-index:110;
+    z-index:220;
   }
   body.arena-live .term.open{transform:translateY(0)}
 }
@@ -714,13 +737,14 @@ body.arena-live .void-toast.claim.show{
 .mind-listening{display:inline-flex;align-items:center;gap:3px;height:12px}
 .mind-listening i{
   width:4px;height:4px;border-radius:999px;background:var(--lime);
-  opacity:.2;
-  animation:mind-listening-pulse 1.1s cubic-bezier(.45,0,.15,1) infinite;
+  opacity:.3;
+  animation:mind-listening-pulse 1s cubic-bezier(.45,0,.15,1) infinite;
 }
-.mind-listening i:nth-child(2){animation-delay:.15s}
-.mind-listening i:nth-child(3){animation-delay:.3s}
+.mind-listening i:nth-child(1){animation-delay:0s}
+.mind-listening i:nth-child(2){animation-delay:.2s}
+.mind-listening i:nth-child(3){animation-delay:.4s}
 @keyframes mind-listening-pulse{
-  0%,60%,100%{opacity:.2;transform:translateY(0)}
+  0%,60%,100%{opacity:.3;transform:translateY(0)}
   30%{opacity:1;transform:translateY(-2px)}
 }
 @media(prefers-reduced-motion: reduce){
@@ -774,11 +798,25 @@ body.arena-live .void-toast.claim.show{
 .chart-box{height:240px}.chart-box canvas{width:100%;height:100%;display:block}
 
 .term{
-  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:100;
+  /* 220: above the fixed nav header (z-[200] in Nav.jsx) and the toast
+     (z-index:200) — the nav's wallet/Buy $EXO buttons were bleeding
+     through the top of this panel because it used to sit *under* the
+     header (100 < 200). The panel already has a near-opaque background
+     (rgba(4,6,0,.96)), so raising z-index alone fully occludes the header
+     without needing to coordinate open/close state into Nav.jsx — this
+     panel's open/closed state lives entirely in the DOM (engine toggles
+     the .open class), Nav has no reference to it today.
+     Fade + easing: was an instant-cut translateX with default `ease`;
+     now opacity rides along with the slide on the same cubic-bezier used
+     across the rest of the site's UI (Hero/Concept/FAQ) for a consistent
+     "premium" feel instead of a stock timing curve. */
+  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:220;
   background:rgba(4,6,0,.96);border-left:1px solid rgba(204,255,0,.3);
-  transform:translateX(105%);transition:transform .3s;padding:20px;overflow:auto;
+  transform:translateX(105%);opacity:0;pointer-events:none;
+  transition:transform .38s cubic-bezier(.23,1,.32,1),opacity .32s cubic-bezier(.23,1,.32,1);
+  padding:20px;overflow:auto;
 }
-.term.open{transform:translateX(0)}
+.term.open{transform:translateX(0);opacity:1;pointer-events:auto}
 .term h3{font-family:'Syne',sans-serif;color:var(--lime);font-size:17px}
 .term .sub{color:var(--muted2);font-size:12px;margin:4px 0 14px}
 .term .x{position:absolute;top:12px;right:12px;color:var(--muted);font-size:16px}
