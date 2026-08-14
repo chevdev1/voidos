@@ -32,8 +32,8 @@
 
   .hero-right:not(.in-arena) {
     width: 100%;
-    min-height: min(70vh, 560px);
-    height: min(70vh, 560px);
+    min-height: min(52vh, 440px);
+    height: min(52vh, 440px);
     max-height: none;
     margin-right: 0 !important;
   }
@@ -69,7 +69,10 @@
   }
 
   .hero-map-actions {
-    display: none;
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .hero-map-actions > button,
@@ -141,17 +144,16 @@
     transform: none;
     width: auto;
     max-width: none;
-    flex-direction: row;
+    flex-direction: column;
     flex-wrap: nowrap;
-    align-items: center;
-    gap: 6px;
-    padding: 4px 6px;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
     box-sizing: border-box;
-    overflow-x: auto;
-    overflow-y: hidden;
-    border-radius: 10px;
+    overflow: hidden;
+    border-radius: 14px;
     z-index: 40;
-    max-height: 44px;
+    max-height: min(42vh, 280px);
   }
 
   body.arena-live .mind-dock-row,

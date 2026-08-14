@@ -33,11 +33,18 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
   display:grid;
   grid-template-columns:minmax(260px,380px) 1fr;
   gap:8px;
-  padding:0 clamp(10px,2.5vw,28px) 28px;
-  align-items:stretch;
+  padding:80px clamp(10px,2.5vw,28px) 28px;
+  /* Was align-items:stretch. .hero-cosmos-slot caps itself at
+     max-height:min(78vh,720px) (46vh/40vh on the mobile breakpoints below),
+     so on any viewport taller than that cap, "stretch" forced the grid row
+     to min-height:100vh while the slot itself couldn't fill it — leaving a
+     dead gap in that cell, sitting right before the next section starts.
+     center closes that gap by not forcing the row taller than its content
+     demands in the first place. */
+  align-items:center;
   z-index:5;
 }
-.hero-left{position:relative;z-index:12;pointer-events:auto;align-self:center;padding-top:72px}
+.hero-left{position:relative;z-index:12;pointer-events:auto;align-self:center}
 .live{
   display:inline-flex;align-items:center;gap:8px;
   padding:7px 12px;border-radius:999px;
@@ -74,21 +81,21 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 
 .hero-cosmos-slot{
   position:relative;z-index:8;
-  min-height:100vh;min-height:100dvh;
-  max-height:none;
-  height:100%;
+  min-height:min(72vh,640px);
+  max-height:min(78vh,720px);
   margin-right:clamp(-8px,-2vw,-24px);
 }
 .hero-right{
   position:relative;z-index:8;
-  height:100%;
-  min-height:100vh;min-height:100dvh;
-  max-height:none;
+  height:auto;min-height:min(72vh,640px);
+  max-height:min(78vh,720px);
   border:none;
   border-radius:0;
   overflow:hidden;background:#000;
   box-shadow:none;
   isolation:isolate;
+  mask-image:linear-gradient(90deg,transparent 0%,#000 4%,#000 100%);
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 4%,#000 100%);
 }
 .hero-right.in-arena canvas{
   width:100% !important;
@@ -111,53 +118,8 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 }
 .hero-map-open{display:none}
 
-.map-route{
-  position:fixed;inset:0;z-index:1;background:#000;
-}
-.map-top{
-  position:fixed;top:0;left:0;right:0;z-index:400001;
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:10px 14px;padding-top:max(10px, env(safe-area-inset-top));
-  pointer-events:auto;
-  background:linear-gradient(180deg,rgba(0,0,0,.92),rgba(0,0,0,.35) 70%,transparent);
-}
-.map-top-title{
-  font-family:'Syne',sans-serif;font-weight:800;font-size:13px;letter-spacing:.12em;
-  color:#fff;text-transform:uppercase;
-}
-.map-top-title em{font-style:normal;color:var(--lime)}
-.map-home,.map-close{
-  min-height:44px;padding:8px 16px;border-radius:999px;
-  border:1px solid rgba(204,255,0,.55);background:rgba(0,0,0,.85);
-  color:var(--lime);font-size:13px;letter-spacing:.06em;cursor:pointer;
-}
-.map-home{
-  display:inline-flex;align-items:center;gap:8px;
-  color:#fff;font-family:'Syne',sans-serif;font-weight:800;letter-spacing:.04em;
-}
-.map-home img{width:18px;height:18px;border-radius:50%}
-.map-home em{font-style:normal;color:var(--lime)}
-.map-home:hover,.map-close:hover{background:rgba(204,255,0,.12)}
-.map-stage{
-  position:absolute;inset:0;
-}
-.map-stage #cosmosFrame,
-.map-stage .hero-right{
-  position:absolute !important;inset:0 !important;
-  width:100% !important;height:100% !important;
-  min-height:100% !important;max-height:none !important;
-  margin:0 !important;border:none;
-  mask-image:none !important;-webkit-mask-image:none !important;
-}
-.map-load{
-  position:fixed;inset:0;z-index:30;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;
-  background:#000;color:var(--muted2);font-size:13px;
-  pointer-events:none;
-}
-
 .cosmos-map-pop{
-  position:fixed;inset:0;z-index:210;
+  position:fixed;inset:0;z-index:80;
   background:#000;
   display:none;
   overflow:hidden;
@@ -238,22 +200,6 @@ body.arena-live{
   backdrop-filter:blur(6px);flex-shrink:0;
 }
 .arena-back:hover{border-color:var(--lime);color:var(--lime)}
-
-.arena-close{
-  position:fixed;
-  top:max(12px, env(safe-area-inset-top));
-  right:12px;
-  z-index:500;
-  pointer-events:auto;
-  min-height:44px;
-  padding:10px 16px;
-  border-radius:999px;
-  border:1px solid rgba(204,255,0,.55);
-  background:rgba(0,0,0,.85);
-  color:var(--lime);
-  font-size:13px;
-  letter-spacing:.08em;
-}
 
 /* Distinct from .arena-back ("✕ close" — dismiss and stay put): this is
    the only way back to the landing page from inside the map, so it needs
@@ -385,7 +331,6 @@ body.arena-live .cart-dock{bottom:78px}
   outline-offset:-1px;
 }
 .hero-right canvas{
-  position:absolute;inset:0;
   width:100%;height:100%;display:block;cursor:grab;
   touch-action:pan-y;
 }
@@ -465,18 +410,13 @@ body.arena-live .cart-dock{bottom:78px}
 .minimap canvas{width:100%;height:92px;display:block;border-radius:5px;cursor:crosshair}
 .minimap .cap{color:var(--muted2);font-size:9px;margin-top:4px;letter-spacing:.04em}
 
-.hero-right:not(.in-arena) .mind-bar,
-.hero-right:not(.in-arena) .mind-meta{
-  display:none;
-}
-
 .mind-bar{
   display:flex;
   position:absolute;left:50%;bottom:14px;transform:translateX(-50%);
   z-index:12;pointer-events:auto;
   align-items:center;gap:10px;
   max-width:calc(100% - 20px);
-  padding:5px 8px;
+  padding:8px 10px;
   background:rgba(0,0,0,.88);
   border:1px solid rgba(255,255,255,.18);
   backdrop-filter:blur(8px);
@@ -579,36 +519,36 @@ body.arena-live .cart-dock{bottom:78px}
     bottom:max(8px, env(safe-area-inset-bottom));
     transform:none;
     max-width:none;
-    flex-wrap:nowrap;
-    align-items:center;
-    gap:6px;
-    padding:4px 6px;
-    overflow-x:auto;
-    overflow-y:hidden;
+    flex-wrap:wrap;
+    align-items:stretch;
+    gap:8px;
+    padding:8px 8px;
+    overflow-x:visible;
+    overflow-y:visible;
   }
   .mind-legend{
-    flex-wrap:nowrap;
+    flex-wrap:wrap;
     gap:4px;
-    width:auto;
-    flex-shrink:0;
+    width:100%;
+    flex-shrink:1;
   }
   .mind-sep{display:none}
   .mind-actions{
-    flex-wrap:nowrap;
-    gap:4px;
-    width:auto;
-    flex-shrink:0;
+    flex-wrap:wrap;
+    gap:6px;
+    width:100%;
+    flex-shrink:1;
   }
   .mind-leg{
-    min-height:28px;
-    padding:3px 6px;
-    font-size:9px;
+    min-height:36px;
+    padding:6px 8px;
+    font-size:10px;
   }
   .mind-btn{
-    min-height:28px;
-    padding:4px 7px;
-    font-size:9px;
-    flex:0 0 auto;
+    min-height:36px;
+    padding:8px 10px;
+    font-size:11px;
+    flex:1 1 auto;
   }
   .mind-meta{
     left:10px;right:10px;
@@ -858,11 +798,7 @@ body.arena-live .void-toast.claim.show{
 .chart-box{height:240px}.chart-box canvas{width:100%;height:100%;display:block}
 
 .term{
-  /* 230: above full-map popup (210) and nav (z-[200]) so close/claim drawer stay on top. * /}
-
-</think>
-
-Wait I made a syntax error in the comment. Let me fix term z-index properly.
+  /* 220: above the fixed nav header (z-[200] in Nav.jsx) and the toast
      (z-index:200) — the nav's wallet/Buy $EXO buttons were bleeding
      through the top of this panel because it used to sit *under* the
      header (100 < 200). The panel already has a near-opaque background
@@ -905,14 +841,14 @@ Wait I made a syntax error in the comment. Let me fix term z-index properly.
   .hero-left{order:1;min-width:0;width:100%}
   .hero-cosmos-slot{
     order:2;margin-right:0;
-    min-height:min(58vh,520px);
-    max-height:none;
+    min-height:min(42vh,360px);
+    max-height:min(46vh,400px);
     min-width:0;width:100%;
   }
   .hero-right:not(.in-arena){
-    min-height:min(58vh,520px);
-    max-height:none;
-    height:min(58vh,520px);
+    min-height:min(42vh,360px);
+    max-height:min(46vh,400px);
+    height:auto;
     mask-image:none;-webkit-mask-image:none;margin-right:0;
     width:100%;
   }
@@ -954,9 +890,8 @@ Wait I made a syntax error in the comment. Let me fix term z-index properly.
   .m-stat .v{font-size:clamp(18px,6vw,24px)}
   .hero-cosmos-slot,
   .hero-right:not(.in-arena){
-    min-height:min(52vh,440px);
-    max-height:none;
-    height:min(52vh,440px);
+    min-height:min(36vh,300px);
+    max-height:min(40vh,320px);
   }
   .hero{min-height:auto;padding-bottom:12px}
   .cta .btn-lime,

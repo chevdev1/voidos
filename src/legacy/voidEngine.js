@@ -104,12 +104,9 @@ export function initVoidEngine() {
     const selectedConstels = new Set(); // multi-select whole constellations
     let lastTermSector = null;
     let lastTermConstel = null;
-    let arenaMode = Boolean(document.getElementById('mapRoute'));
+    let arenaMode = false;
     let heatMode = false;
     let panelMode = null; // 'standings' | 'what' | 'personality' | null
-    let inView = true;
-    let pageVisible = !document.hidden;
-    let demoActive = true;
 
     /* ONE mega-galaxy — fills the frame */
     const GAL = {
@@ -1145,10 +1142,7 @@ export function initVoidEngine() {
         if (sessionStorage.getItem('void_open_arena')) {
           sessionStorage.removeItem('void_open_arena');
         }
-        if (!arenaMode) {
-          location.assign('/map');
-          return;
-        }
+        enterArena();
         // enterArena snaps to home view on rAF — focus after that lands.
         const tryFocus = () => {
           if (!g0?.constels) return false;
@@ -1654,10 +1648,17 @@ export function initVoidEngine() {
     }
 
     function enterArena() {
-      if (!document.getElementById('mapRoute')) {
-        location.assign('/map');
-        return;
-      }
+      // The boot splash (see BootSplash.jsx / LandingPage.jsx) sits at
+      // z-[400000] — above the arena popup (z-index:80) — and its own
+      // ready->fade sequence takes at least 2 rAFs + 520ms even after the
+      // engine signals it's loaded. If the map is opened early (e.g. a
+      // #map URL hash on cold load, or a very fast click), the arena was
+      // opening correctly *underneath* the still-visible splash: exactly
+      // "black screen but clickable" (click-through starts as soon as the
+      // splash's fade-out flips on pointer-events:none, well before the
+      // pixels are actually gone). This tells the boot sequence to skip
+      // straight to done instead of racing it.
+      window.dispatchEvent(new Event('void-map-opened'));
       const pop = document.getElementById('map');
       const stage = document.getElementById('arenaStage');
       const placeholder = document.getElementById('arenaPlaceholder');
@@ -1675,8 +1676,6 @@ export function initVoidEngine() {
       }
       document.body.classList.add('arena-live');
       document.body.classList.remove('mind-dock-open');
-      demoActive = true;
-      inView = true;
       const dockToggle = document.getElementById('mindDockToggle');
       if (dockToggle) {
         dockToggle.setAttribute('aria-expanded', 'false');
@@ -1715,32 +1714,26 @@ export function initVoidEngine() {
       const pop = document.getElementById('map');
       const slot = document.getElementById('heroCosmosSlot');
       const placeholder = document.getElementById('arenaPlaceholder');
+      if (!slot || !frame) return;
+      if (frame.parentElement !== slot) slot.appendChild(frame);
+      slot.classList.remove('cosmos-away');
+      if (placeholder) placeholder.hidden = false;
+      if (pop) {
+        pop.classList.remove('open');
+        pop.hidden = true;
+      }
       document.body.classList.remove('arena-live');
       document.body.classList.remove('mind-dock-open');
       arenaMode = false;
-      demoActive = true;
-      inView = true;
-      if (frame) frame.classList.remove('in-arena');
+      frame.classList.remove('in-arena');
       setMapActive(false);
       atHomeView = true;
       if (location.hash === '#map') {
         history.replaceState(null, '', location.pathname + location.search);
       }
-      // Dedicated /map page has no hero slot — React unmounts the canvas.
-      if (slot && frame && frame.parentElement !== slot) {
-        slot.appendChild(frame);
-        slot.classList.remove('cosmos-away');
-      }
-      if (placeholder) placeholder.hidden = false;
-      if (pop && slot) {
-        pop.classList.remove('open');
-        pop.hidden = true;
-      }
       requestAnimationFrame(() => {
-        if (!frame || !canvas) return;
         resize();
         applyHomeView(true);
-        kickDraw('exitArena');
         requestAnimationFrame(resize);
       });
     }
@@ -1759,23 +1752,12 @@ export function initVoidEngine() {
       },
     };
     window.dispatchEvent(new Event('void-cosmos-ready'));
-    if (arenaMode) {
-      frame.classList.add('in-arena');
-      document.body.classList.add('arena-live');
-      setMapActive(true);
-      requestAnimationFrame(() => {
-        resize();
-        applyHomeView(true);
-        kickDraw('mapRoute');
-        requestAnimationFrame(resize);
-      });
-    } else if (window.__voidCosmosPendingEnter) {
+    if (window.__voidCosmosPendingEnter) {
       window.__voidCosmosPendingEnter = false;
-      location.assign('/map');
+      enterArena();
     }
     onCleanup(() => {
       if (window.__voidCosmos) delete window.__voidCosmos;
-      delete window.__voidMapPainted;
     });
     document.getElementById('searchBtn').onclick = () => {
       const q = prompt('find constellation name or star #');
@@ -2097,6 +2079,20 @@ export function initVoidEngine() {
 
     let hover = null;
     let alive = true;
+    // Real IntersectionObserver instead of a getBoundingClientRect() check
+    // re-run at the top of every frame forever: that read is cheap in the
+    // common case but still executes 60x/sec even while fully offscreen,
+    // and doesn't stop the rAF chain, just short-circuits inside it. This
+    // fully halts requestAnimationFrame while out of view and restarts it
+    // from the observer callback on re-entry — zero main-thread cost while
+    // scrolled away, not just "less work."
+    let inView = true;
+    let pageVisible = !document.hidden;
+    // Hero-slot teaser gate: the small demo pauses itself once the "open
+    // full map" prompt card covers it (see Hero.jsx) — no point spending a
+    // render loop on a canvas sitting under an opaque blur. Doesn't apply
+    // once the user is actually in the full-screen arena.
+    let demoActive = true;
     let rafId = null;
     function kickDraw(tag) {
       // arenaMode bypasses inView on purpose: #cosmosFrame gets moved via
@@ -2124,7 +2120,8 @@ export function initVoidEngine() {
       }
     }
     function pauseDemo() {
-      /* Hero live-demo card sits on the spinning galaxy — never freeze it. */
+      demoActive = false;
+      console.info('[void cosmos] pauseDemo', { arenaMode, rafId });
     }
     function resumeDemo() {
       demoActive = true;
@@ -2183,10 +2180,6 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
-      if (W > 8 && H > 8 && !window.__voidMapPainted) {
-        window.__voidMapPainted = true;
-        window.dispatchEvent(new Event('void-cosmos-frame'));
-      }
       const g = g0;
 
       const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
