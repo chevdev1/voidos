@@ -8,7 +8,7 @@ const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 const FAQS = [
   {
     q: 'How do I claim a constellation lot?',
-    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns 1 $TEST per lot (sent to the burn address).',
+    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns a dust amount of $TEST per lot (test minimum).',
   },
   {
     q: 'What happens if I sell my $EXO?',

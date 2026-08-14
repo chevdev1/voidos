@@ -201,7 +201,7 @@ export default function Cabinet() {
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
             Identity is your <span className="text-lime">Robinhood Wallet</span>. One lot = one
-            owner (others see RESERVED). Claim burns 1 $TEST per lot on Robinhood Chain.
+            owner (others see RESERVED). Claim burns a test-min dust of $TEST per lot.
           </p>
         </motion.div>
 

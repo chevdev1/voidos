@@ -46,8 +46,9 @@ const SECTIONS = [
           the total $EXO supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Live site: claiming a lot burns <b>1 $TEST</b> per lot to the dead address on Robinhood
-          Chain. Buy $TEST on Dex, connect the wallet, then claim on the map.
+          Live site: claiming a lot burns a <b>dust min</b> of $TEST per lot (test pricing) to the
+          dead address on Robinhood Chain. Buy $TEST on Dex, connect the wallet, then claim on the
+          map.
         </p>
       </>
     ),
