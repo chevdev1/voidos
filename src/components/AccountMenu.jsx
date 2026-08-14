@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
 import { mindSession, loadUser, saveUser } from '../lib/mindClient'
 import { WalletPanel } from './WalletPanel'
+import { abortWalletConnect } from '../lib/rhWallets'
 
 /**
  * Account panel — identity = linked wallet.
@@ -41,6 +43,16 @@ export function AccountMenu() {
     setUser(next)
   }
 
+  // Single source of truth for closing — wired to BOTH the backdrop and the
+  // ✕ button below, unconditionally (never gated behind busy/error state,
+  // which is what used to make the panel feel "frozen" after a wallet
+  // error: a stuck WalletConnect session left running behind it). Aborting
+  // any in-flight connect here means closing always actually closes.
+  function closeModal() {
+    setOpen(false)
+    abortWalletConnect()
+  }
+
   const wallet = user?.wallet || null
   const short = wallet ? `${wallet.slice(0, 6)}…${wallet.slice(-4)}` : null
 
@@ -55,70 +67,80 @@ export function AccountMenu() {
         {short || 'wallet'}
       </button>
 
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="close overlay"
-            className="fixed inset-0 z-[210] bg-black/70 backdrop-blur-sm md:bg-black/40"
-            onClick={() => setOpen(false)}
-          />
-          <div
-            className="fixed inset-x-0 bottom-0 z-[220] max-h-[92dvh] overflow-y-auto border-t border-lime/40 bg-black/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(80vh,36rem)] md:w-[22rem] md:border md:border-lime/40 md:pb-4 md:shadow-[0_0_40px_rgba(204,255,0,0.08)]"
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-[0.22em] text-lime">
-                {wallet ? 'wallet' : 'access'}
-              </p>
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="min-h-10 min-w-10 text-[14px] text-muted hover:text-lime"
-                aria-label="close"
-              >
-                ✕
-              </button>
-            </div>
-
-            {wallet ? (
-              <div className="space-y-3">
-                <div className="border border-white/10 bg-void/80 p-3">
-                  <p className="text-[10px] uppercase tracking-wider text-muted">linked now</p>
-                  <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
-                  <p className="mt-2 text-[11px] leading-relaxed text-muted">
-                    Already connected — open cabinet. Change wallet only if you need another address.
-                  </p>
-                </div>
+      <AnimatePresence>
+        {open && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="close overlay"
+              className="fixed inset-0 z-[210] bg-black/70 backdrop-blur-sm md:bg-black/40"
+              onClick={closeModal}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            />
+            <motion.div
+              className="fixed inset-x-0 bottom-0 z-[220] max-h-[92dvh] overflow-y-auto border-t border-lime/40 bg-black/98 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md sm:p-5 md:absolute md:inset-auto md:right-0 md:top-full md:mt-2 md:max-h-[min(80vh,36rem)] md:w-[22rem] md:border md:border-lime/40 md:pb-4 md:shadow-[0_0_40px_rgba(204,255,0,0.08)]"
+              role="dialog"
+              aria-modal="true"
+              initial={{ opacity: 0, scale: 0.96, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            >
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <p className="text-[10px] uppercase tracking-[0.22em] text-lime">
+                  {wallet ? 'wallet' : 'access'}
+                </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setOpen(false)
-                    navigate('/map')
-                  }}
-                  className="block w-full border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
+                  onClick={closeModal}
+                  className="min-h-10 min-w-10 text-[14px] text-muted hover:text-lime"
+                  aria-label="close"
                 >
-                  OPEN MAP / ЛК
+                  ✕
                 </button>
-                <WalletPanel user={user} onUser={onUserChange} />
               </div>
-            ) : (
-              <div className="space-y-3">
-                <div>
-                  <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">
-                    connect <span className="text-lime">wallet</span>
-                  </h3>
-                  <p className="mt-1 text-[11px] leading-relaxed text-muted">
-                    Pick any wallet from the list, or use a Chrome extension.
-                  </p>
+
+              {wallet ? (
+                <div className="space-y-3">
+                  <div className="border border-white/10 bg-void/80 p-3">
+                    <p className="text-[10px] uppercase tracking-wider text-muted">linked now</p>
+                    <p className="mt-1 truncate font-mono text-sm text-lime">{short}</p>
+                    <p className="mt-2 text-[11px] leading-relaxed text-muted">
+                      Already connected — open cabinet. Change wallet only if you need another address.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeModal()
+                      navigate('/map')
+                    }}
+                    className="block w-full border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
+                  >
+                    OPEN MAP
+                  </button>
+                  <WalletPanel user={user} onUser={onUserChange} />
                 </div>
-                <WalletPanel user={user} onUser={onUserChange} />
-              </div>
-            )}
-          </div>
-        </>
-      )}
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <h3 className="font-display text-lg font-extrabold tracking-tight text-ink">
+                      connect <span className="text-lime">wallet</span>
+                    </h3>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted">
+                      Pick any wallet from the list, or use a Chrome extension.
+                    </p>
+                  </div>
+                  <WalletPanel user={user} onUser={onUserChange} />
+                </div>
+              )}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

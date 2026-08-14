@@ -332,16 +332,16 @@ export function WalletPanel({ user, onUser }) {
       {err && <p className="mt-3 text-[11px] text-red-400">{err}</p>}
 
       {linked && (
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <div className="border border-white/10 bg-void/60 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted">ETH</p>
-            <p className="mt-1 font-display text-xl text-ink">
+        <div className="mt-4 grid grid-cols-3 gap-2">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+            <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">ETH</p>
+            <p className="mt-1 truncate text-sm text-ink">
               {balances?.eth == null ? '—' : balances.eth}
             </p>
           </div>
-          <div className="border border-white/10 bg-void/60 p-3">
-            <p className="text-[10px] uppercase tracking-wider text-muted">$EXO</p>
-            <p className="mt-1 font-display text-xl text-lime">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+            <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">$EXO</p>
+            <p className="mt-1 truncate text-sm text-lime">
               {balances?.exo == null
                 ? balances?.exoToken
                   ? '0'
@@ -349,9 +349,9 @@ export function WalletPanel({ user, onUser }) {
                 : balances.exo}
             </p>
           </div>
-          <div className="border border-white/10 bg-void/60 p-3 sm:col-span-1 col-span-2">
-            <p className="text-[10px] uppercase tracking-wider text-muted">network</p>
-            <p className="mt-1 text-sm text-muted">
+          <div className="overflow-hidden rounded-md border border-gray-800 bg-black/40 p-3 backdrop-blur-md">
+            <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">network</p>
+            <p className="mt-1 truncate text-sm text-muted">
               {balances?.network || 'Robinhood Chain'}
               {balances?.chainId ? ` · ${balances.chainId}` : ''}
             </p>
