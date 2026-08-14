@@ -157,10 +157,16 @@ body.arena-live #cosmosFrame{
   -webkit-mask-image:none !important;
   border:none;
 }
-.arena-stage .cosmos-bar{
-  background:linear-gradient(180deg,rgba(0,0,0,.85),transparent);
-  padding:14px 16px;
-  padding-top:max(14px, env(safe-area-inset-top));
+.arena-stage .cosmos-bar,
+body.arena-live .cosmos-bar,
+body.arena-live .cosmos-hud,
+.hero-right.in-arena .cosmos-bar,
+.hero-right.in-arena .cosmos-hud,
+body.arena-live .mind-legend,
+body.arena-live .mind-meta,
+body.arena-live .mind-sep,
+body.arena-live:not(.mind-dock-open) .mind-actions {
+  display: none !important;
 }
 .arena-placeholder{
   position:absolute;inset:0;display:flex;flex-direction:column;

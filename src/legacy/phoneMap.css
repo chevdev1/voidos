@@ -122,11 +122,7 @@
   }
 
   body.arena-live .cosmos-hud {
-    display: flex !important;
-    font-size: 9px;
-    gap: 8px;
-    flex-wrap: wrap;
-    max-width: min(72vw, 420px);
+    display: none !important;
   }
 
   body.arena-live .minimap {
@@ -209,8 +205,7 @@
   }
 
   body.arena-live .mind-meta {
-    display: block !important;
-    font-size: 10px;
+    display: none !important;
   }
 
   body.arena-live:not(.mind-dock-open) .mind-legend,

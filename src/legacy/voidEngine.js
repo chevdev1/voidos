@@ -227,7 +227,7 @@ export function initVoidEngine() {
       // a slightly larger brightness/size range below, per the request to
       // trade raw particle count for rendered size rather than fill-rate.
       // Fewer stars = map stays live while wallet / claim run on the same thread.
-      for (let i = 0; i < 1800; i++) {
+      for (let i = 0; i < 3800; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -495,7 +495,8 @@ export function initVoidEngine() {
         const narrow = matchMedia('(max-width: 960px)').matches;
         const saveData = navigator.connection && navigator.connection.saveData;
         const mem = navigator.deviceMemory;
-        if (saveData || coarse || narrow || (mem != null && mem <= 4)) return 'low';
+        if (saveData || (mem != null && mem <= 2)) return 'low';
+        if (coarse || narrow) return 'medium';
         if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
       } catch (_) {
         /* ignore */
@@ -2212,8 +2213,7 @@ export function initVoidEngine() {
     function readUiPaused() {
       return (
         document.body.classList.contains('wallet-ui-open') ||
-        document.body.classList.contains('wc-modal-open') ||
-        document.body.classList.contains('term-open')
+        document.body.classList.contains('wc-modal-open')
       );
     }
     function onUiPauseChange() {
@@ -2267,20 +2267,26 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
-      if (W > 4 && H > 4 && !window.__voidMapPainted) {
-        window.__voidMapPainted = true;
-        window.dispatchEvent(new Event('void-cosmos-frame'));
-      }
-      const g = g0;
-
-      if (quality === 'high') {
-        const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
+      {
+        const deep = ctx.createRadialGradient(
+          W / 2 + panX * 0.02,
+          H / 2 + panY * 0.02,
+          10,
+          W / 2,
+          H / 2,
+          Math.max(W, H) * 0.75,
+        );
         deep.addColorStop(0, '#050a18');
         deep.addColorStop(0.55, '#02040c');
         deep.addColorStop(1, '#000');
         ctx.fillStyle = deep;
         ctx.fillRect(0, 0, W, H);
       }
+      if (W > 4 && H > 4 && !window.__voidMapPainted) {
+        window.__voidMapPainted = true;
+        window.dispatchEvent(new Event('void-cosmos-frame'));
+      }
+      const g = g0;
 
       const bgStep = quality === 'low' ? 3 : 2;
       ctx.fillStyle = 'rgba(220,230,255,0.35)';
@@ -2334,7 +2340,7 @@ export function initVoidEngine() {
       // this is the actual "halve the particle count under load" lever.
       // 'low' was bumped 3->4: rather than cutting the base count again
       // for every device, struggling ones now shed more automatically.
-      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 4;
+      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 1 : 2;
       const lod = (scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1) * qualityLodMul;
       const [gcx, gcy] = w2s(g.m.x, g.m.y);
       const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
@@ -2385,7 +2391,7 @@ export function initVoidEngine() {
       // load, skipped entirely at 'low' — each lane is a 56-segment stroked
       // path rebuilt every frame, so this is one of the pricier decorative
       // layers relative to how subtle it is.
-      const ribbonLanes = quality === 'high' ? 3 : quality === 'medium' ? 1 : 0;
+      const ribbonLanes = quality === 'high' ? 3 : 1;
       if (scale < 6 && ribbonLanes > 0) {
         for (let arm = 0; arm < g.m.arms; arm++) {
           for (let lane = 0; lane < ribbonLanes; lane++) {
@@ -2412,9 +2418,11 @@ export function initVoidEngine() {
       }
 
       // Nebulae: full on high, still on medium (cached gradients), skip on low.
-      if (quality !== 'low') {
+      if (true) {
         const breath = 0.85 + 0.15 * Math.sin(t * 0.7);
-        for (const n of g.nebulae) {
+        const nebStep = quality === 'low' ? 2 : 1;
+        for (let ni = 0; ni < g.nebulae.length; ni += nebStep) {
+          const n = g.nebulae[ni];
           const [lx2, ly2] = polarLocal(n.r, n.a0 + Math.sin(t * n.sp + n.ph) * 0.02, 0);
           const pr = projectLocal(lx2, ly2, (n.u - 0.5) * 10, g);
           let [sx, sy] = w2s(pr.x, pr.y);
@@ -2491,14 +2499,14 @@ export function initVoidEngine() {
             sx = L[0];
             sy = L[1];
             if (sx < -30 || sy < -30 || sx > W + 30 || sy > H + 30) continue;
-            let sz = Math.max(0.45, Math.min(2.0, p.br * pr.persp * 0.85 * groupTw));
-            if (p.u < 0.12) sz = Math.min(2.4, sz * 1.15);
+            let sz = Math.max(0.7, Math.min(2.4, p.br * pr.persp * 0.95 * groupTw));
+            if (p.u < 0.12) sz = Math.min(2.8, sz * 1.2);
             ctx.moveTo(sx + sz, sy);
             ctx.arc(sx, sy, sz, 0, Math.PI * 2);
             any = true;
           }
           if (any) {
-            const a = clamp(g.starBucketAlphaScale[bi] * groupTw * 1.8, 0, 1);
+            const a = clamp(g.starBucketAlphaScale[bi] * groupTw * 2.4, 0, 1);
             ctx.fillStyle = rgba(g.starBucketRGB[bi], a);
             ctx.fill();
           }

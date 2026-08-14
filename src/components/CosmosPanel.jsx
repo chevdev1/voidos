@@ -11,7 +11,9 @@ export function CosmosPanel() {
     <div className="hero-right" id="cosmosFrame">
       <div className="cosmos-bar">
         <b>◎ COSMOS</b>
-        <span id="cosmosHint">click map to explore · shift+click stack · wheel zooms while exploring</span>
+        <span id="cosmosHint" hidden>
+          map
+        </span>
         <button type="button" className="cosmos-explore" id="cosmosExploreBtn">
           Explore
         </button>
@@ -19,13 +21,6 @@ export function CosmosPanel() {
       <canvas id="cosmos" />
       <div className="cosmos-fx" aria-hidden="true" />
       <div className="cosmos-scan" aria-hidden="true" />
-      <div className="cosmos-hud">
-        <div className="hud-board" id="hudLeaders">
-          <button type="button" className="hud-board-btn" data-open-board>
-            PRETENDERS BOARD
-          </button>
-        </div>
-      </div>
       <div className="tip" id="tip">
         <div className="t1" id="tip1">
           sector #0
