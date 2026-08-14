@@ -1751,6 +1751,15 @@ export function initVoidEngine() {
         }
       },
     };
+    // Defensive: without this, a torn-down instance's methods stay
+    // reachable through window.__voidCosmos until a fresh initVoidEngine()
+    // call overwrites it — a window where any external caller (a stray
+    // timer, an event handler that fired late) hits dead closures instead
+    // of either the right instance or a clean "not ready yet" no-op.
+    const api = window.__voidCosmos;
+    onCleanup(() => {
+      if (window.__voidCosmos === api) delete window.__voidCosmos;
+    });
     window.dispatchEvent(new Event('void-cosmos-ready'));
     if (window.__voidCosmosPendingEnter) {
       window.__voidCosmosPendingEnter = false;

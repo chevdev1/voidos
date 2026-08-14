@@ -46,7 +46,19 @@ export default function MapPage() {
     })()
     return () => {
       cancelled = true
-      window.__voidCosmos?.exitArena?.()
+      // Deliberately does NOT call exitArena() here. That function's job is
+      // to appendChild the canvas back into #heroCosmosSlot — a "return the
+      // shared canvas home" step that only makes sense for the old in-page
+      // popup, where the same DOM node had to survive the trip back. This
+      // page's canvas doesn't have a home to return to; it just needs to be
+      // gone, which unmounting already does. Calling exitArena() here was
+      // the actual bug behind "an extra universe appears back on the
+      // landing page": by the time this cleanup ran, LandingPage had often
+      // already mounted its own fresh #heroCosmosSlot + CosmosPanel, so
+      // exitArena() was appendChild-ing this page's dying canvas *into*
+      // that brand-new tree — a duplicate, orphaned galaxy with clashing
+      // ids that also left the new engine instance confused (very likely
+      // also what broke the teaser modal timer afterward).
       destroy?.()
     }
   }, [])

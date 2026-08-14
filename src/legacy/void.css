@@ -736,6 +736,10 @@ body.arena-live .void-toast.claim.show{
    less mechanical settle than the linear/step feel of a default easing. */
 .mind-listening{display:inline-flex;align-items:center;gap:3px;height:12px}
 .mind-listening i{
+  /* <i> is display:inline by default — width/height (and to a lesser
+     extent transform) are unreliable-to-ignored on inline boxes per spec.
+     inline-block is what actually makes the dots a fixed, visible size. */
+  display:inline-block;
   width:4px;height:4px;border-radius:999px;background:var(--lime);
   opacity:.3;
   animation:mind-listening-pulse 1s cubic-bezier(.45,0,.15,1) infinite;
