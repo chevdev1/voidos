@@ -521,9 +521,49 @@ export async function readBalances(address) {
   }
 }
 
-/**
- * Pay for lots on-chain: burn token to dead, or ExoClaim if CLAIM_CONTRACT is set.
- */
+async function existingConnectedWallet() {
+  if (wcProvider?.accounts?.[0]) {
+    return { provider: wcProvider, address: getAddress(wcProvider.accounts[0]) }
+  }
+  const eth = getRobinhoodInjected() || getInjectedEvm()
+  if (!eth?.request) return null
+  try {
+    const acc = await eth.request({ method: 'eth_accounts' })
+    if (acc?.[0]) return { provider: eth, address: getAddress(acc[0]) }
+  } catch {
+    /* not authorized yet */
+  }
+  return null
+}
+
+async function providerForClaim() {
+  const existing = await existingConnectedWallet()
+  if (existing) return existing
+  if (getRobinhoodInjected() || getInjectedEvm()) return connectInjected()
+  return connectWalletConnect()
+}
+
+async function ensureChainForClaim(provider) {
+  try {
+    await withTimeout(ensureChain(provider), 25000, 'switch to Robinhood Chain')
+    return provider
+  } catch (e) {
+    const inj = getRobinhoodInjected() || getInjectedEvm()
+    if (inj && inj !== provider) {
+      try {
+        await withTimeout(ensureChain(inj), 25000, 'switch to Robinhood Chain')
+        return inj
+      } catch {
+        /* fall through */
+      }
+    }
+    throw new Error(
+      e?.message ||
+        'Switch the wallet to Robinhood Chain (4663), keep ETH for gas, then claim again.',
+    )
+  }
+}
+
 export async function claimOnChain(lotIds = []) {
   if (!isClaimLiveClient()) {
     throw new Error('claim token not set')
@@ -531,14 +571,16 @@ export async function claimOnChain(lotIds = []) {
   const ids = (lotIds || []).map(String).filter(Boolean)
   if (!ids.length) throw new Error('no lots to claim')
 
-  const injected = getRobinhoodInjected()
-  const { provider, address } = injected
-    ? await connectInjected()
-    : wcProvider?.accounts?.[0]
-      ? { provider: wcProvider, address: getAddress(wcProvider.accounts[0]) }
-      : await connectWalletConnect()
-
-  await ensureChain(provider)
+  let { provider, address } = await providerForClaim()
+  provider = await ensureChainForClaim(provider)
+  if (provider === getInjectedEvm() || provider === getRobinhoodInjected()) {
+    try {
+      const acc = await provider.request({ method: 'eth_accounts' })
+      if (acc?.[0]) address = getAddress(acc[0])
+    } catch {
+      /* keep address */
+    }
+  }
 
   const walletClient = createWalletClient({
     account: address,
@@ -580,7 +622,11 @@ export async function claimOnChain(lotIds = []) {
           account: address,
           chain: getRhChain(),
         })
-        await pub.waitForTransactionReceipt({ hash: approveHash })
+        await withTimeout(
+          pub.waitForTransactionReceipt({ hash: approveHash }),
+          90000,
+          'approve tx',
+        )
       }
     }
     const hash = await walletClient.writeContract({
@@ -591,7 +637,11 @@ export async function claimOnChain(lotIds = []) {
       account: address,
       chain: getRhChain(),
     })
-    const receipt = await pub.waitForTransactionReceipt({ hash })
+    const receipt = await withTimeout(
+      pub.waitForTransactionReceipt({ hash }),
+      90000,
+      'claim tx',
+    )
     return { hash, receipt, address, lotIds: ids }
   }
 
@@ -603,6 +653,6 @@ export async function claimOnChain(lotIds = []) {
     account: address,
     chain: getRhChain(),
   })
-  const receipt = await pub.waitForTransactionReceipt({ hash })
+  const receipt = await withTimeout(pub.waitForTransactionReceipt({ hash }), 90000, 'burn tx')
   return { hash, receipt, address, lotIds: ids }
 }

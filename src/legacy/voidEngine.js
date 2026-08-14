@@ -947,7 +947,7 @@ export function initVoidEngine() {
         return false;
       }
       try {
-        toast('confirm claim tx in Robinhood…');
+        toast('confirm burn in wallet · Robinhood Chain…');
         const { hash } = await claimOnChain(previewLots.map((l) => l.id));
         await mindClaimVerify({ txHash: hash, lots: previewLots });
         claimSectors(items, { skipSync: true, celebrate: true });
