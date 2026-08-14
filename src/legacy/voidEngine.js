@@ -2954,13 +2954,11 @@ export function initVoidEngine() {
       rafId = null;
     });
 
-    let burned = 7218018;
+    let burned = 0;
     const burnedIntervalId = setInterval(() => {
-      burned += ri(10, 200);
       const el = document.getElementById('burned');
       if (el) el.textContent = fmt(burned);
-      // Do not overwrite #mindMetaBurn — that shows live wallet / ledger line.
-    }, 2600);
+    }, 4000);
     onCleanup(() => clearInterval(burnedIntervalId));
   })();
 

@@ -88,7 +88,7 @@ export function MarketSection() {
           <ScrambleText text="MARKET" duration={450} />
         </div>
         <h2>
-          $EXO / <em>VOID</em>
+          $TEST / <em>VOID</em>
         </h2>
       </motion.div>
 
@@ -136,7 +136,7 @@ export function MarketSection() {
         className="mt-6 flex flex-col gap-4 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-5"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $exo</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $test</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
             Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map (dust burn per
             lot — test min).
@@ -158,7 +158,7 @@ export function MarketSection() {
           <BuyExoButton
             filled
             className="!w-full !justify-center sm:!w-auto"
-            label={dex ? 'Buy on Dex ↗' : ca ? 'Copy CA' : 'Buy $EXO · soon'}
+            label={dex ? 'Buy $TEST ↗' : ca ? 'Copy CA' : 'Buy $TEST · soon'}
           />
           <button
             type="button"

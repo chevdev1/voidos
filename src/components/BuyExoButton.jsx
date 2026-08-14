@@ -8,7 +8,7 @@ export function BuyExoButton({
   className = '',
   filled = true,
   onFallback,
-  label = 'Buy $EXO',
+  label = 'Buy $TEST',
 }) {
   const dex = useMemo(() => getDexUrl(), [])
   const ca = useMemo(() => getExoCa(), [])
@@ -38,9 +38,9 @@ export function BuyExoButton({
       : 'inline-flex items-center justify-center rounded-full border border-lime/50 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black'
 
   const title = dex
-    ? 'Open Dex to buy $EXO'
+    ? 'Open Dex to buy $TEST'
     : ca
-      ? 'Copy $EXO contract address'
+      ? 'Copy $TEST contract address'
       : 'Set VITE_DEX_URL or VITE_EXO_CA on Vercel when token is live'
 
   if (dex) {

@@ -443,7 +443,7 @@ export default function Cabinet() {
                         <p className="text-[11px] text-lime/90">{trainNote}</p>
                       ) : (
                         <p className="text-[10px] text-muted">
-                          training is free in test mode — burns $EXO when mint is live.
+                          training is a free ledger mark for now — claim already burns $TEST.
                         </p>
                       )}
                     </div>

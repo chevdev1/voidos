@@ -24,9 +24,9 @@ export function CosmosPanel() {
         <div className="pill">
           <div className="lab">✦ burned forever</div>
           <div className="num" id="burned">
-            7,218,018
+            0
           </div>
-          <div className="sub">$EXO · 0.72% of supply · 1,000,000,000 ever minted</div>
+          <div className="sub">$TEST · 1B supply · Robinhood Chain</div>
         </div>
         <div className="zoom-lvl">
           view · <b id="zoomLabel">EXOMIND</b>

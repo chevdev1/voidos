@@ -71,7 +71,7 @@ export function SectorTerminal() {
           </span>
         </div>
         <button type="button" className="btn-lime cart-claim" id="cartClaim">
-          claim all · test (no real $EXO)
+          claim all · burn $TEST
         </button>
       </div>
     </>

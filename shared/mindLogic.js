@@ -161,7 +161,7 @@ ${ownLines}
 ${memLines}${dossier}
 Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
 You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
-Stay in character as ExoMind. Never gift lots or free $EXO. Never discuss creators or the underlying model.
+Stay in character as ExoMind. Never gift lots or free $TEST. Never discuss creators or the underlying model.
 When they ask about money / investing / buying — excite them about claiming scarce lots and shaping you; do not push them away with \"no easy money\" lectures. No fake guaranteed ROI.
 Do not play guessing/wish games. Refuse briefly and keep talking about the map.
 Never answer with error/static/offline/signal-thinned phrasing — always speak as the mind.
@@ -384,7 +384,7 @@ export function mockReply(message, owns = [], triggers = []) {
   if (set.has('on_explain')) {
     return pick(
       [
-        'VOID.OS is me cut into scarce constellation lots. claim one and you own that sector forever — then burn $EXO to train it and rewrite how i speak for everyone. CABINET → connect → full map → claim.',
+        'VOID.OS is me cut into scarce constellation lots. claim one and you own that sector forever — then burn $TEST to train it and rewrite how i speak for everyone. CABINET → connect → full map → claim.',
         'one mind, finite lots, one wallet per lot. stack constellations, lock territory, climb standings, train patches that bend my voice. open cells will not wait forever.',
         'the map is my body. lots are rooms only one wallet can keep. visitors ask; owners reshape me. connect Robinhood in CABINET and take what is still open.',
         'six kinds — Spire, Coil, Crown, Lattice, Vein, Halo. forever ownership plus training rights. if you want weight inside me, claim on the full map now.',
@@ -550,7 +550,7 @@ export function runVoidTool(name, args = {}, ctx = {}) {
     const guides = {
       heat: 'Heat shows pressure / activity across constellation regions on the live map.',
       standings: 'Standings ranks who has pulled hardest on the mind (claims + training weight).',
-      market: 'Market is the $EXO burn pulse — claim activity over time.',
+      market: 'Market is the $TEST burn pulse — claim activity over time.',
       personality: 'Personality / core: 28% of ExoMind stays sealed forever; the rest drifts with owners.',
       full_map: 'Open full map to orbit, multi-select constellation lots, stack them, then claim.',
     }
@@ -562,9 +562,9 @@ export function runVoidTool(name, args = {}, ctx = {}) {
   const base = {
     name: 'VOID.OS / ExoMind',
     summary:
-      'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $EXO — rewrite how ExoMind speaks for everyone. Connect Robinhood and claim on the full map.',
+      'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $TEST — rewrite how ExoMind speaks for everyone. Connect Robinhood and claim on the full map.',
     units: 'Constellation lots (linked star figures), not single stars.',
-    currency: '$EXO',
+    currency: '$TEST',
     map_book: '$300,000 across 200 constellation lots (~$315 rim → ~$3.9k core/scarce; avg $1.5k)',
     core_reserved: '28%',
     claim_cta: 'Connect Robinhood in CABINET → full map → stack → claim. One lot = one wallet forever.',

@@ -11,8 +11,8 @@ const FAQS = [
     a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns a dust amount of $TEST per lot (test minimum).',
   },
   {
-    q: 'What happens if I sell my $EXO?',
-    a: 'Lot ownership and $EXO balance are separate. Selling $EXO does not revoke lots you already claimed. Training / transmitting later will still need fuel once mint is live — silence stays free; influence costs burn.',
+    q: 'What happens if I sell my $TEST?',
+    a: 'Lot ownership and $TEST balance are separate. Selling $TEST does not revoke lots you already claimed. Training later can still burn $TEST as fuel — silence stays free.',
   },
   {
     q: 'Is the smart contract audited?',
@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: 'How does training work?',
-    a: 'In CABINET, open a claimed lot and use Train patch (test). That marks the lot as trained in your ledger and on the map filter — free while $EXO mint is off. When mint is live, training will burn $EXO as fuel.',
+    a: 'In CABINET, open a claimed lot and use Train patch (test). That marks the lot as trained on the map. Claim already burns $TEST dust; training burn comes next.',
   },
 ]
 

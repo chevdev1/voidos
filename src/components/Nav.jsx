@@ -125,7 +125,7 @@ export function Nav() {
             <span className="hidden sm:inline-flex">
               <BuyExoButton
                 filled
-                label="Buy $EXO"
+                label="Buy $TEST"
                 onFallback={() => goTo('#market')}
                 className="!px-3 !py-2 !text-[10px]"
               />
@@ -210,7 +210,7 @@ export function Nav() {
                 <div className="mt-4 border-t border-white/10 pt-4">
                   <BuyExoButton
                     filled
-                    label="Buy $EXO · soon"
+                    label="Buy $TEST · soon"
                     onFallback={() => goTo('#market')}
                     className="!w-full !justify-center !rounded-none !px-4 !py-3.5 !text-[12px]"
                   />

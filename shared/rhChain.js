@@ -6,7 +6,8 @@
 export const RH_CHAIN_MAIN = 4663
 export const RH_CHAIN_TEST = 46630
 
-/** Live $TEST on Pons / RH mainnet. */
+/** Live $TEST on Pons / RH mainnet. Swap this CA later for the real token. */
+export const TOKEN_SYMBOL = 'TEST'
 export const DEFAULT_EXO_TOKEN = '0x26feef8a105b282377102308d3769bf9C9E60e76'
 export const DEFAULT_POOL = '0x61ce95Ee9d36d83A4776598E14CED9a4648D1A03'
 export const DEFAULT_DEX_URL = `https://dexscreener.com/robinhood/${DEFAULT_POOL}`

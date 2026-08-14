@@ -29,7 +29,7 @@ const SECTIONS = [
   },
   {
     id: 'acquisition',
-    label: 'Acquisition ($EXO)',
+    label: 'Acquisition ($TEST)',
     tag: '02',
     body: (
       <>
@@ -43,7 +43,7 @@ const SECTIONS = [
         <p className="mt-4">
           Every payment is <b className="text-white">permanently burned</b> on capture — there is
           no treasury, no team wallet collecting the proceeds. Each sector claimed forever reduces
-          the total $EXO supply.
+          the total $TEST supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
           Live site: claiming a lot burns a <b>dust min</b> of $TEST per lot (test pricing) to the
@@ -67,13 +67,13 @@ const SECTIONS = [
           signal.
         </p>
         <p className="mt-4">
-          Every publication and every retraining pass burns <b className="text-lime">$EXO</b> as
+          Every publication and every retraining pass burns <b className="text-lime">$TEST</b> as
           fuel. Ownership of a sector is eternal — nothing can revoke it — but transmitting a new
           signal into it always costs something. Silence is free. Influence isn't.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
           Until mint is live: use <b>Train patch (test)</b> in CABINET — free ledger training that
-          marks the lot as fed on the map. Real $EXO burns replace this later.
+          marks the lot as fed on the map. Claim already burns $TEST; training burn follows.
         </p>
       </>
     ),
