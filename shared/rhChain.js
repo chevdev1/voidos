@@ -38,7 +38,11 @@ export function isClaimLive() {
   return Boolean(exoTokenAddress() && claimContractAddress())
 }
 
-/** Minimal claim ABI — replace when real RH contract is deployed. */
+/**
+ * Claim + quote ABI. Matches contracts/ExoClaim.sol.
+ * quote() is optional: if the deployed contract has only claim(), the wallet
+ * still sends claim() after a best-effort approve.
+ */
 export const CLAIM_ABI = [
   {
     type: 'function',
@@ -46,6 +50,20 @@ export const CLAIM_ABI = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'lotIds', type: 'bytes32[]' }],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'quote',
+    stateMutability: 'view',
+    inputs: [{ name: 'lotIds', type: 'bytes32[]' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'exoToken',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'address' }],
   },
 ]
 
@@ -70,6 +88,26 @@ export const ERC20_ABI = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ type: 'string' }],
+  },
+  {
+    type: 'function',
+    name: 'allowance',
+    stateMutability: 'view',
+    inputs: [
+      { name: 'owner', type: 'address' },
+      { name: 'spender', type: 'address' },
+    ],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'approve',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
   },
 ]
 

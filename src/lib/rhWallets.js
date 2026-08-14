@@ -541,15 +541,51 @@ export async function claimOnChain(lotIds = []) {
     chain: getRhChain(),
     transport: custom(provider),
   })
+  const pub = publicClient()
+  const claimAddr = getAddress(claimContractClient())
+  const tokenAddr = getAddress(exoTokenClient())
+  const lotBytes = ids.map(lotIdToBytes32)
+
+  let cost = 0n
+  try {
+    cost = await pub.readContract({
+      address: claimAddr,
+      abi: CLAIM_ABI,
+      functionName: 'quote',
+      args: [lotBytes],
+    })
+  } catch {
+    cost = 0n
+  }
+
+  if (cost > 0n) {
+    const allowance = await pub.readContract({
+      address: tokenAddr,
+      abi: ERC20_ABI,
+      functionName: 'allowance',
+      args: [address, claimAddr],
+    })
+    if (allowance < cost) {
+      const approveHash = await walletClient.writeContract({
+        address: tokenAddr,
+        abi: ERC20_ABI,
+        functionName: 'approve',
+        args: [claimAddr, cost],
+        account: address,
+        chain: getRhChain(),
+      })
+      await pub.waitForTransactionReceipt({ hash: approveHash })
+    }
+  }
+
   const hash = await walletClient.writeContract({
-    address: getAddress(claimContractClient()),
+    address: claimAddr,
     abi: CLAIM_ABI,
     functionName: 'claim',
-    args: [ids.map(lotIdToBytes32)],
+    args: [lotBytes],
     account: address,
     chain: getRhChain(),
   })
-  const pub = publicClient()
   const receipt = await pub.waitForTransactionReceipt({ hash })
   return { hash, receipt, address, lotIds: ids }
 }
