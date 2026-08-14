@@ -46,9 +46,8 @@ const SECTIONS = [
           the total $EXO supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Live site status: claim runs in <b>test mode</b> (free after Robinhood connect, no real
-          burn) until <code className="text-white">VITE_CLAIM_CONTRACT</code> +{' '}
-          <code className="text-white">VITE_EXO_TOKEN</code> are set on Robinhood Chain.
+          Live site: claiming a lot burns <b>1 $TEST</b> per lot to the dead address on Robinhood
+          Chain. Buy $TEST on Dex, connect the wallet, then claim on the map.
         </p>
       </>
     ),
@@ -241,8 +240,8 @@ function DocumentationContent() {
               Documentation
             </h1>
             <p className="mt-3 max-w-xl font-mono text-[13px] leading-relaxed text-gray-400">
-              The reference manual for the probe, the lots, and the fuel that runs both. Claim and
-              training are in test mode on the live site until $EXO mint goes live.
+              The reference manual for the probe, the lots, and the fuel that runs both. Claim burns
+              $TEST on Robinhood Chain; training stays a free test patch for now.
             </p>
           </motion.div>
 

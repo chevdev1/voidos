@@ -2,13 +2,19 @@
  * $EXO buy helpers — Dex link when live, else CA copy / market fallback.
  */
 
+import { DEFAULT_DEX_URL, DEFAULT_EXO_TOKEN } from '../../shared/rhChain.js'
+
 export function getDexUrl() {
-  return String(import.meta.env.VITE_DEX_URL || '').trim()
+  return String(import.meta.env.VITE_DEX_URL || DEFAULT_DEX_URL || '').trim()
 }
 
 export function getExoCa() {
   return String(
-    import.meta.env.VITE_EXO_CA || import.meta.env.VITE_EXO_TOKEN || import.meta.env.VITE_EXO_MINT || '',
+    import.meta.env.VITE_EXO_CA ||
+      import.meta.env.VITE_EXO_TOKEN ||
+      import.meta.env.VITE_EXO_MINT ||
+      DEFAULT_EXO_TOKEN ||
+      '',
   ).trim()
 }
 

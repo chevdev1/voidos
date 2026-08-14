@@ -4,12 +4,17 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
 import { MagneticButton } from './MagneticButton'
 import { CosmosPanel } from './CosmosPanel'
+import { DEFAULT_EXO_TOKEN } from '../../shared/rhChain.js'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
 const CA = String(
-  import.meta.env.VITE_EXO_CA || import.meta.env.VITE_EXO_TOKEN || import.meta.env.VITE_EXO_MINT || '',
+  import.meta.env.VITE_EXO_CA ||
+    import.meta.env.VITE_EXO_TOKEN ||
+    import.meta.env.VITE_EXO_MINT ||
+    DEFAULT_EXO_TOKEN ||
+    '',
 ).trim()
 const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
 const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()

@@ -6,6 +6,7 @@ import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
 import { WalletPanel } from '../components/WalletPanel'
+import { isClaimLiveClient } from '../lib/rhWallets'
 
 /**
  * Personal cabinet — owned constellation lots by kind, rotatable viewer + full lore.
@@ -183,9 +184,11 @@ export default function Cabinet() {
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted">
               personal ledger · лк
             </p>
+            {!isClaimLiveClient() ? (
             <span className="border border-lime/35 bg-lime/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-lime">
               test mode
             </span>
+            ) : null}
           </div>
           <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
             your <span className="text-lime">lots</span>
@@ -198,8 +201,7 @@ export default function Cabinet() {
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
             Identity is your <span className="text-lime">Robinhood Wallet</span>. One lot = one
-            owner (others see RESERVED). $EXO not live → test claim / train until token + contract
-            are set.
+            owner (others see RESERVED). Claim burns 1 $TEST per lot on Robinhood Chain.
           </p>
         </motion.div>
 

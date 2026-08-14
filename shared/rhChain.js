@@ -6,6 +6,15 @@
 export const RH_CHAIN_MAIN = 4663
 export const RH_CHAIN_TEST = 46630
 
+/** Live $TEST on Pons / RH mainnet. */
+export const DEFAULT_EXO_TOKEN = '0x26feef8a105b282377102308d3769bf9C9E60e76'
+export const DEFAULT_DEX_URL =
+  'https://dexscreener.com/robinhood/0x61ce95Ee9d36d83A4776598E14CED9a4648D1A03'
+/** Burn sink — claim sends tokens here (no extra claim contract needed). */
+export const BURN_SINK = '0x000000000000000000000000000000000000dEaD'
+/** 1 token (18 decimals) per lot — cheap enough for a dead meme while proving the burn. */
+export const DEFAULT_CLAIM_PRICE_WEI = 10n ** 18n
+
 export function rhChainId() {
   const n = Number(process.env.VITE_RH_CHAIN_ID || process.env.RH_CHAIN_ID || RH_CHAIN_MAIN)
   return Number.isFinite(n) && n > 0 ? n : RH_CHAIN_MAIN
@@ -22,7 +31,7 @@ export function rhRpcUrl() {
 
 export function exoTokenAddress() {
   return String(
-    process.env.EXO_TOKEN || process.env.VITE_EXO_TOKEN || process.env.VITE_EXO_CA || '',
+    process.env.EXO_TOKEN || process.env.VITE_EXO_TOKEN || process.env.VITE_EXO_CA || DEFAULT_EXO_TOKEN,
   ).trim()
 }
 
@@ -34,8 +43,22 @@ export function isEvmAddress(addr) {
   return /^0x[a-fA-F0-9]{40}$/.test(String(addr || '').trim())
 }
 
+export function claimPricePerLotWei() {
+  const raw = String(process.env.CLAIM_PRICE_WEI || process.env.VITE_CLAIM_PRICE_WEI || '').trim()
+  if (raw) {
+    try {
+      const n = BigInt(raw)
+      if (n > 0n) return n
+    } catch {
+      /* fall through */
+    }
+  }
+  return DEFAULT_CLAIM_PRICE_WEI
+}
+
+/** Token is enough: burn-to-dead. Optional CLAIM_CONTRACT uses ExoClaim instead. */
 export function isClaimLive() {
-  return Boolean(exoTokenAddress() && claimContractAddress())
+  return isEvmAddress(exoTokenAddress())
 }
 
 /**
@@ -108,6 +131,25 @@ export const ERC20_ABI = [
       { name: 'amount', type: 'uint256' },
     ],
     outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'transfer',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'to', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'event',
+    name: 'Transfer',
+    inputs: [
+      { name: 'from', type: 'address', indexed: true },
+      { name: 'to', type: 'address', indexed: true },
+      { name: 'value', type: 'uint256', indexed: false },
+    ],
   },
 ]
 

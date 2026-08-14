@@ -8,7 +8,7 @@ import {
 } from '../shared/voidDb.js'
 import { cors, readBody, isSecureReq } from './_http.js'
 import { verifyClaimReceipt } from '../shared/rhVerify.js'
-import { isClaimLive, isEvmAddress } from '../shared/rhChain.js'
+import { isClaimLive, isEvmAddress, claimPricePerLotWei } from '../shared/rhChain.js'
 
 /**
  * After on-chain claim tx: verify receipt on Robinhood Chain, then upsert ownerships.
@@ -43,6 +43,7 @@ export default async function handler(req, res) {
     const receipt = await verifyClaimReceipt({
       txHash,
       expectedFrom: user.wallet_pubkey,
+      minAmount: claimPricePerLotWei() * BigInt(lots.length),
     })
 
     const ownerships = await upsertOwnerships(user.id, lots)

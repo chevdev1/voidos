@@ -13,6 +13,9 @@ import {
   RH_CHAIN_TEST,
   CLAIM_ABI,
   ERC20_ABI,
+  DEFAULT_EXO_TOKEN,
+  BURN_SINK,
+  claimPricePerLotWei,
   lotIdToBytes32,
 } from '../../shared/rhChain.js'
 
@@ -43,7 +46,9 @@ export function getRhChain() {
 }
 
 export function exoTokenClient() {
-  return String(import.meta.env.VITE_EXO_TOKEN || import.meta.env.VITE_EXO_CA || '').trim()
+  return String(
+    import.meta.env.VITE_EXO_TOKEN || import.meta.env.VITE_EXO_CA || DEFAULT_EXO_TOKEN || '',
+  ).trim()
 }
 
 export function claimContractClient() {
@@ -51,7 +56,7 @@ export function claimContractClient() {
 }
 
 export function isClaimLiveClient() {
-  return Boolean(exoTokenClient() && claimContractClient())
+  return Boolean(exoTokenClient())
 }
 
 export function hasWalletConnectProject() {
@@ -517,12 +522,11 @@ export async function readBalances(address) {
 }
 
 /**
- * On-chain claim when VITE_CLAIM_CONTRACT + VITE_EXO_TOKEN are set.
- * lotIds: constellation string ids → bytes32.
+ * Pay for lots on-chain: burn token to dead, or ExoClaim if CLAIM_CONTRACT is set.
  */
 export async function claimOnChain(lotIds = []) {
   if (!isClaimLiveClient()) {
-    throw new Error('claim contract not live — set VITE_CLAIM_CONTRACT + VITE_EXO_TOKEN')
+    throw new Error('claim token not set')
   }
   const ids = (lotIds || []).map(String).filter(Boolean)
   if (!ids.length) throw new Error('no lots to claim')
@@ -542,47 +546,60 @@ export async function claimOnChain(lotIds = []) {
     transport: custom(provider),
   })
   const pub = publicClient()
-  const claimAddr = getAddress(claimContractClient())
   const tokenAddr = getAddress(exoTokenClient())
+  const claimAddrRaw = claimContractClient()
   const lotBytes = ids.map(lotIdToBytes32)
+  const cost = claimPricePerLotWei() * BigInt(ids.length)
 
-  let cost = 0n
-  try {
-    cost = await pub.readContract({
-      address: claimAddr,
-      abi: CLAIM_ABI,
-      functionName: 'quote',
-      args: [lotBytes],
-    })
-  } catch {
-    cost = 0n
-  }
-
-  if (cost > 0n) {
-    const allowance = await pub.readContract({
-      address: tokenAddr,
-      abi: ERC20_ABI,
-      functionName: 'allowance',
-      args: [address, claimAddr],
-    })
-    if (allowance < cost) {
-      const approveHash = await walletClient.writeContract({
+  if (claimAddrRaw) {
+    const claimAddr = getAddress(claimAddrRaw)
+    let quote = 0n
+    try {
+      quote = await pub.readContract({
+        address: claimAddr,
+        abi: CLAIM_ABI,
+        functionName: 'quote',
+        args: [lotBytes],
+      })
+    } catch {
+      quote = cost
+    }
+    if (quote > 0n) {
+      const allowance = await pub.readContract({
         address: tokenAddr,
         abi: ERC20_ABI,
-        functionName: 'approve',
-        args: [claimAddr, cost],
-        account: address,
-        chain: getRhChain(),
+        functionName: 'allowance',
+        args: [address, claimAddr],
       })
-      await pub.waitForTransactionReceipt({ hash: approveHash })
+      if (allowance < quote) {
+        const approveHash = await walletClient.writeContract({
+          address: tokenAddr,
+          abi: ERC20_ABI,
+          functionName: 'approve',
+          args: [claimAddr, quote],
+          account: address,
+          chain: getRhChain(),
+        })
+        await pub.waitForTransactionReceipt({ hash: approveHash })
+      }
     }
+    const hash = await walletClient.writeContract({
+      address: claimAddr,
+      abi: CLAIM_ABI,
+      functionName: 'claim',
+      args: [lotBytes],
+      account: address,
+      chain: getRhChain(),
+    })
+    const receipt = await pub.waitForTransactionReceipt({ hash })
+    return { hash, receipt, address, lotIds: ids }
   }
 
   const hash = await walletClient.writeContract({
-    address: claimAddr,
-    abi: CLAIM_ABI,
-    functionName: 'claim',
-    args: [lotBytes],
+    address: tokenAddr,
+    abi: ERC20_ABI,
+    functionName: 'transfer',
+    args: [BURN_SINK, cost],
     account: address,
     chain: getRhChain(),
   })

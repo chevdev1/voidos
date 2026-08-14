@@ -1,4 +1,4 @@
-import { verifyMessage, getAddress, createPublicClient, http, formatEther, formatUnits } from 'viem'
+import { verifyMessage, getAddress, createPublicClient, http, formatEther, formatUnits, decodeEventLog } from 'viem'
 import {
   rhChainId,
   rhRpcUrl,
@@ -6,6 +6,7 @@ import {
   claimContractAddress,
   isEvmAddress,
   ERC20_ABI,
+  BURN_SINK,
   RH_CHAIN_MAIN,
   RH_CHAIN_TEST,
 } from './rhChain.js'
@@ -84,7 +85,7 @@ export async function readRhBalances(address) {
  * Confirm a claim tx on RH Chain before ledger write.
  * When claim contract is set, require receipt success + matching to (optional).
  */
-export async function verifyClaimReceipt({ txHash, expectedFrom }) {
+export async function verifyClaimReceipt({ txHash, expectedFrom, minAmount = 0n }) {
   const hash = String(txHash || '').trim()
   if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
     throw new Error('invalid tx hash')
@@ -95,10 +96,38 @@ export async function verifyClaimReceipt({ txHash, expectedFrom }) {
   if (receipt.status !== 'success') throw new Error('tx failed on chain')
 
   const contract = claimContractAddress()
+  const token = exoTokenAddress()
+  const to = String(receipt.to || '').toLowerCase()
+
   if (contract && isEvmAddress(contract)) {
-    const to = String(receipt.to || '').toLowerCase()
     if (to !== getAddress(contract).toLowerCase()) {
       throw new Error('tx not sent to claim contract')
+    }
+  } else if (token && isEvmAddress(token)) {
+    if (to !== getAddress(token).toLowerCase()) {
+      throw new Error('tx not a token burn')
+    }
+    const dead = BURN_SINK.toLowerCase()
+    const tokenLc = getAddress(token).toLowerCase()
+    let paid = 0n
+    for (const log of receipt.logs || []) {
+      if (String(log.address || '').toLowerCase() !== tokenLc) continue
+      try {
+        const parsed = decodeEventLog({
+          abi: ERC20_ABI,
+          data: log.data,
+          topics: log.topics,
+        })
+        if (parsed.eventName === 'Transfer' && String(parsed.args.to || '').toLowerCase() === dead) {
+          paid += BigInt(parsed.args.value)
+        }
+      } catch {
+        /* skip non-transfer logs */
+      }
+    }
+    const need = typeof minAmount === 'bigint' ? minAmount : BigInt(minAmount || 0)
+    if (need > 0n && paid < need) {
+      throw new Error('burn amount too small')
     }
   }
 

@@ -8,7 +8,7 @@ const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 const FAQS = [
   {
     q: 'How do I claim a constellation lot?',
-    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Until the claim contract + $EXO go live, claim is free test mode.',
+    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns 1 $TEST per lot (sent to the burn address).',
   },
   {
     q: 'What happens if I sell my $EXO?',
@@ -16,7 +16,7 @@ const FAQS = [
   },
   {
     q: 'Is the smart contract audited?',
-    a: 'No live mint or audited claim contract is wired on this site yet (CA shows TBA until set). Treat unaudited deploys as high-risk. Never trust a contract address posted outside official channels once launch happens.',
+    a: 'No audited claim contract is required: lots are paid by burning $TEST. Treat unaudited tokens as high-risk. Check the CA on official Dex / Blockscout links.',
   },
   {
     q: 'What is the Immutable Core?',

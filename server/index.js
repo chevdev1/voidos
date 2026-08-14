@@ -36,7 +36,7 @@ import {
 } from '../shared/voidDb.js'
 import { getAddress } from 'viem'
 import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt } from '../shared/rhVerify.js'
-import { isEvmAddress, isClaimLive } from '../shared/rhChain.js'
+import { isEvmAddress, isClaimLive, claimPricePerLotWei } from '../shared/rhChain.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const promptsPack = JSON.parse(
@@ -226,6 +226,7 @@ app.post('/api/claim-verify', async (req, res) => {
     const receipt = await verifyClaimReceipt({
       txHash,
       expectedFrom: user.wallet_pubkey,
+      minAmount: claimPricePerLotWei() * BigInt(lots.length),
     })
     const ownerships = await upsertOwnerships(user.id, lots)
     res.json({
