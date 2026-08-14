@@ -44,18 +44,45 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
         lo = Math.min(lo, k.l)
         hi = Math.max(hi, k.h)
       }
-      const span = hi - lo || Math.max(hi * 0.02, 1e-12)
-      lo -= span * 0.08
-      hi += span * 0.08
-      const n = Math.max(candles.length, 8)
-      const slot = W / n
-      const bw = Math.max(2, slot * 0.55)
-      const pad = Math.max(0, n - candles.length)
+      const span = hi - lo || Math.max(Math.abs(hi) * 0.04, 1e-12)
+      lo -= span * 0.12
+      hi += span * 0.12
       const y = (v) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 28)
 
-      for (let i = 0; i < candles.length; i++) {
+      if (candles.length < 6) {
+        const pts = candles.map((k, i) => {
+          const x =
+            candles.length === 1 ? W / 2 : (i / Math.max(candles.length - 1, 1)) * (W - 16) + 8
+          return { x, y: y(k.c) }
+        })
+        if (candles.length === 1) {
+          pts.unshift({ x: 8, y: pts[0].y })
+          pts.push({ x: W - 8, y: pts[0].y })
+        }
+        ctx.beginPath()
+        ctx.moveTo(pts[0].x, H - 8)
+        ctx.lineTo(pts[0].x, pts[0].y)
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+        ctx.lineTo(pts.at(-1).x, H - 8)
+        ctx.closePath()
+        ctx.fillStyle = 'rgba(204,255,0,0.12)'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.moveTo(pts[0].x, pts[0].y)
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+        ctx.strokeStyle = '#ccff00'
+        ctx.lineWidth = 1.5
+        ctx.stroke()
+        return
+      }
+
+      const n = candles.length
+      const slot = W / n
+      const bw = Math.max(2, slot * 0.55)
+
+      for (let i = 0; i < n; i++) {
         const k = candles[i]
-        const x = (i + pad) * slot + slot / 2
+        const x = i * slot + slot / 2
         const up = k.c >= k.o
         const col = up ? '#ccff00' : '#ff4d5e'
         ctx.strokeStyle = col
