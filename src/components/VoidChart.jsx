@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 /**
- * VOID candle canvas — thin bodies, volume, last-print tag.
+ * VOID-styled candle canvas — lime up / red down, no third-party chart chrome.
  */
 export function VoidChart({ candles = [], emptyHint = 'no prints yet', tf = '' }) {
   const boxRef = useRef(null)
@@ -27,136 +27,73 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet', tf = '' }
       ctx.setTransform(d, 0, 0, d, 0, 0)
       ctx.clearRect(0, 0, W, H)
 
-      const padL = 8
-      const padR = 56
-      const padT = 14
-      const volH = 36
-      const padB = 8
-      const plotH = H - padT - volH - padB
-      const plotW = W - padL - padR
-
-      const g = ctx.createLinearGradient(0, 0, 0, H)
-      g.addColorStop(0, 'rgba(204,255,0,0.04)')
-      g.addColorStop(0.55, 'rgba(0,0,0,0)')
-      ctx.fillStyle = g
-      ctx.fillRect(0, 0, W, H)
+      ctx.strokeStyle = 'rgba(204,255,0,0.08)'
+      ctx.lineWidth = 1
+      for (let i = 1; i < 4; i++) {
+        const y = (H / 4) * i
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(W, y)
+        ctx.stroke()
+      }
 
       if (!candles.length) return true
 
       let lo = Infinity
       let hi = -Infinity
-      let vmax = 0
       for (const k of candles) {
         lo = Math.min(lo, k.l)
         hi = Math.max(hi, k.h)
-        vmax = Math.max(vmax, k.v || 0)
       }
       const span = hi - lo || Math.max(Math.abs(hi) * 0.04, 1e-12)
-      lo -= span * 0.08
-      hi += span * 0.1
-      const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * plotH
+      lo -= span * 0.12
+      hi += span * 0.12
+      const y = (v) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 28)
 
-      ctx.strokeStyle = 'rgba(204,255,0,0.07)'
-      ctx.lineWidth = 1
-      ctx.font = '10px "IBM Plex Mono", ui-monospace, monospace'
-      for (let i = 0; i < 5; i++) {
-        const t = i / 4
-        const gy = padT + plotH * t
-        const pv = hi - (hi - lo) * t
+      if (candles.length < 3) {
+        const pts = candles.map((k, i) => {
+          const x =
+            candles.length === 1 ? W / 2 : (i / Math.max(candles.length - 1, 1)) * (W - 16) + 8
+          return { x, y: y(k.c) }
+        })
+        if (candles.length === 1) {
+          pts.unshift({ x: 8, y: pts[0].y })
+          pts.push({ x: W - 8, y: pts[0].y })
+        }
         ctx.beginPath()
-        ctx.moveTo(padL, gy)
-        ctx.lineTo(W - padR + 6, gy)
+        ctx.moveTo(pts[0].x, H - 8)
+        ctx.lineTo(pts[0].x, pts[0].y)
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+        ctx.lineTo(pts.at(-1).x, H - 8)
+        ctx.closePath()
+        ctx.fillStyle = 'rgba(204,255,0,0.12)'
+        ctx.fill()
+        ctx.beginPath()
+        ctx.moveTo(pts[0].x, pts[0].y)
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
+        ctx.strokeStyle = '#ccff00'
+        ctx.lineWidth = 1.5
         ctx.stroke()
-        ctx.fillStyle = 'rgba(154,154,162,0.7)'
-        ctx.textAlign = 'left'
-        ctx.fillText(fmtAxis(pv), W - padR + 10, gy + 3)
+        return true
       }
-
-      const last = candles.at(-1)
-      const lastY = y(last.c)
-      ctx.setLineDash([3, 5])
-      ctx.strokeStyle = 'rgba(204,255,0,0.28)'
-      ctx.beginPath()
-      ctx.moveTo(padL, lastY)
-      ctx.lineTo(W - padR, lastY)
-      ctx.stroke()
-      ctx.setLineDash([])
 
       const n = candles.length
-      const slot = plotW / Math.max(n, 1)
-      const bw = Math.min(9, Math.max(2.5, slot * 0.46))
-
-      if (n >= 2) {
-        ctx.beginPath()
-        candles.forEach((k, i) => {
-          const x = padL + i * slot + slot / 2
-          if (i === 0) ctx.moveTo(x, y(k.c))
-          else ctx.lineTo(x, y(k.c))
-        })
-        const lx = padL + (n - 1) * slot + slot / 2
-        ctx.lineTo(lx, padT + plotH)
-        ctx.lineTo(padL + slot / 2, padT + plotH)
-        ctx.closePath()
-        const area = ctx.createLinearGradient(0, padT, 0, padT + plotH)
-        area.addColorStop(0, 'rgba(204,255,0,0.12)')
-        area.addColorStop(1, 'rgba(204,255,0,0)')
-        ctx.fillStyle = area
-        ctx.fill()
-
-        ctx.beginPath()
-        candles.forEach((k, i) => {
-          const x = padL + i * slot + slot / 2
-          if (i === 0) ctx.moveTo(x, y(k.c))
-          else ctx.lineTo(x, y(k.c))
-        })
-        ctx.strokeStyle = 'rgba(204,255,0,0.28)'
-        ctx.lineWidth = 1.25
-        ctx.stroke()
-      }
+      const slot = W / n
+      const bw = Math.max(2, slot * 0.55)
 
       for (let i = 0; i < n; i++) {
         const k = candles[i]
-        const x = padL + i * slot + slot / 2
+        const x = i * slot + slot / 2
         const up = k.c >= k.o
-        const col = up ? '#ccff00' : '#ff5a6a'
-        const lastC = i === n - 1
+        const col = up ? '#ccff00' : '#ff4d5e'
         ctx.strokeStyle = col
-        ctx.lineWidth = lastC ? 1.4 : 1
         ctx.beginPath()
         ctx.moveTo(x, y(k.h))
         ctx.lineTo(x, y(k.l))
         ctx.stroke()
-        const top = Math.min(y(k.o), y(k.c))
-        const bh = Math.max(1.5, Math.abs(y(k.c) - y(k.o)))
         ctx.fillStyle = col
-        if (lastC) {
-          ctx.shadowColor = col
-          ctx.shadowBlur = 10
-        }
-        ctx.fillRect(x - bw / 2, top, bw, bh)
-        ctx.shadowBlur = 0
-
-        if (vmax > 0) {
-          const vh = Math.max(2, ((k.v || 0) / vmax) * (volH - 10))
-          ctx.globalAlpha = lastC ? 0.55 : 0.28
-          ctx.fillRect(x - bw / 2, H - padB - vh, bw, vh)
-          ctx.globalAlpha = 1
-        }
+        ctx.fillRect(x - bw / 2, Math.min(y(k.o), y(k.c)), bw, Math.max(1, Math.abs(y(k.c) - y(k.o))))
       }
-
-      const tag = fmtAxis(last.c)
-      ctx.font = '600 10px "IBM Plex Mono", ui-monospace, monospace'
-      const tw = ctx.measureText(tag).width + 10
-      const ty = Math.min(H - volH - 8, Math.max(padT + 8, lastY))
-      ctx.fillStyle = '#ccff00'
-      ctx.fillRect(W - padR + 8, ty - 8, tw, 16)
-      ctx.fillStyle = '#050505'
-      ctx.textAlign = 'left'
-      ctx.fillText(tag, W - padR + 13, ty + 3)
-
-      ctx.fillStyle = 'rgba(154,154,162,0.55)'
-      ctx.font = '9px "IBM Plex Mono", ui-monospace, monospace'
-      ctx.fillText(tf || '', padL, H - 4)
       return true
     }
 
@@ -187,13 +124,4 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet', tf = '' }
       ) : null}
     </div>
   )
-}
-
-function fmtAxis(n) {
-  const v = Number(n)
-  if (!Number.isFinite(v)) return '—'
-  if (v >= 1) return v.toFixed(4)
-  if (v >= 0.01) return v.toFixed(5)
-  const s = v.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
-  return s
 }

@@ -139,38 +139,43 @@ export function MarketSection() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, amount: 0.4 }}
         transition={{ duration: 0.45, ease: EASE_OUT, delay: 0.08 }}
-        className="market-buy sm:flex-row sm:items-center sm:justify-between"
+        className="mt-6 flex flex-col gap-4 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-5"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-lime">buy $test</p>
-          <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-muted sm:text-[14px]">
-            Swap $TEST on Robinhood Chain, then claim constellation lots on the map.
+          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $test</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
+            Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map (dust burn per
+            lot — test min).
           </p>
           {ca ? (
-            <button type="button" onClick={onCopyCa} className="ca-pill" title="Copy contract address">
-              <span className="text-[9px] uppercase tracking-[0.14em] text-muted">CA</span>
-              <span className="truncate">{copied ? 'copied ✓' : `${ca.slice(0, 8)}…${ca.slice(-6)}`}</span>
+            <button
+              type="button"
+              onClick={onCopyCa}
+              className="mt-2 max-w-full truncate font-mono text-[11px] text-lime/90 hover:text-lime"
+              title="Copy contract address"
+            >
+              {copied ? 'copied ✓' : ca}
             </button>
           ) : (
             <p className="mt-2 font-mono text-[11px] text-muted">CA TBA</p>
           )}
         </div>
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap">
           <BuyExoButton
             filled
             className="!w-full !justify-center sm:!w-auto"
-            label={dex ? 'Buy $TEST' : ca ? 'Copy CA' : 'Buy $TEST · soon'}
+            label={dex ? 'Buy $TEST ↗' : ca ? 'Copy CA' : 'Buy $TEST · soon'}
           />
           <button
             type="button"
-            className="w-full rounded-full border border-white/15 bg-black/40 px-4 py-2.5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime sm:w-auto sm:py-2"
+            className="w-full rounded-full border border-white/20 px-4 py-2.5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime sm:w-auto sm:py-2"
             onClick={() => {
               if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
               else if (window.__openFullMap) window.__openFullMap()
               else window.__voidCosmosPendingEnter = true
             }}
           >
-            claim on map
+            claim lots on map
           </button>
         </div>
       </motion.div>
@@ -183,27 +188,15 @@ export function MarketSection() {
         transition={{ duration: 0.55, ease: EASE_OUT, delay: 0.15 }}
       >
         <div className="chart-tools">
-          <div className="min-w-0">
-            <p className="pair">
-              TEST <em>/ USD</em>
-            </p>
-            <p className="mt-1 font-mono text-[11px]">
-              <span className="text-lime">{fmtP(feed?.price)}</span>
-              <span className={`ml-2 ${chg > 0 ? 'text-[#ccff00]' : chg < 0 ? 'text-[#ff5a6a]' : 'text-muted'}`}>
-                {chg == null || Number.isNaN(Number(chg))
-                  ? ''
-                  : (chg >= 0 ? '+' : '') + Number(chg).toFixed(2) + '% 24h'}
-              </span>
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] tracking-wide">TEST / USD</span>
+          <div className="flex items-center gap-3">
             <a
               href={DEFAULT_GECKO_URL}
               target="_blank"
               rel="noreferrer"
-              className="font-mono text-[10px] text-muted hover:text-lime"
+              className="hidden font-mono text-[10px] text-muted hover:text-lime sm:inline"
             >
-              gecko
+              gecko ↗
             </a>
             <div className="tfs" id="tfs">
               {TFS.map((key) => (
