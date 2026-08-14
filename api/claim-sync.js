@@ -7,7 +7,7 @@ import {
   sidCookie,
 } from '../shared/voidDb.js'
 import { cors, readBody, isSecureReq } from './_http.js'
-import { isEvmAddress } from '../shared/rhChain.js'
+import { isEvmAddress, isClaimLive } from '../shared/rhChain.js'
 
 export default async function handler(req, res) {
   cors(req, res)
@@ -25,6 +25,14 @@ export default async function handler(req, res) {
         guestKey: user.guest_key,
         user: publicUser(user),
         ownerships: await listOwnerships(user.id),
+      })
+    }
+
+    if (isClaimLive()) {
+      return res.status(403).json({
+        error: 'paid claim only — confirm the burn tx, then /api/claim-verify',
+        code: 'CLAIM_PAID_ONLY',
+        claimLive: true,
       })
     }
 

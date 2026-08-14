@@ -781,7 +781,6 @@ export function initVoidEngine() {
       }
       if (buyBtn) {
         const hasWallet = Boolean(loadUser()?.wallet);
-        const live = isClaimLiveClient();
         const reserved = lastTermConstel && constelReserved(lastTermConstel);
         const taken = lastTermConstel ? constelTakenInfo(lastTermConstel) : null;
         buyBtn.textContent = lastTermConstel
@@ -791,9 +790,7 @@ export function initVoidEngine() {
               ? 'RESERVED · ' + shortWallet(taken?.wallet)
               : !hasWallet
                 ? 'connect wallet to claim'
-                : live
-                  ? 'claim on Robinhood Chain'
-                  : 'claim constellation · test'
+                : 'claim · burn $TEST'
           : 'connect wallet to claim';
         buyBtn.disabled =
           !lastTermConstel ||
@@ -926,42 +923,24 @@ export function initVoidEngine() {
         return false;
       }
 
-      if (isClaimLiveClient()) {
-        try {
-          toast('confirm claim tx in Robinhood…');
-          const { hash } = await claimOnChain(previewLots.map((l) => l.id));
-          await mindClaimVerify({ txHash: hash, lots: previewLots });
-          claimSectors(items, { skipSync: true, celebrate: true });
-          await refreshMapOwnerships();
-          return true;
-        } catch (e) {
-          const msg = e?.message || String(e);
-          if (e?.status === 409 || e?.data?.code === 'LOT_RESERVED') {
-            toast('RESERVED · already taken');
-            await refreshMapOwnerships();
-          } else if (/reject|cancel|denied/i.test(msg)) toast('claim cancelled');
-          else toast(msg.slice(0, 120) || 'claim failed');
-          return false;
-        }
+      if (!isClaimLiveClient()) {
+        toast('token not configured');
+        return false;
       }
-
       try {
-        await mindClaimSync(previewLots);
+        toast('confirm claim tx in Robinhood…');
+        const { hash } = await claimOnChain(previewLots.map((l) => l.id));
+        await mindClaimVerify({ txHash: hash, lots: previewLots });
         claimSectors(items, { skipSync: true, celebrate: true });
         await refreshMapOwnerships();
         return true;
       } catch (e) {
+        const msg = e?.message || String(e);
         if (e?.status === 409 || e?.data?.code === 'LOT_RESERVED') {
-          toast('RESERVED · already taken by another wallet');
+          toast('RESERVED · already taken');
           await refreshMapOwnerships();
-          return false;
-        }
-        if (e?.code === 'CLAIM_OFFLINE') {
-          claimSectors(items, { skipSync: true, celebrate: true });
-          toast('offline · saved locally — will sync when online');
-          return true;
-        }
-        toast((e?.message || 'claim failed').slice(0, 120));
+        } else if (/reject|cancel|denied/i.test(msg)) toast('claim cancelled');
+        else toast(msg.slice(0, 120) || 'claim failed');
         return false;
       }
     }
@@ -1272,8 +1251,8 @@ export function initVoidEngine() {
           : reserved
             ? 'RESERVED · one owner only'
             : isClaimLiveClient()
-              ? formatUsd(burn) + ' · burn $EXO on Robinhood Chain'
-              : formatUsd(burn) + ' · test claim (no real $EXO yet)',
+              ? formatUsd(burn) + ' · burn $TEST on-chain'
+              : formatUsd(burn) + ' · connect to claim',
         size: fmt(mass) + ' cells',
         grav: owned
           ? yours + '/' + c.grains.length + ' owned'

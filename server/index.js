@@ -190,6 +190,13 @@ app.post('/api/claim-sync', async (req, res) => {
     const guestKey = String(req.body?.guestKey || '').trim() || newGuestKey()
     const user = await getOrCreateUser(guestKey)
     const lots = Array.isArray(req.body?.lots) ? req.body.lots : []
+    if (lots.length && isClaimLive()) {
+      return res.status(403).json({
+        error: 'paid claim only — confirm the burn tx, then /api/claim-verify',
+        code: 'CLAIM_PAID_ONLY',
+        claimLive: true,
+      })
+    }
     const ownerships = lots.length
       ? await upsertOwnerships(user.id, lots)
       : await listOwnerships(user.id)
