@@ -1683,7 +1683,10 @@ export function initVoidEngine() {
       requestAnimationFrame(() => {
         resize();
         applyHomeView(true);
-        kickDraw();
+        kickDraw('enterArena');
+        console.info('[void cosmos] enterArena resize done', {
+          W, H, canvasW: canvas.width, canvasH: canvas.height, scale, targetScale, quality, rafId,
+        });
         requestAnimationFrame(resize);
       });
     }
@@ -2065,17 +2068,27 @@ export function initVoidEngine() {
     // once the user is actually in the full-screen arena.
     let demoActive = true;
     let rafId = null;
-    function kickDraw() {
-      if (alive && inView && pageVisible && (demoActive || arenaMode) && rafId == null) {
+    function kickDraw(tag) {
+      const ok = alive && inView && pageVisible && (demoActive || arenaMode) && rafId == null;
+      if (ok) {
         rafId = requestAnimationFrame(draw);
+      } else if (tag) {
+        // Diagnostic only when called with a tag (from enterArena/exitArena/
+        // pauseDemo/resumeDemo) — logs exactly which gate blocked the draw
+        // loop from (re)starting, since a declined kickDraw() throws no
+        // error and previously left zero trace of why rendering stayed off.
+        console.warn('[void cosmos] kickDraw declined', tag, {
+          alive, inView, pageVisible, demoActive, arenaMode, rafId,
+        });
       }
     }
     function pauseDemo() {
       demoActive = false;
+      console.info('[void cosmos] pauseDemo', { arenaMode, rafId });
     }
     function resumeDemo() {
       demoActive = true;
-      kickDraw();
+      kickDraw('resumeDemo');
     }
     const visibilityObserver = new IntersectionObserver(
       ([entry]) => {
