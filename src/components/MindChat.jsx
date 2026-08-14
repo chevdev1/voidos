@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 import '../legacy/void.css'
 import { mindSession, mindChat, loadHistory, loadOwnerships, loadUser } from '../lib/mindClient'
 import { buildLotProfile } from '../../shared/lotLore.js'
@@ -60,18 +61,6 @@ export function MindChat() {
       delete window.__closeMindChat
     }
   }, [])
-
-  // Central pause point: this modal is a full-viewport overlay (see
-  // .mind-chat in void.css — position:fixed; inset:0), so whenever it's
-  // open the hero cosmos canvas underneath is fully hidden regardless of
-  // which button opened it (nav link, hero prompt card, the demo's own
-  // "ask me" button, etc.) — no reason to spend a render loop on something
-  // nothing can see. Deliberately doesn't resume on close: per spec, the
-  // hero demo only comes back via its own explicit "keep spinning this
-  // one" action, not implicitly just because an overlay went away.
-  useEffect(() => {
-    if (open) window.__voidCosmos?.pauseDemo?.()
-  }, [open])
 
   async function runChat(text, { silentUser = false } = {}) {
     const trimmed = String(text || '').trim()
@@ -268,26 +257,41 @@ export function MindChat() {
         )}
 
         <div className="mind-chat-log" ref={scroller}>
-          {messages.map((m, i) => (
-            <div key={i} className={`mind-chat-msg ${m.role}`}>
-              <span className="who">{m.role === 'user' ? 'you' : 'mind'}</span>
-              <p>{m.content}</p>
-            </div>
-          ))}
-          {busy && (
-            <div className="mind-chat-msg assistant">
-              <span className="who">mind</span>
-              {status && status !== 'listening…' ? (
-                <p>{status}</p>
-              ) : (
-                <p className="mind-listening" aria-label="listening">
-                  <i />
-                  <i />
-                  <i />
-                </p>
-              )}
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {messages.map((m, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
+                className={`mind-chat-msg ${m.role}`}
+              >
+                <span className="who">{m.role === 'user' ? 'you' : 'mind'}</span>
+                <p>{m.content}</p>
+              </motion.div>
+            ))}
+            {busy && (
+              <motion.div
+                key="busy"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="mind-chat-msg assistant"
+              >
+                <span className="who">mind</span>
+                {status && status !== 'listening…' ? (
+                  <p>{status}</p>
+                ) : (
+                  <p className="mind-listening" aria-label="listening">
+                    <i />
+                    <i />
+                    <i />
+                  </p>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         <form className="mind-chat-form" onSubmit={send}>

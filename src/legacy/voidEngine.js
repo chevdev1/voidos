@@ -107,6 +107,9 @@ export function initVoidEngine() {
     let arenaMode = false;
     let heatMode = false;
     let panelMode = null; // 'standings' | 'what' | 'personality' | null
+    let inView = true;
+    let pageVisible = !document.hidden;
+    let demoActive = true;
 
     /* ONE mega-galaxy — fills the frame */
     const GAL = {
@@ -1676,6 +1679,8 @@ export function initVoidEngine() {
       }
       document.body.classList.add('arena-live');
       document.body.classList.remove('mind-dock-open');
+      demoActive = true;
+      inView = true;
       const dockToggle = document.getElementById('mindDockToggle');
       if (dockToggle) {
         dockToggle.setAttribute('aria-expanded', 'false');
@@ -1714,26 +1719,32 @@ export function initVoidEngine() {
       const pop = document.getElementById('map');
       const slot = document.getElementById('heroCosmosSlot');
       const placeholder = document.getElementById('arenaPlaceholder');
-      if (!slot || !frame) return;
-      if (frame.parentElement !== slot) slot.appendChild(frame);
-      slot.classList.remove('cosmos-away');
-      if (placeholder) placeholder.hidden = false;
-      if (pop) {
-        pop.classList.remove('open');
-        pop.hidden = true;
-      }
       document.body.classList.remove('arena-live');
       document.body.classList.remove('mind-dock-open');
       arenaMode = false;
-      frame.classList.remove('in-arena');
+      demoActive = true;
+      inView = true;
+      if (frame) frame.classList.remove('in-arena');
       setMapActive(false);
       atHomeView = true;
       if (location.hash === '#map') {
         history.replaceState(null, '', location.pathname + location.search);
       }
+      // Dedicated /map page has no hero slot — React unmounts the canvas.
+      if (slot && frame && frame.parentElement !== slot) {
+        slot.appendChild(frame);
+        slot.classList.remove('cosmos-away');
+      }
+      if (placeholder) placeholder.hidden = false;
+      if (pop && slot) {
+        pop.classList.remove('open');
+        pop.hidden = true;
+      }
       requestAnimationFrame(() => {
+        if (!frame || !canvas) return;
         resize();
         applyHomeView(true);
+        kickDraw('exitArena');
         requestAnimationFrame(resize);
       });
     }
@@ -1758,16 +1769,17 @@ export function initVoidEngine() {
     // of either the right instance or a clean "not ready yet" no-op.
     const api = window.__voidCosmos;
     onCleanup(() => {
+      // Guarded by identity (not just "does it exist") so this can't
+      // clobber a newer instance's reference if this cleanup happens to
+      // run after a fresh initVoidEngine() already replaced it.
       if (window.__voidCosmos === api) delete window.__voidCosmos;
+      delete window.__voidMapPainted;
     });
     window.dispatchEvent(new Event('void-cosmos-ready'));
     if (window.__voidCosmosPendingEnter) {
       window.__voidCosmosPendingEnter = false;
       enterArena();
     }
-    onCleanup(() => {
-      if (window.__voidCosmos) delete window.__voidCosmos;
-    });
     document.getElementById('searchBtn').onclick = () => {
       const q = prompt('find constellation name or star #');
       if (!q) return;
@@ -2088,20 +2100,6 @@ export function initVoidEngine() {
 
     let hover = null;
     let alive = true;
-    // Real IntersectionObserver instead of a getBoundingClientRect() check
-    // re-run at the top of every frame forever: that read is cheap in the
-    // common case but still executes 60x/sec even while fully offscreen,
-    // and doesn't stop the rAF chain, just short-circuits inside it. This
-    // fully halts requestAnimationFrame while out of view and restarts it
-    // from the observer callback on re-entry — zero main-thread cost while
-    // scrolled away, not just "less work."
-    let inView = true;
-    let pageVisible = !document.hidden;
-    // Hero-slot teaser gate: the small demo pauses itself once the "open
-    // full map" prompt card covers it (see Hero.jsx) — no point spending a
-    // render loop on a canvas sitting under an opaque blur. Doesn't apply
-    // once the user is actually in the full-screen arena.
-    let demoActive = true;
     let rafId = null;
     function kickDraw(tag) {
       // arenaMode bypasses inView on purpose: #cosmosFrame gets moved via
@@ -2189,6 +2187,10 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
+      if (W > 8 && H > 8 && !window.__voidMapPainted) {
+        window.__voidMapPainted = true;
+        window.dispatchEvent(new Event('void-cosmos-frame'));
+      }
       const g = g0;
 
       const deep = ctx.createRadialGradient(W / 2 + panX * 0.02, H / 2 + panY * 0.02, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
