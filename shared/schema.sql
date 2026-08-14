@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS ownerships (
   constel_id TEXT NOT NULL,
   constel_name TEXT NOT NULL,
   claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  trained INTEGER NOT NULL DEFAULT 0,
+  trained_at TEXT,
   UNIQUE(user_id, constel_id)
 );
 

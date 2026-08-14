@@ -432,7 +432,13 @@ export function initVoidEngine() {
       const totalLots = mapTotals.total || g0.constels.length || 200;
       const reservedAll = mapTotals.claimed || takenMap.size;
       const yoursLots = countOwnedConstels();
-      const trained = trainedLots.size;
+      let trainedOthers = 0;
+      for (const [cid, info] of takenMap) {
+        if (!info?.trained) continue;
+        const c = g0.constels.find((x) => String(x.id) === String(cid));
+        if (c && !constelOwned(c)) trainedOthers++;
+      }
+      const trained = trainedLots.size + trainedOthers;
       const others = Math.max(0, reservedAll - yoursLots);
       const free = Math.max(0, totalLots - reservedAll);
       const sellablePct = 100 - 28;
@@ -698,14 +704,19 @@ export function initVoidEngine() {
 
     function applyTakenVisuals() {
       if (!g0?.constels) return;
-      for (const [cid] of takenMap) {
+      for (const [cid, info] of takenMap) {
         const c = g0.constels.find((x) => String(x.id) === String(cid));
         if (!c) continue;
+        const trained = Boolean(info?.trained);
         const mine = c.grains.length > 0 && c.grains.every((s) => yoursSet.has(s.id));
-        if (mine) continue;
+        if (mine) {
+          if (trained) trainedLots.add(String(cid));
+          continue;
+        }
         for (const s of c.grains) {
           if (yoursSet.has(s.id)) continue;
-          if (s.kind === 'empty') s.kind = 'claimed';
+          if (trained) s.kind = 'fed';
+          else if (s.kind === 'empty') s.kind = 'claimed';
         }
       }
       refreshCounts();
@@ -722,9 +733,11 @@ export function initVoidEngine() {
           wallet: o.wallet || null,
           name: o.constel_name || id,
           claimed_at: o.claimed_at || null,
+          trained: Boolean(o.trained || o.trained_at),
         });
       }
       applyTakenVisuals();
+      refreshCounts();
     }
 
     window.__voidHydrateTaken = hydrateTakenFromPublic;
@@ -1167,6 +1180,7 @@ export function initVoidEngine() {
     mindSession()
       .then((data) => {
         if (data?.ownerships) hydrateOwnsFromLedger(data.ownerships)
+        return refreshMapOwnerships()
       })
       .catch(() => {})
       .finally(() => {
