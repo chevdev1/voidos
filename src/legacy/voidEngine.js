@@ -2069,7 +2069,18 @@ export function initVoidEngine() {
     let demoActive = true;
     let rafId = null;
     function kickDraw(tag) {
-      const ok = alive && inView && pageVisible && (demoActive || arenaMode) && rafId == null;
+      // arenaMode bypasses inView on purpose: #cosmosFrame gets moved via
+      // appendChild from the (small, possibly off-screen) hero slot into
+      // the full-screen arena stage while that stage's ancestor (.cosmos-
+      // map-pop) still has `hidden` set — the IntersectionObserver watching
+      // frame doesn't reliably re-fire for a target that was reparented
+      // out of a display:none subtree until something else forces the
+      // browser to recompute (confirmed: minimizing/restoring the tab, or
+      // a full reload, "unstuck" it every time). Once we're actually in
+      // the arena the canvas fills the viewport by definition, so trusting
+      // a possibly-stale inView here was the actual bug, not just missing
+      // diagnostics.
+      const ok = alive && (inView || arenaMode) && pageVisible && (demoActive || arenaMode) && rafId == null;
       if (ok) {
         rafId = requestAnimationFrame(draw);
       } else if (tag) {
@@ -2118,7 +2129,7 @@ export function initVoidEngine() {
       // permanent; !inView / !pageVisible are temporary and get restarted
       // by IO / visibilitychange once work should resume.
       rafId = null;
-      if (!alive || !inView || !pageVisible || (!demoActive && !arenaMode)) return;
+      if (!alive || (!inView && !arenaMode) || !pageVisible || (!demoActive && !arenaMode)) return;
       // Defensive: the rAF chain is self-scheduling (the next frame is
       // requested from *inside* this one), which means a single uncaught
       // exception anywhere in a frame silently kills rendering forever —
