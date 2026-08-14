@@ -2106,6 +2106,15 @@ export function initVoidEngine() {
       // by IO / visibilitychange once work should resume.
       rafId = null;
       if (!alive || !inView || !pageVisible || (!demoActive && !arenaMode)) return;
+      // Defensive: the rAF chain is self-scheduling (the next frame is
+      // requested from *inside* this one), which means a single uncaught
+      // exception anywhere in a frame silently kills rendering forever —
+      // no error overlay, no crash, just a canvas that never draws again
+      // (typically stuck on whatever the last fillRect background left
+      // it, i.e. solid black). try/finally guarantees the next frame gets
+      // scheduled either way, and the catch logs what actually broke
+      // instead of failing in total silence.
+      try {
       sampleFrameTime(now);
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
@@ -2893,7 +2902,11 @@ export function initVoidEngine() {
         tip.classList.remove('show');
         if (!dragging) canvas.style.cursor = orbitMode ? 'grab' : 'grab';
       }
-      rafId = requestAnimationFrame(draw);
+      } catch (err) {
+        console.error('[void cosmos] draw() frame threw — recovering, will retry next frame', err);
+      } finally {
+        rafId = requestAnimationFrame(draw);
+      }
     }
     rafId = requestAnimationFrame(draw);
     onCleanup(() => {
