@@ -40,6 +40,7 @@ export function Hero() {
     const timer = setTimeout(() => {
       if (settledRef.current) return
       setShowMapPrompt(true)
+      window.__voidCosmos?.resumeDemo?.()
     }, MAP_PROMPT_DELAY_MS)
     return () => clearTimeout(timer)
   }, [])
@@ -192,7 +193,7 @@ export function Hero() {
         className="hero-cosmos-slot"
         id="heroCosmosSlot"
       >
-        <div className="relative h-full min-h-inherit">
+        <div className="hero-demo">
           <CosmosPanel />
 
           <AnimatePresence>
@@ -201,35 +202,29 @@ export function Hero() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.4, ease: EASE_OUT }}
-                className="absolute inset-0 z-30 flex items-center justify-center bg-black/40 backdrop-blur-[2px]"
+                transition={{ duration: 0.35, ease: EASE_OUT }}
+                className="hero-demo-prompt"
               >
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-                  className="mx-4 max-w-xs rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
+                  exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                  transition={{ type: 'spring', stiffness: 280, damping: 26 }}
+                  className="hero-demo-card"
                 >
                   <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
                   <h3 className="mb-2 font-display text-lg font-extrabold text-white">
                     This is one corner of it.
                   </h3>
-                  <p className="mb-5 text-[13px] leading-relaxed text-muted">
+                  <p className="mb-4 text-[13px] leading-relaxed text-muted">
                     500 systems, 50,000 sectors, and the claim book — all open in the full map.
                   </p>
 
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.03, filter: 'brightness(1.08)' }}
-                    whileTap={{ scale: 0.97 }}
-                    className="btn-lime block w-full"
-                    onClick={openFullMap}
-                  >
+                  <button type="button" className="btn-lime block w-full" onClick={openFullMap}>
                     Open full map
-                  </motion.button>
+                  </button>
 
-                  <div className="mt-4 flex items-center justify-center gap-1">
+                  <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
                     <UnderlineLink onClick={askMindFromPrompt}>Ask the mind</UnderlineLink>
                     <span className="text-muted-2">·</span>
                     <UnderlineLink onClick={whatIsItFromPrompt}>What is it?</UnderlineLink>
@@ -238,7 +233,7 @@ export function Hero() {
                   <button
                     type="button"
                     onClick={keepSpinning}
-                    className="mt-4 text-[11px] text-muted-2 transition-colors duration-150 ease-out hover:text-lime"
+                    className="mt-3 text-[11px] text-muted-2 hover:text-lime"
                   >
                     ‹ keep spinning this one
                   </button>

@@ -2124,8 +2124,7 @@ export function initVoidEngine() {
       }
     }
     function pauseDemo() {
-      demoActive = false;
-      console.info('[void cosmos] pauseDemo', { arenaMode, rafId });
+      /* Hero live-demo card sits on the spinning galaxy — never freeze it. */
     }
     function resumeDemo() {
       demoActive = true;
