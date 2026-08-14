@@ -27,8 +27,11 @@ export function initVoidEngine() {
   const lerp = (a, b, t) => a + (b - a) * t;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
-  document.getElementById('termX').onclick = () =>
-    document.getElementById('term').classList.remove('open');
+  function closeTerm() {
+    const el = document.getElementById('term')
+    if (el) el.classList.remove('open')
+    document.body.classList.remove('term-open')
+  }
 
   function openTerm(d) {
     document.getElementById('termTitle').textContent = d.title;
@@ -42,8 +45,23 @@ export function initVoidEngine() {
     document.getElementById('tGrav').textContent = d.grav;
     document.getElementById('tNote').textContent = d.note;
     document.getElementById('term').classList.add('open');
+    document.body.classList.add('term-open');
     if (typeof window.__voidSyncTermButtons === 'function') window.__voidSyncTermButtons();
   }
+
+  const termX = document.getElementById('termX')
+  if (termX) {
+    termX.onclick = (e) => {
+      e.preventDefault()
+      e.stopPropagation()
+      closeTerm()
+    }
+  }
+  const onTermKey = (e) => {
+    if (e.key === 'Escape') closeTerm()
+  }
+  window.addEventListener('keydown', onTermKey)
+  onCleanup(() => window.removeEventListener('keydown', onTermKey))
 
   /** Weighted grain mass — most mid/micro, rare megas you can actually see. */
   function rollGrainMass() {
@@ -1274,7 +1292,18 @@ export function initVoidEngine() {
     }
 
     let pendingTouch = null
+    function uiHit(t) {
+      return (
+        t instanceof Element &&
+        Boolean(
+          t.closest(
+            '#term, .cart-dock, .arena-close, .arena-home, .mind-bar, .mind-panel, .mind-chat, .filters, .vc, .minimap, .cosmos-bar, .cosmos-explore',
+          ),
+        )
+      )
+    }
     function onPointerDown(e) {
+      if (uiHit(e.target)) return
       if (e.target !== canvas && !(e.target instanceof Element && canvas.contains(e.target))) {
         // allow UI chips/buttons on the frame to work without map capture
         if (
@@ -1354,6 +1383,7 @@ export function initVoidEngine() {
       setMapActive(false)
     }
     function onPointerMove(e) {
+      if (uiHit(e.target)) return
       if (pendingTouch && e.pointerId === pendingTouch.id) {
         const dx = e.clientX - pendingTouch.x
         const dy = e.clientY - pendingTouch.y
@@ -1411,6 +1441,16 @@ export function initVoidEngine() {
       if (e.pointerType !== 'touch') focusOn(0, 0, Math.max(scale, 0.65));
     }
     function onPointerUp(e) {
+      if (uiHit(e.target)) {
+        pendingTouch = null
+        dragging = false
+        try {
+          canvas.releasePointerCapture?.(e.pointerId)
+        } catch (_) {
+          /* ignore */
+        }
+        return
+      }
       if (pendingTouch && e.pointerId === pendingTouch.id) {
         pendingTouch = null
         setMapActive(true)
@@ -1443,6 +1483,7 @@ export function initVoidEngine() {
       return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
     }
     function onTouchStart(e) {
+      if (uiHit(e.target)) return
       if (e.touches.length === 2) {
         setMapActive(true)
         atHomeView = false
@@ -1575,7 +1616,8 @@ export function initVoidEngine() {
         openConstelTerm(lastTermConstel);
       };
     }
-    document.getElementById('termBuy').onclick = async () => {
+    document.getElementById('termBuy').onclick = async (e) => {
+      e?.stopPropagation?.()
       if (!lastTermConstel || constelOwned(lastTermConstel)) return;
       const items = lastTermConstel.grains.slice();
       const name = lastTermConstel.name;
@@ -1703,6 +1745,7 @@ export function initVoidEngine() {
       }
       document.body.classList.remove('arena-live');
       document.body.classList.remove('mind-dock-open');
+      document.body.classList.remove('term-open');
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);

@@ -45,7 +45,7 @@ export default function MapPage() {
   const [booting, setBooting] = useState(true)
 
   function closeMap() {
-    document.body.classList.remove('arena-live')
+    document.body.classList.remove('arena-live', 'term-open')
     navigate('/')
   }
 

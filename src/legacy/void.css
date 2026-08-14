@@ -131,6 +131,10 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .cosmos-map-pop[hidden]{display:none !important}
 body.arena-live{
   overflow:hidden !important;
+}
+body.arena-live .arena-stage,
+body.arena-live #cosmos,
+body.arena-live #cosmosFrame{
   touch-action:none;
 }
 .arena-stage{
@@ -238,7 +242,10 @@ body.arena-live .cosmos-map-pop .minimap,
 body.arena-live .cosmos-map-pop .vc{
   opacity:1;
 }
-/* Claim drawer + stack stay above the map popup */
+body.arena-live.term-open .arena-close{
+  pointer-events:none;
+  opacity:0;
+}
 
 .btn-ghost-term{
   display:block;width:100%;text-align:center;padding:10px;margin-top:8px;
@@ -613,7 +620,7 @@ body.arena-live .cart-dock{
     border-left:none;
     border-top:1px solid rgba(204,255,0,.3);
     transform:translateY(105%);
-    z-index:220;
+    z-index:5000;
   }
   body.arena-live .term.open{transform:translateY(0)}
 }
@@ -826,16 +833,23 @@ body.arena-live .void-toast.claim.show{
      now opacity rides along with the slide on the same cubic-bezier used
      across the rest of the site's UI (Hero/Concept/FAQ) for a consistent
      "premium" feel instead of a stock timing curve. */
-  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:220;
+  position:fixed;top:0;right:0;bottom:0;width:min(360px,100vw);z-index:5000;
   background:rgba(4,6,0,.96);border-left:1px solid rgba(204,255,0,.3);
   transform:translateX(105%);opacity:0;pointer-events:none;
+  touch-action:auto;
   transition:transform .38s cubic-bezier(.23,1,.32,1),opacity .32s cubic-bezier(.23,1,.32,1);
   padding:20px;overflow:auto;
 }
 .term.open{transform:translateX(0);opacity:1;pointer-events:auto}
-.term h3{font-family:'Syne',sans-serif;color:var(--lime);font-size:17px}
+.term h3{font-family:'Syne',sans-serif;color:var(--lime);font-size:17px;padding-right:88px}
 .term .sub{color:var(--muted2);font-size:12px;margin:4px 0 14px}
-.term .x{position:absolute;top:12px;right:12px;color:var(--muted);font-size:16px}
+.term .x{
+  position:absolute;top:10px;right:10px;z-index:6;
+  min-width:72px;min-height:40px;padding:8px 12px;
+  border:1px solid rgba(204,255,0,.35);border-radius:999px;
+  background:rgba(0,0,0,.75);color:var(--lime);font-size:11px;letter-spacing:.08em;
+  cursor:pointer;touch-action:manipulation;pointer-events:auto;
+}
 .trow{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(204,255,0,.08);font-size:12px}
 .trow .k{color:var(--muted2)}
 .trow .v.hot{color:var(--lime)}

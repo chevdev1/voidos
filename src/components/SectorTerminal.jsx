@@ -7,8 +7,8 @@ export function SectorTerminal() {
   return (
     <>
       <aside className="void term" id="term">
-        <button className="x" id="termX" type="button">
-          ✕
+        <button className="x" id="termX" type="button" aria-label="close lot panel">
+          ✕ close
         </button>
         <h3 id="termTitle">CONSTEL · —</h3>
         <div className="sub" id="termSub">
