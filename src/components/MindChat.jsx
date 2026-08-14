@@ -61,18 +61,6 @@ export function MindChat() {
     }
   }, [])
 
-  // Central pause point: this modal is a full-viewport overlay (see
-  // .mind-chat in void.css — position:fixed; inset:0), so whenever it's
-  // open the hero cosmos canvas underneath is fully hidden regardless of
-  // which button opened it (nav link, hero prompt card, the demo's own
-  // "ask me" button, etc.) — no reason to spend a render loop on something
-  // nothing can see. Deliberately doesn't resume on close: per spec, the
-  // hero demo only comes back via its own explicit "keep spinning this
-  // one" action, not implicitly just because an overlay went away.
-  useEffect(() => {
-    if (open) window.__voidCosmos?.pauseDemo?.()
-  }, [open])
-
   async function runChat(text, { silentUser = false } = {}) {
     const trimmed = String(text || '').trim()
     if (!trimmed || busy) return

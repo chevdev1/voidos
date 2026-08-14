@@ -119,7 +119,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .hero-map-open{display:none}
 
 .cosmos-map-pop{
-  position:fixed;inset:0;z-index:80;
+  position:fixed;inset:0;z-index:210;
   background:#000;
   display:none;
   overflow:hidden;
@@ -798,7 +798,11 @@ body.arena-live .void-toast.claim.show{
 .chart-box{height:240px}.chart-box canvas{width:100%;height:100%;display:block}
 
 .term{
-  /* 220: above the fixed nav header (z-[200] in Nav.jsx) and the toast
+  /* 230: above full-map popup (210) and nav (z-[200]) so close/claim drawer stay on top. * /}
+
+</think>
+
+Wait I made a syntax error in the comment. Let me fix term z-index properly.
      (z-index:200) — the nav's wallet/Buy $EXO buttons were bleeding
      through the top of this panel because it used to sit *under* the
      header (100 < 200). The panel already has a near-opaque background

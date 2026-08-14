@@ -26,7 +26,7 @@ export default function LandingPage() {
     let cancelled = false
     const failSafe = setTimeout(() => {
       if (!cancelled) setReady(true)
-    }, 8000)
+    }, 14000)
 
     const onReady = () => {
       requestAnimationFrame(() => {

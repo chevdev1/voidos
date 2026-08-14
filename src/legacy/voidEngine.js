@@ -1676,6 +1676,7 @@ export function initVoidEngine() {
       }
       document.body.classList.add('arena-live');
       document.body.classList.remove('mind-dock-open');
+      demoActive = true;
       const dockToggle = document.getElementById('mindDockToggle');
       if (dockToggle) {
         dockToggle.setAttribute('aria-expanded', 'false');
@@ -1734,6 +1735,7 @@ export function initVoidEngine() {
       requestAnimationFrame(() => {
         resize();
         applyHomeView(true);
+        kickDraw('exitArena');
         requestAnimationFrame(resize);
       });
     }
