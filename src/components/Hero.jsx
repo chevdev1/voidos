@@ -21,7 +21,7 @@ function UnderlineLink({ onClick, children }) {
     <button
       type="button"
       onClick={onClick}
-      className="group relative px-1 py-1 text-[12px] font-medium text-muted transition-colors duration-200 ease-out hover:text-white"
+      className="group relative px-1 py-0.5 text-[11px] font-medium text-muted transition-colors duration-200 ease-out hover:text-white"
     >
       {children}
       <span className="pointer-events-none absolute inset-x-1 bottom-0 h-px origin-center scale-x-0 bg-lime transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-x-100" />
@@ -193,7 +193,7 @@ export function Hero() {
         className="hero-cosmos-slot"
         id="heroCosmosSlot"
       >
-        <div className="hero-demo">
+        <div className="relative h-full min-h-inherit">
           <CosmosPanel />
 
           <AnimatePresence>
@@ -202,41 +202,47 @@ export function Hero() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 0.35, ease: EASE_OUT }}
-                className="hero-demo-prompt"
+                transition={{ duration: 0.4, ease: EASE_OUT }}
+                className="absolute inset-0 z-30 flex items-center justify-center bg-black/25"
               >
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                  initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                  transition={{ type: 'spring', stiffness: 280, damping: 26 }}
-                  className="hero-demo-card"
+                  exit={{ opacity: 0, scale: 0.95, y: 10 }}
+                  transition={{ type: 'spring', stiffness: 260, damping: 24 }}
+                  className="mx-4 max-w-[16.5rem] rounded-xl border border-lime/25 bg-black/80 px-4 py-3 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
                 >
-                  <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
-                  <h3 className="mb-2 font-display text-lg font-extrabold text-white">
+                  <p className="mb-0.5 text-[9px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
+                  <h3 className="mb-1 font-display text-base font-extrabold text-white">
                     This is one corner of it.
                   </h3>
-                  <p className="mb-4 text-[13px] leading-relaxed text-muted">
+                  <p className="mb-3 text-[12px] leading-snug text-muted">
                     500 systems, 50,000 sectors, and the claim book — all open in the full map.
                   </p>
 
-                  <button type="button" className="btn-lime block w-full" onClick={openFullMap}>
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.03, filter: 'brightness(1.08)' }}
+                    whileTap={{ scale: 0.97 }}
+                    className="btn-lime block w-full !py-2"
+                    onClick={openFullMap}
+                  >
                     Open full map
-                  </button>
+                  </motion.button>
 
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-1">
+                  <div className="mt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-0 text-[11px]">
                     <UnderlineLink onClick={askMindFromPrompt}>Ask the mind</UnderlineLink>
                     <span className="text-muted-2">·</span>
                     <UnderlineLink onClick={whatIsItFromPrompt}>What is it?</UnderlineLink>
+                    <span className="text-muted-2">·</span>
+                    <button
+                      type="button"
+                      onClick={keepSpinning}
+                      className="text-[11px] text-muted-2 transition-colors hover:text-lime"
+                    >
+                      ‹ keep spinning
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={keepSpinning}
-                    className="mt-3 text-[11px] text-muted-2 hover:text-lime"
-                  >
-                    ‹ keep spinning this one
-                  </button>
                 </motion.div>
               </motion.div>
             )}

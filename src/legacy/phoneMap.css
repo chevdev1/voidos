@@ -141,16 +141,17 @@
     transform: none;
     width: auto;
     max-width: none;
-    flex-direction: column;
+    flex-direction: row;
     flex-wrap: nowrap;
-    align-items: stretch;
-    gap: 8px;
-    padding: 8px;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 6px;
     box-sizing: border-box;
-    overflow: hidden;
-    border-radius: 14px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: 10px;
     z-index: 40;
-    max-height: min(42vh, 280px);
+    max-height: 44px;
   }
 
   body.arena-live .mind-dock-row,
