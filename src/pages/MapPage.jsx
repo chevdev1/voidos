@@ -57,11 +57,10 @@ export default function MapPage() {
     <div id="mapRoute" className="map-route">
       <header className="map-top">
         <button type="button" className="map-home" onClick={goHome}>
-          ← home
+          <img src="/assets/void-logo.png" alt="" />
+          VOID<em>.OS</em>
         </button>
-        <span className="map-top-title">
-          VOID<em>.OS</em> map
-        </span>
+        <span className="map-top-title">full map</span>
         <button type="button" className="map-close" onClick={goHome}>
           ✕ close
         </button>

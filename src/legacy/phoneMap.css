@@ -32,8 +32,8 @@
 
   .hero-right:not(.in-arena) {
     width: 100%;
-    min-height: min(52vh, 440px);
-    height: min(52vh, 440px);
+    min-height: min(70vh, 560px);
+    height: min(70vh, 560px);
     max-height: none;
     margin-right: 0 !important;
   }
