@@ -1,35 +1,58 @@
 import { useEffect, useState } from 'react'
 
-const LINES = [
-  'booting VOID.OS',
-  'warming the probe',
-  'charting 200 lots',
-  'linking the mind',
-]
+function stageText(p) {
+  if (p < 30) return 'INITIALIZING VOID.OS...'
+  if (p < 60) return 'WARMING THE PROBE...'
+  if (p < 90) return 'SYNCING SECTORS...'
+  return 'ACCESS GRANTED.'
+}
 
 /**
  * Full-screen boot gate — map + session load behind it, then fade out.
+ *
+ * `progress` is a simulated ramp for feel, not a real loader — it's capped
+ * at 92 until the `ready` prop flips true (the caller's actual "did the map
+ * paint a real frame" signal), so the bar can never claim 100% while the
+ * canvas underneath is still booting.
  */
 export function BootSplash({ ready, onDone }) {
-  const [line, setLine] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const [loadingText, setLoadingText] = useState(stageText(0))
   const [leaving, setLeaving] = useState(false)
   const [gone, setGone] = useState(false)
 
   useEffect(() => {
     if (ready) return undefined
-    const t = setInterval(() => setLine((n) => (n + 1) % LINES.length), 900)
+    const t = setInterval(() => {
+      setProgress((p) => {
+        const next = Math.min(p + Math.random() * 5 + 2, 92)
+        setLoadingText(stageText(next))
+        return next
+      })
+    }, 180)
     return () => clearInterval(t)
   }, [ready])
 
   useEffect(() => {
+    if (!ready) return
+    setProgress(100)
+    setLoadingText(stageText(100))
+  }, [ready])
+
+  useEffect(() => {
     if (!ready || leaving || gone) return
-    setLeaving(true)
+    const t = setTimeout(() => setLeaving(true), 260)
+    return () => clearTimeout(t)
+  }, [ready, leaving, gone])
+
+  useEffect(() => {
+    if (!leaving || gone) return
     const t = setTimeout(() => {
       setGone(true)
       onDone?.()
     }, 520)
     return () => clearTimeout(t)
-  }, [ready, leaving, gone, onDone])
+  }, [leaving, gone, onDone])
 
   if (gone) return null
 
@@ -51,10 +74,13 @@ export function BootSplash({ ready, onDone }) {
         VOID<span className="text-lime">.OS</span>
       </p>
       <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.28em] text-lime">
-        {LINES[line]}
+        {loadingText}
       </p>
-      <div className="mt-8 h-px w-40 overflow-hidden bg-white/10">
-        <span className="boot-bar block h-full w-1/3 bg-lime" />
+      <div className="mt-8 h-1.5 w-40 overflow-hidden rounded-full bg-gray-800">
+        <div
+          className="h-full rounded-full bg-lime transition-all duration-300 ease-out"
+          style={{ width: `${progress}%` }}
+        />
       </div>
     </div>
   )

@@ -296,9 +296,9 @@ export function MindChat() {
                   <p>{status}</p>
                 ) : (
                   <p className="mind-listening" aria-label="listening">
-                    <i />
-                    <i />
-                    <i />
+                    <span>.</span>
+                    <span>.</span>
+                    <span>.</span>
                   </p>
                 )}
               </motion.div>
