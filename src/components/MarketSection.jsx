@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { ScrambleText } from './ScrambleText'
@@ -18,7 +17,6 @@ const fadeUp = {
 }
 
 export function MarketSection() {
-  const navigate = useNavigate()
   const dex = getDexUrl()
   const ca = getExoCa()
   const [copied, setCopied] = useState(false)
@@ -118,7 +116,11 @@ export function MarketSection() {
           <button
             type="button"
             className="w-full rounded-full border border-white/20 px-4 py-2.5 text-[11px] tracking-wide text-muted hover:border-lime/40 hover:text-lime sm:w-auto sm:py-2"
-            onClick={() => navigate('/map')}
+            onClick={() => {
+              if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+              else if (window.__openFullMap) window.__openFullMap()
+              else window.__voidCosmosPendingEnter = true
+            }}
           >
             claim lots on map
           </button>

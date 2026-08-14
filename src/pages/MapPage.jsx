@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { CosmosPanel } from '../components/CosmosPanel'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
@@ -13,11 +13,16 @@ import '../legacy/phoneMap.css'
  * The old flow ran the full map as an in-page popup: the *same* canvas +
  * engine instance got physically relocated (appendChild) out of the Hero
  * section's small demo slot into a full-screen overlay, then back again on
- * close. That "one engine, two homes" trick is what kept breaking (a stale
- * IntersectionObserver flag on the reparented target, resize/draw-loop
- * restart races across the same relocation, coordination with a teaser
- * modal's pause state and a boot splash's z-index that had nothing to do
- * with the map itself).
+ * close. That "one engine, two homes" trick is what kept breaking:
+ *  - the IntersectionObserver tracking the canvas's visibility didn't
+ *    reliably re-fire for a target reparented out of a briefly-hidden
+ *    ancestor (only minimizing/restoring the tab or a full reload forced
+ *    a re-check — which is exactly what "fixed" it each time in testing),
+ *  - the resize/draw-loop restart had its own ordering races across that
+ *    same relocation,
+ *  - it had to coordinate with the Hero teaser modal's pause state and
+ *    the boot splash's z-index, neither of which have anything to do with
+ *    the map itself.
  *
  * This route sidesteps all of that by not relocating anything: the canvas
  * is created once, already full-screen, in its one and only home.
@@ -104,6 +109,10 @@ export default function MapPage() {
 
       <div className="arena-hud">
         <div className="arena-hud-top">
+          <Link to="/" className="arena-home" aria-label="back to home">
+            <img src="/assets/void-logo.png" alt="" />
+            VOID<em>.OS</em>
+          </Link>
           <p className="arena-eyebrow">FULL MAP</p>
           <h2>
             Enter the <em>void</em>
