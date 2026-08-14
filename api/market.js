@@ -11,7 +11,8 @@ export default async function handler(req, res) {
     const tf = String(url.searchParams.get('tf') || '15m')
     if (!MARKET_TFS[tf]) return res.status(400).json({ error: 'bad tf' })
     const data = await fetchTokenMarket(tf)
-    res.setHeader('Cache-Control', 's-maxage=30, stale-while-revalidate=60')
+    res.setHeader('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=40')
+    res.setHeader('Vary', 'Accept')
     return res.status(200).json({ ok: true, ...data })
   } catch (err) {
     console.error('[market]', err)

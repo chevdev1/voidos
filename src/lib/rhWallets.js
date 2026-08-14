@@ -147,14 +147,13 @@ async function readChainId(provider) {
 }
 
 async function ensureChain(provider) {
+  // Trust / WalletConnect / phone: eth_chainId + wallet_switchEthereumChain hang the UI.
+  if (isWalletConnectProvider(provider) || isTrustInjected() || isMobileDevice()) return
+
   const chain = getRhChain()
   const hexId = `0x${chain.id.toString(16)}`
   const current = await readChainId(provider)
   if (current && current === hexId.toLowerCase()) return
-
-  // Trust / WalletConnect sessions often have no wallet_switchEthereumChain.
-  // Let the next tx use whatever network the user picked in the wallet.
-  if (isWalletConnectProvider(provider)) return
 
   try {
     await provider.request({
@@ -576,11 +575,25 @@ async function existingConnectedWallet() {
 async function providerForClaim() {
   const existing = await existingConnectedWallet()
   if (existing) return existing
-  if (getRobinhoodInjected() || getInjectedEvm()) return connectInjected()
-  return connectWalletConnect()
+  const inj = getRobinhoodInjected() || getInjectedEvm()
+  if (inj) {
+    try {
+      const acc = await inj.request({ method: 'eth_requestAccounts' })
+      if (acc?.[0]) return { provider: inj, address: getAddress(acc[0]) }
+    } catch (e) {
+      const msg = String(e?.message || e || '')
+      if (/reject|cancel|denied/i.test(msg)) throw new Error('Wallet request cancelled')
+    }
+  }
+  throw new Error(
+    'Wallet session is not active. Open VOID.OS inside Trust Browser, tap wallet once, then claim. Do not start a new WalletConnect from claim.',
+  )
 }
 
 async function ensureChainForClaim(provider) {
+  if (isWalletConnectProvider(provider) || isTrustInjected() || isMobileDevice()) {
+    return provider
+  }
   try {
     await withTimeout(ensureChain(provider), 25000, 'switch to Robinhood Chain')
     return provider
@@ -648,21 +661,23 @@ export async function claimOnChain(lotIds = []) {
     )
   }
 
-  try {
-    await pub.simulateContract({
-      address: tokenAddr,
-      abi: ERC20_ABI,
-      functionName: 'transfer',
-      args: [BURN_SINK, cost],
-      account: address,
-    })
-  } catch (simErr) {
-    const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
-    throw new Error(
-      /transfer|paused|restrict|blacklist|allow/i.test(sm)
-        ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
-        : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
-    )
+  if (!isMobileDevice() && !isTrustInjected()) {
+    try {
+      await pub.simulateContract({
+        address: tokenAddr,
+        abi: ERC20_ABI,
+        functionName: 'transfer',
+        args: [BURN_SINK, cost],
+        account: address,
+      })
+    } catch (simErr) {
+      const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
+      throw new Error(
+        /transfer|paused|restrict|blacklist|allow/i.test(sm)
+          ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
+          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
+      )
+    }
   }
 
   if (claimAddrRaw) {

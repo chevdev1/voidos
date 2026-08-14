@@ -3,7 +3,7 @@ import { useEffect, useRef } from 'react'
 /**
  * VOID-styled candle canvas — lime up / red down, no third-party chart chrome.
  */
-export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
+export function VoidChart({ candles = [], emptyHint = 'no prints yet', tf = '' }) {
   const boxRef = useRef(null)
   const cnvRef = useRef(null)
 
@@ -15,9 +15,10 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
     if (!ctx) return
 
     function draw() {
-      const W = box.clientWidth
-      const H = box.clientHeight
-      if (!W || !H) return
+      const rect = box.getBoundingClientRect()
+      const W = Math.round(box.clientWidth || rect.width)
+      const H = Math.round(box.clientHeight || rect.height)
+      if (!W || !H) return false
       const d = Math.min(window.devicePixelRatio || 1, 2)
       cnv.width = W * d
       cnv.height = H * d
@@ -36,7 +37,7 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
         ctx.stroke()
       }
 
-      if (!candles.length) return
+      if (!candles.length) return true
 
       let lo = Infinity
       let hi = -Infinity
@@ -49,7 +50,7 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
       hi += span * 0.12
       const y = (v) => 10 + (1 - (v - lo) / (hi - lo)) * (H - 28)
 
-      if (candles.length < 6) {
+      if (candles.length < 3) {
         const pts = candles.map((k, i) => {
           const x =
             candles.length === 1 ? W / 2 : (i / Math.max(candles.length - 1, 1)) * (W - 16) + 8
@@ -73,7 +74,7 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
         ctx.strokeStyle = '#ccff00'
         ctx.lineWidth = 1.5
         ctx.stroke()
-        return
+        return true
       }
 
       const n = candles.length
@@ -93,13 +94,25 @@ export function VoidChart({ candles = [], emptyHint = 'no prints yet' }) {
         ctx.fillStyle = col
         ctx.fillRect(x - bw / 2, Math.min(y(k.o), y(k.c)), bw, Math.max(1, Math.abs(y(k.c) - y(k.o))))
       }
+      return true
     }
 
-    draw()
-    const ro = new ResizeObserver(draw)
+    let tries = 0
+    let raf = 0
+    function kick() {
+      const ok = draw()
+      if (!ok && tries++ < 24) raf = requestAnimationFrame(kick)
+    }
+    kick()
+    const ro = new ResizeObserver(() => kick())
     ro.observe(box)
-    return () => ro.disconnect()
-  }, [candles])
+    window.addEventListener('orientationchange', kick)
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(raf)
+      window.removeEventListener('orientationchange', kick)
+    }
+  }, [candles, tf])
 
   return (
     <div className="chart-box relative" id="chartBox" ref={boxRef}>

@@ -89,7 +89,15 @@ export function initVoidEngine() {
     const canvas = document.getElementById('cosmos');
     const tip = document.getElementById('tip');
     const zoomLabel = document.getElementById('zoomLabel');
+    if (!frame || !canvas || !canvas.getContext) {
+      window.dispatchEvent(new Event('void-cosmos-ready'));
+      return;
+    }
     const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) {
+      window.dispatchEvent(new Event('void-cosmos-ready'));
+      return;
+    }
     // No offscreen bloom buffer / additive composite pass — a full-canvas
     // drawImage with a 'lighter' blend every frame was the single priciest
     // operation in the old draw loop for a purely decorative glow.
@@ -773,21 +781,8 @@ export function initVoidEngine() {
     function paintHudLeaders() {
       const el = document.getElementById('hudLeaders');
       if (!el) return;
-      const top = (mapLeaders || []).slice(0, 5);
-      if (!top.length) {
-        el.innerHTML =
-          '<button type="button" class="hud-board-btn" data-open-board>PRETENDERS · no claims yet</button>';
-      } else {
-        el.innerHTML =
-          '<p class="hud-board-cap">PRETENDERS · most constellations</p>' +
-          top
-            .map(
-              (r, i) =>
-                `<div class="hud-board-row"><b>#${i + 1}</b> <span>${shortWallet(r.wallet)}</span> <em>${r.count}</em></div>`,
-            )
-            .join('') +
-          '<button type="button" class="hud-board-btn" data-open-board>full board</button>';
-      }
+      el.innerHTML =
+        '<button type="button" class="hud-board-btn" data-open-board>PRETENDERS BOARD</button>';
     }
 
     window.__voidHydrateTaken = hydrateTakenFromPublic;
@@ -1821,7 +1816,8 @@ export function initVoidEngine() {
       window.__voidCosmosPendingEnter = false;
       enterArena();
     }
-    document.getElementById('searchBtn').onclick = () => {
+    const searchBtn = document.getElementById('searchBtn');
+    if (searchBtn) searchBtn.onclick = () => {
       const q = prompt('find constellation name or star #');
       if (!q) return;
       const id = parseInt(q, 10);
@@ -2267,10 +2263,14 @@ export function initVoidEngine() {
       scale = lerp(scale, targetScale, 0.1);
       panX = lerp(panX, targetPanX, 0.1);
       panY = lerp(panY, targetPanY, 0.1);
-      zoomLabel.textContent = viewLabel();
+      if (zoomLabel) zoomLabel.textContent = viewLabel();
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
+      if (W > 4 && H > 4 && !window.__voidMapPainted) {
+        window.__voidMapPainted = true;
+        window.dispatchEvent(new Event('void-cosmos-frame'));
+      }
       const g = g0;
 
       if (quality === 'high') {

@@ -47,7 +47,7 @@ export function MarketSection() {
     let dead = false
     async function load() {
       try {
-        const r = await fetch('/api/market?tf=' + encodeURIComponent(tf))
+        const r = await fetch('/api/market?tf=' + encodeURIComponent(tf), { cache: 'no-store' })
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'feed failed')
         if (!dead) {
@@ -59,7 +59,7 @@ export function MarketSection() {
       }
     }
     load()
-    const id = setInterval(load, 45000)
+    const id = setInterval(load, tf === '1m' ? 12000 : 30000)
     return () => {
       dead = true
       clearInterval(id)
@@ -178,7 +178,7 @@ export function MarketSection() {
         className="chart-panel"
         initial={{ opacity: 0, y: 20 }}
         whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.3 }}
+        viewport={{ once: true, amount: 0.08 }}
         transition={{ duration: 0.55, ease: EASE_OUT, delay: 0.15 }}
       >
         <div className="chart-tools">
@@ -207,7 +207,9 @@ export function MarketSection() {
           </div>
         </div>
         <VoidChart
+          key={tf}
           candles={feed?.candles || []}
+          tf={tf}
           emptyHint={err ? 'feed offline' : 'indexing prints…'}
         />
       </motion.div>

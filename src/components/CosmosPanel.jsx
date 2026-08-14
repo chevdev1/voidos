@@ -20,17 +20,6 @@ export function CosmosPanel() {
       <div className="cosmos-fx" aria-hidden="true" />
       <div className="cosmos-scan" aria-hidden="true" />
       <div className="cosmos-hud">
-        <div className="tag">THE VOID · EXOMIND</div>
-        <div className="pill">
-          <div className="lab">✦ burned forever</div>
-          <div className="num" id="burned">
-            0
-          </div>
-          <div className="sub">$TEST · 1B supply · Robinhood Chain</div>
-        </div>
-        <div className="zoom-lvl">
-          view · <b id="zoomLabel">EXOMIND</b>
-        </div>
         <div className="hud-board" id="hudLeaders">
           <button type="button" className="hud-board-btn" data-open-board>
             PRETENDERS BOARD

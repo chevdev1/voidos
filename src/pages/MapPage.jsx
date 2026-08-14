@@ -67,26 +67,34 @@ export default function MapPage() {
       }
     }
     const failSafe = setTimeout(() => {
-      if (!cancelled) setReady(true)
-    }, 16000)
+      if (!cancelled) {
+        setReady(true)
+        setBooting(false)
+      }
+    }, 2000)
 
+    window.addEventListener('void-cosmos-ready', onFrame)
     window.addEventListener('void-cosmos-frame', onFrame)
 
     ;(async () => {
-      const { initVoidEngine } = await import('../legacy/voidEngine')
-      if (cancelled) return
-      destroy = initVoidEngine()
-      // #cosmosFrame is already inside #arenaStage in this page's own JSX
-      // (unlike the old popup, nothing needs to be appendChild'd here), so
-      // enterArena()'s relocation check just no-ops — this call is only
-      // for its side effects: arenaMode = true (full-screen CSS + draw-
-      // loop gates), body classes, and snapping to the home framing.
-      window.__voidCosmos?.enterArena?.()
+      try {
+        const { initVoidEngine } = await import('../legacy/voidEngine')
+        if (cancelled) return
+        destroy = initVoidEngine()
+        window.__voidCosmos?.enterArena?.()
+      } catch (err) {
+        console.error('[void] map engine failed', err)
+      }
+      if (!cancelled) {
+        setReady(true)
+        setBooting(false)
+      }
     })()
 
     return () => {
       cancelled = true
       clearTimeout(failSafe)
+      window.removeEventListener('void-cosmos-ready', onFrame)
       window.removeEventListener('void-cosmos-frame', onFrame)
       document.body.classList.remove('arena-live')
       destroy?.()

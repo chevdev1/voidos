@@ -23,7 +23,11 @@ export default function Board() {
           <AccountMenu />
         </div>
       </header>
-      <main className="mx-auto max-w-3xl px-4 pb-24 sm:px-10">
+      <main className="relative mx-auto max-w-5xl px-4 pb-24 sm:px-10">
+        <div
+          className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full opacity-30"
+          style={{ background: 'radial-gradient(circle, rgba(204,255,0,0.18), transparent 70%)' }}
+        />
         <PretendersBoard />
       </main>
       <MindChat />

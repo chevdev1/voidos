@@ -57,7 +57,7 @@ export function AccountMenu() {
 
   function closeModal() {
     setOpen(false)
-    abortWalletConnect()
+    if (!loadUser()?.wallet) abortWalletConnect()
   }
 
   const wallet = user?.wallet || null

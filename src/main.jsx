@@ -2,10 +2,27 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// No <StrictMode>: App mounts a ported imperative canvas engine
-// (src/legacy/voidEngine.js) that owns rAF loops, timers and window-level
-// listeners. StrictMode's dev-only double-invoke of effects would mount it
-// twice and briefly double every loop/listener before the first copy tears
-// down — harmless in prod (StrictMode is a no-op there) but noisy in dev.
-createRoot(document.getElementById('root')).render(<App />)
-window.dispatchEvent(new Event('void-boot-html-off'))
+function killHtmlBoot() {
+  try {
+    window.dispatchEvent(new Event('void-boot-html-off'))
+  } catch {
+    /* ignore */
+  }
+  const el = document.getElementById('boot-html')
+  if (el) el.remove()
+}
+
+killHtmlBoot()
+
+try {
+  createRoot(document.getElementById('root')).render(<App />)
+} catch (err) {
+  console.error('[void] render failed', err)
+  const root = document.getElementById('root')
+  if (root) {
+    root.innerHTML =
+      '<p style="padding:24px;color:#ccff00;font-family:monospace">VOID.OS failed to start. Close Trust tabs and refresh.</p>'
+  }
+}
+
+killHtmlBoot()

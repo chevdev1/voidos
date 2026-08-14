@@ -6,7 +6,6 @@ import { CosmosArena } from '../components/CosmosArena'
 import { ConceptSection } from '../components/ConceptSection'
 import { MarketSection } from '../components/MarketSection'
 import { FAQSection } from '../components/FAQSection'
-import { PretendersBoard } from '../components/PretendersBoard'
 import { BackgroundBeams } from '../components/BackgroundBeams'
 import { Footer } from '../components/Footer'
 import { SectorTerminal } from '../components/SectorTerminal'
@@ -26,15 +25,17 @@ export default function LandingPage() {
     let destroy = null
     let cancelled = false
     const failSafe = setTimeout(() => {
-      if (!cancelled) setReady(true)
-    }, 8000)
+      if (!cancelled) {
+        setReady(true)
+        setBooting(false)
+      }
+    }, 1200)
 
     const onReady = () => {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (!cancelled) setReady(true)
-        })
-      })
+      if (!cancelled) {
+        setReady(true)
+        setBooting(false)
+      }
     }
 
     // The boot splash is a z-[400000] overlay above everything, including
@@ -53,10 +54,14 @@ export default function LandingPage() {
 
     const start = async () => {
       if (cancelled) return
-      const { initVoidEngine } = await import('../legacy/voidEngine')
-      if (cancelled) return
-      destroy = initVoidEngine()
-      if (window.__voidCosmos) onReady()
+      try {
+        const { initVoidEngine } = await import('../legacy/voidEngine')
+        if (cancelled) return
+        destroy = initVoidEngine()
+      } catch (err) {
+        console.error('[void] engine failed', err)
+      }
+      onReady()
     }
 
     window.addEventListener('void-cosmos-ready', onReady)
@@ -82,9 +87,6 @@ export default function LandingPage() {
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
         <main className="relative z-10 mx-auto max-w-6xl">
-          <div id="board" className="px-5 py-16 sm:px-10">
-            <PretendersBoard />
-          </div>
           <ConceptSection />
           <MarketSection />
           <FAQSection />

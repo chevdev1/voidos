@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { loadUser, mindMapOwnerships } from '../lib/mindClient'
 
@@ -8,14 +8,27 @@ function shortWallet(w) {
   return `${s.slice(0, 6)}…${s.slice(-4)}`
 }
 
+function rankMark(i) {
+  if (i === 0) return 'I'
+  if (i === 1) return 'II'
+  if (i === 2) return 'III'
+  return String(i + 1).padStart(2, '0')
+}
+
 /**
- * Public pretenders board — wallets ranked by claimed constellations.
+ * Live pretenders board — who claimed the most constellation lots.
  */
 export function PretendersBoard({ compact = false }) {
   const [leaders, setLeaders] = useState([])
   const [totals, setTotals] = useState(null)
   const [err, setErr] = useState('')
-  const me = (loadUser()?.wallet || '').toLowerCase()
+  const [me, setMe] = useState(() => (loadUser()?.wallet || '').toLowerCase())
+
+  useEffect(() => {
+    const onUser = (e) => setMe(String(e.detail?.wallet || '').toLowerCase())
+    window.addEventListener('void-user', onUser)
+    return () => window.removeEventListener('void-user', onUser)
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -33,83 +46,118 @@ export function PretendersBoard({ compact = false }) {
     }
   }, [])
 
-  const rows = compact ? leaders.slice(0, 8) : leaders
-  const youRank = leaders.findIndex((r) => String(r.wallet).toLowerCase() === me) + 1
+  const maxCount = Math.max(1, ...leaders.map((r) => Number(r.count) || 0))
+  const claimed = Number(totals?.claimed) || leaders.reduce((a, r) => a + (Number(r.count) || 0), 0)
+  const totalLots = Number(totals?.total) || 200
+  const list = compact ? leaders.slice(0, 12) : leaders
+  const podium = leaders.slice(0, 3)
+  const rest = list.slice(3)
+
+  const podiumOrder = useMemo(() => {
+    if (podium.length < 2) return podium.map((r, i) => ({ ...r, place: i }))
+    const tagged = podium.map((r, i) => ({ ...r, place: i }))
+    if (tagged.length === 2) return [tagged[1], tagged[0]]
+    return [tagged[1], tagged[0], tagged[2]]
+  }, [podium])
 
   return (
-    <section className={compact ? '' : 'mt-8'}>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] uppercase tracking-[0.22em] text-muted">pretenders</p>
-          <h2 className="mt-1 font-display text-2xl font-extrabold tracking-tight sm:text-3xl">
-            who claimed the most <span className="text-lime">constellations</span>
-          </h2>
-          <p className="mt-2 max-w-xl text-[12px] leading-relaxed text-muted">
-            Ranked by lots on the live ledger. Same board on phone and PC. Your cabinet follows
-            this wallet only — switch wallet, switch cabinet.
-          </p>
-        </div>
-        {totals ? (
-          <p className="text-[11px] text-muted">
-            claimed <span className="text-lime">{totals.claimed}</span> / {totals.total}
-          </p>
-        ) : null}
-      </div>
-
-      {youRank > 0 ? (
-        <p className="mt-3 text-[12px] text-lime">
-          this wallet · rank #{youRank} · {leaders[youRank - 1]?.count} lots
+    <section className={compact ? '' : 'mt-2'}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
+          who owns the <span className="text-lime">void</span>
+        </h2>
+        <p className="font-mono text-[12px] text-muted">
+          claimed <span className="text-lime">{claimed}</span> / {totalLots}
         </p>
-      ) : me ? (
-        <p className="mt-3 text-[12px] text-muted">this wallet has no claimed lots yet</p>
-      ) : (
-        <p className="mt-3 text-[12px] text-muted">connect wallet to see your rank</p>
-      )}
+      </div>
 
       {err ? <p className="mt-4 text-[12px] text-red-400">{err}</p> : null}
 
-      <div className="mt-4 overflow-x-auto border border-lime/25">
-        <table className="w-full min-w-[18rem] border-collapse text-left text-[12px]">
-          <thead>
-            <tr className="border-b border-white/10 text-[10px] uppercase tracking-[0.16em] text-muted">
-              <th className="px-3 py-2 font-normal">#</th>
-              <th className="px-3 py-2 font-normal">wallet</th>
-              <th className="px-3 py-2 font-normal">constellations</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              const mine = String(r.wallet).toLowerCase() === me
-              return (
-                <tr
-                  key={r.wallet}
-                  className={`border-b border-white/5 ${mine ? 'bg-lime/10 text-lime' : 'text-ink'}`}
+      {podium.length > 0 ? (
+        <div className="mt-8 grid grid-cols-3 items-end gap-2 sm:gap-4">
+          {podiumOrder.map((r) => {
+            const h = 28 + Math.round((Number(r.count) / maxCount) * (r.place === 0 ? 88 : 56))
+            const mine = String(r.wallet).toLowerCase() === me
+            return (
+              <div
+                key={r.wallet}
+                className={`flex flex-col items-center ${r.place === 0 ? 'order-2' : r.place === 1 ? 'order-1' : 'order-3'}`}
+              >
+                <p className="mb-2 font-mono text-[10px] text-lime">{rankMark(r.place)}</p>
+                <div
+                  className={`flex w-full flex-col justify-end border px-2 py-3 sm:px-3 ${
+                    r.place === 0
+                      ? 'border-lime bg-lime/15'
+                      : mine
+                        ? 'border-lime/50 bg-lime/10'
+                        : 'border-white/15 bg-black/50'
+                  }`}
+                  style={{ minHeight: `${h}px` }}
                 >
-                  <td className="px-3 py-2.5 font-mono">{i + 1}</td>
-                  <td className="px-3 py-2.5 font-mono" title={r.wallet}>
+                  <p className="font-display text-lg text-lime sm:text-2xl">{r.count}</p>
+                  <p className="mt-1 truncate font-mono text-[9px] text-muted sm:text-[11px]" title={r.wallet}>
                     {shortWallet(r.wallet)}
                     {mine ? ' · you' : ''}
-                  </td>
-                  <td className="px-3 py-2.5 font-mono text-lime">{r.count}</td>
-                </tr>
-              )
-            })}
-            {!rows.length && !err ? (
-              <tr>
-                <td colSpan={3} className="px-3 py-8 text-center text-muted">
-                  no claims on the ledger yet — first wallet to claim becomes #1
-                </td>
-              </tr>
-            ) : null}
-          </tbody>
-        </table>
-      </div>
-
-      {compact ? (
-        <Link to="/board" className="mt-3 inline-block text-[11px] text-lime hover:underline">
-          full board →
-        </Link>
+                  </p>
+                  <p className="mt-0.5 text-[8px] uppercase tracking-wider text-muted">
+                    {r.place === 0 ? 'apex' : r.place === 1 ? 'second' : 'third'}
+                  </p>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : !err ? (
+        <div className="mt-8 border border-dashed border-lime/30 px-5 py-12 text-center">
+          <p className="font-display text-xl text-lime">empty field</p>
+          <p className="mt-2 text-[12px] text-muted">first wallet to claim a constellation takes rank I</p>
+          <Link to="/map" className="mt-4 inline-block border border-lime bg-lime px-4 py-2 text-[11px] font-semibold text-black">
+            claim on map
+          </Link>
+        </div>
       ) : null}
+
+      {rest.length > 0 ? (
+        <ol className="mt-6 border border-white/10">
+          <li className="grid grid-cols-[3rem_1fr_auto] border-b border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-muted">
+            <span>rank</span>
+            <span>wallet</span>
+            <span>lots</span>
+          </li>
+          {rest.map((r, idx) => {
+            const place = idx + 3
+            const mine = String(r.wallet).toLowerCase() === me
+            const w = Math.max(6, Math.round((Number(r.count) / maxCount) * 100))
+            return (
+              <li
+                key={r.wallet}
+                className={`relative grid grid-cols-[3rem_1fr_auto] items-center px-3 py-2.5 ${
+                  mine ? 'bg-lime/10' : idx % 2 ? 'bg-white/[0.02]' : ''
+                }`}
+              >
+                <span
+                  className="pointer-events-none absolute inset-y-0 left-0 bg-lime/10"
+                  style={{ width: `${w}%` }}
+                />
+                <span className="relative font-mono text-[11px] text-muted">{rankMark(place)}</span>
+                <span className="relative truncate font-mono text-[12px]" title={r.wallet}>
+                  {shortWallet(r.wallet)}
+                  {mine ? <span className="text-lime"> · you</span> : ''}
+                </span>
+                <span className="relative font-mono text-[12px] text-lime">{r.count}</span>
+              </li>
+            )
+          })}
+        </ol>
+      ) : null}
+
+      {compact && leaders.length > 12 ? (
+        <Link to="/board" className="mt-4 inline-block text-[11px] tracking-wide text-lime">
+          full pretenders board →
+        </Link>
+      ) : (
+        <p className="mt-4 text-[10px] text-muted">live from the map ledger · updates when lots are claimed</p>
+      )}
     </section>
   )
 }

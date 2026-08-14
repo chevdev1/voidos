@@ -61,13 +61,12 @@ export function WalletPanel({ user, onUser }) {
     if (user?.wallet) refreshBal(user.wallet)
   }, [user?.wallet, refreshBal])
 
-  // Linked = done. Don't keep showing Connect / stuck Waiting.
+  // Linked = done. Keep the live WC/injected session so claim can sign without reconnecting.
   useEffect(() => {
     if (!user?.wallet) return
     setChanging(false)
     setBusy(false)
     setBusyMode(null)
-    abortWalletConnect()
   }, [user?.wallet])
 
   const wcReady = useMemo(() => hasWalletConnectProject(), [])
