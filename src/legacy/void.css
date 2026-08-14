@@ -29,22 +29,21 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 /* HERO: text left · cosmos right */
 .hero{
   position:relative;
+  box-sizing:border-box;
   min-height:100vh;min-height:100dvh;
+  height:100vh;height:100dvh;
   display:grid;
-  grid-template-columns:minmax(260px,380px) 1fr;
+  grid-template-columns:minmax(240px, min(32vw, 420px)) minmax(0, 1fr);
   gap:8px;
-  padding:80px clamp(10px,2.5vw,28px) 28px;
-  /* Was align-items:stretch. .hero-cosmos-slot caps itself at
-     max-height:min(78vh,720px) (46vh/40vh on the mobile breakpoints below),
-     so on any viewport taller than that cap, "stretch" forced the grid row
-     to min-height:100vh while the slot itself couldn't fill it — leaving a
-     dead gap in that cell, sitting right before the next section starts.
-     center closes that gap by not forcing the row taller than its content
-     demands in the first place. */
-  align-items:center;
+  padding:0 clamp(10px, 2vw, 28px) 16px;
+  align-items:stretch;
   z-index:5;
 }
-.hero-left{position:relative;z-index:12;pointer-events:auto;align-self:center}
+.hero-left{
+  position:relative;z-index:12;pointer-events:auto;
+  align-self:center;
+  padding-top:max(64px, calc(env(safe-area-inset-top) + 48px));
+}
 .live{
   display:inline-flex;align-items:center;gap:8px;
   padding:7px 12px;border-radius:999px;
@@ -81,21 +80,22 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 
 .hero-cosmos-slot{
   position:relative;z-index:8;
-  min-height:min(72vh,640px);
-  max-height:min(78vh,720px);
+  min-height:0;
+  height:100%;
+  max-height:none;
+  align-self:stretch;
   margin-right:clamp(-8px,-2vw,-24px);
 }
 .hero-right{
   position:relative;z-index:8;
-  height:auto;min-height:min(72vh,640px);
-  max-height:min(78vh,720px);
+  height:100%;
+  min-height:100%;
+  max-height:none;
   border:none;
   border-radius:0;
   overflow:hidden;background:#000;
   box-shadow:none;
   isolation:isolate;
-  mask-image:linear-gradient(90deg,transparent 0%,#000 4%,#000 100%);
-  -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 4%,#000 100%);
 }
 .hero-right.in-arena canvas{
   width:100% !important;
@@ -347,6 +347,7 @@ body.arena-live .cart-dock{bottom:78px}
   outline-offset:-1px;
 }
 .hero-right canvas{
+  position:absolute;inset:0;
   width:100%;height:100%;display:block;cursor:grab;
   touch-action:pan-y;
 }
@@ -853,18 +854,28 @@ body.arena-live .void-toast.claim.show{
 }
 
 @media(max-width:960px){
-  .hero{grid-template-columns:1fr;padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));gap:12px;padding-bottom:16px;padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
-  .hero-left{order:1;min-width:0;width:100%}
+  .hero{
+    grid-template-columns:1fr;
+    height:auto;
+    min-height:100dvh;
+    padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));
+    gap:12px;
+    padding-bottom:16px;
+    padding-left:max(12px, env(safe-area-inset-left));
+    padding-right:max(12px, env(safe-area-inset-right));
+  }
+  .hero-left{order:1;min-width:0;width:100%;padding-top:0}
   .hero-cosmos-slot{
     order:2;margin-right:0;
-    min-height:min(42vh,360px);
-    max-height:min(46vh,400px);
+    min-height:42vh;
+    height:42vh;
+    max-height:none;
     min-width:0;width:100%;
   }
   .hero-right:not(.in-arena){
-    min-height:min(42vh,360px);
-    max-height:min(46vh,400px);
-    height:auto;
+    min-height:100%;
+    max-height:none;
+    height:100%;
     mask-image:none;-webkit-mask-image:none;margin-right:0;
     width:100%;
   }
@@ -906,10 +917,11 @@ body.arena-live .void-toast.claim.show{
   .m-stat .v{font-size:clamp(18px,6vw,24px)}
   .hero-cosmos-slot,
   .hero-right:not(.in-arena){
-    min-height:min(36vh,300px);
-    max-height:min(40vh,320px);
+    min-height:38vh;
+    height:38vh;
+    max-height:none;
   }
-  .hero{min-height:auto;padding-bottom:12px}
+  .hero{min-height:auto;height:auto;padding-bottom:12px}
   .cta .btn-lime,
   .cta .btn-ghost,
   .cta > button,
