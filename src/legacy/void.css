@@ -811,7 +811,7 @@ body.arena-live .void-toast.claim.show{
 .tfs{display:flex;gap:4px}
 .tf{padding:5px 9px;border-radius:7px;font-size:11px;color:var(--muted)}
 .tf.on{background:var(--lime);color:#000;font-weight:700}
-.chart-box{height:240px}.chart-box canvas{width:100%;height:100%;display:block}
+.chart-box{height:260px;position:relative}.chart-box canvas{width:100%;height:100%;display:block}
 
 .term{
   /* 220: above the fixed nav header (z-[200] in Nav.jsx) and the toast

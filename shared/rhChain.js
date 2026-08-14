@@ -8,8 +8,9 @@ export const RH_CHAIN_TEST = 46630
 
 /** Live $TEST on Pons / RH mainnet. */
 export const DEFAULT_EXO_TOKEN = '0x26feef8a105b282377102308d3769bf9C9E60e76'
-export const DEFAULT_DEX_URL =
-  'https://dexscreener.com/robinhood/0x61ce95Ee9d36d83A4776598E14CED9a4648D1A03'
+export const DEFAULT_POOL = '0x61ce95Ee9d36d83A4776598E14CED9a4648D1A03'
+export const DEFAULT_DEX_URL = `https://dexscreener.com/robinhood/${DEFAULT_POOL}`
+export const DEFAULT_GECKO_URL = `https://www.geckoterminal.com/robinhood/pools/${DEFAULT_POOL}`
 /** Burn sink — claim sends tokens here (no extra claim contract needed). */
 export const BURN_SINK = '0x000000000000000000000000000000000000dEaD'
 /** 1 token (18 decimals) per lot — cheap enough for a dead meme while proving the burn. */

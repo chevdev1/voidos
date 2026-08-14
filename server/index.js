@@ -36,7 +36,7 @@ import {
 } from '../shared/voidDb.js'
 import { getAddress } from 'viem'
 import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt } from '../shared/rhVerify.js'
-import { isEvmAddress, isClaimLive, claimPricePerLotWei } from '../shared/rhChain.js'
+import { fetchTokenMarket, MARKET_TFS } from '../shared/geckoMarket.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const promptsPack = JSON.parse(
@@ -55,6 +55,18 @@ app.use(express.json({ limit: '256kb' }))
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, gemini: Boolean(GEMINI_API_KEY), model: GEMINI_MODEL, db: 'libsql' })
+})
+
+app.get('/api/market', async (req, res) => {
+  try {
+    const tf = String(req.query?.tf || '15m')
+    if (!MARKET_TFS[tf]) return res.status(400).json({ error: 'bad tf' })
+    const data = await fetchTokenMarket(tf)
+    res.json({ ok: true, ...data })
+  } catch (err) {
+    console.error(err)
+    res.status(502).json({ error: err.message || 'market feed failed' })
+  }
 })
 
 app.post('/api/session', async (req, res) => {

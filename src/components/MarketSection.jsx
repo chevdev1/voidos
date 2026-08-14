@@ -1,11 +1,14 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ScrambleText } from './ScrambleText'
 import { BuyExoButton } from './BuyExoButton'
+import { VoidChart } from './VoidChart'
 import { getDexUrl, getExoCa, copyExoCa } from '../lib/buyExo'
+import { DEFAULT_GECKO_URL } from '../../shared/rhChain.js'
 import '../legacy/void.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
+const TFS = ['1m', '15m', '1h', '1D']
 
 const container = {
   hidden: {},
@@ -16,10 +19,52 @@ const fadeUp = {
   show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE_OUT } },
 }
 
+function fmtP(p) {
+  const n = Number(p)
+  if (!n) return '—'
+  if (n >= 1) return '$' + n.toFixed(4)
+  if (n >= 0.01) return '$' + n.toFixed(5)
+  return '$' + n.toFixed(8).replace(/0+$/, '').replace(/\.$/, '')
+}
+
+function fmtM(n) {
+  const v = Number(n)
+  if (!v) return '—'
+  if (v >= 1e6) return '$' + (v / 1e6).toFixed(2) + 'M'
+  if (v >= 1e3) return '$' + (v / 1e3).toFixed(2) + 'K'
+  return '$' + v.toFixed(0)
+}
+
 export function MarketSection() {
   const dex = getDexUrl()
   const ca = getExoCa()
   const [copied, setCopied] = useState(false)
+  const [tf, setTf] = useState('15m')
+  const [feed, setFeed] = useState(null)
+  const [err, setErr] = useState('')
+
+  useEffect(() => {
+    let dead = false
+    async function load() {
+      try {
+        const r = await fetch('/api/market?tf=' + encodeURIComponent(tf))
+        const j = await r.json()
+        if (!r.ok) throw new Error(j.error || 'feed failed')
+        if (!dead) {
+          setFeed(j)
+          setErr('')
+        }
+      } catch (e) {
+        if (!dead) setErr(e.message || 'feed failed')
+      }
+    }
+    load()
+    const id = setInterval(load, 45000)
+    return () => {
+      dead = true
+      clearInterval(id)
+    }
+  }, [tf])
 
   async function onCopyCa() {
     const ok = await copyExoCa()
@@ -27,6 +72,9 @@ export function MarketSection() {
     setCopied(true)
     setTimeout(() => setCopied(false), 1200)
   }
+
+  const chg = feed?.chg24
+  const chgCls = chg > 0 ? 'v up' : chg < 0 ? 'v dn' : 'v'
 
   return (
     <section className="void section" id="market">
@@ -54,25 +102,27 @@ export function MarketSection() {
         <motion.div variants={fadeUp} className="m-stat">
           <div className="l">Price</div>
           <div className="v lime" id="mPrice">
-            $0.002278
+            {fmtP(feed?.price)}
           </div>
         </motion.div>
         <motion.div variants={fadeUp} className="m-stat">
           <div className="l">Market Cap</div>
           <div className="v" id="mCap">
-            $2.16M
+            {fmtM(feed?.mcap)}
           </div>
         </motion.div>
         <motion.div variants={fadeUp} className="m-stat">
           <div className="l">Liquidity</div>
           <div className="v" id="mLiq">
-            $1.30M
+            {fmtM(feed?.liq)}
           </div>
         </motion.div>
         <motion.div variants={fadeUp} className="m-stat">
           <div className="l">24h</div>
-          <div className="v up" id="mChg">
-            +64.86%
+          <div className={chgCls} id="mChg">
+            {chg == null || Number.isNaN(Number(chg))
+              ? '—'
+              : (chg >= 0 ? '+' : '') + Number(chg).toFixed(2) + '%'}
           </div>
         </motion.div>
       </motion.div>
@@ -88,11 +138,8 @@ export function MarketSection() {
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $exo</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
-            {dex
-              ? 'Open the Dex to swap into $EXO on Robinhood Chain.'
-              : ca
-                ? 'Token CA is live — copy it into your wallet / Dex.'
-                : 'Token not listed yet. Claim lots in test mode on the map until mint is live.'}
+            Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map (1 token burned
+            per lot).
           </p>
           {ca ? (
             <button
@@ -135,25 +182,34 @@ export function MarketSection() {
         transition={{ duration: 0.55, ease: EASE_OUT, delay: 0.15 }}
       >
         <div className="chart-tools">
-          <span>EXO / USD</span>
-          <div className="tfs" id="tfs">
-            <button className="tf" data-n="90">
-              1m
-            </button>
-            <button className="tf on" data-n="70">
-              15m
-            </button>
-            <button className="tf" data-n="55">
-              1h
-            </button>
-            <button className="tf" data-n="40">
-              1D
-            </button>
+          <span className="font-mono text-[11px] tracking-wide">TEST / USD</span>
+          <div className="flex items-center gap-3">
+            <a
+              href={DEFAULT_GECKO_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="hidden font-mono text-[10px] text-muted hover:text-lime sm:inline"
+            >
+              gecko ↗
+            </a>
+            <div className="tfs" id="tfs">
+              {TFS.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={'tf' + (tf === key ? ' on' : '')}
+                  onClick={() => setTf(key)}
+                >
+                  {key}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="chart-box" id="chartBox">
-          <canvas id="chart" />
-        </div>
+        <VoidChart
+          candles={feed?.candles || []}
+          emptyHint={err ? 'feed offline' : 'indexing prints…'}
+        />
       </motion.div>
     </section>
   )
