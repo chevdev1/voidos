@@ -455,14 +455,11 @@ export function initVoidEngine() {
     }
     function detectStartQuality() {
       try {
-        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) return 'medium';
         const saveData = navigator.connection && navigator.connection.saveData;
-        if (saveData) return 'low';
-        const mem = navigator.deviceMemory; // Chrome-ish; undefined elsewhere
-        if (mem != null && mem <= 4) return 'low';
-        const cores = navigator.hardwareConcurrency || 8;
-        const coarse = matchMedia('(pointer: coarse)').matches;
-        if (cores <= 4 || coarse || (mem != null && mem <= 6)) return 'medium';
+        if (saveData) return 'medium';
+        const mem = navigator.deviceMemory;
+        if (mem != null && mem <= 2) return 'medium';
       } catch (_) {
         /* ignore */
       }
@@ -1720,6 +1717,7 @@ export function initVoidEngine() {
         }
       },
     };
+    window.dispatchEvent(new Event('void-cosmos-ready'));
     if (window.__voidCosmosPendingEnter) {
       window.__voidCosmosPendingEnter = false;
       enterArena();

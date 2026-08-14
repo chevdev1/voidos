@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { SmoothScrollProvider } from '../lib/SmoothScroll'
 import { Nav } from '../components/Nav'
 import { Hero } from '../components/Hero'
@@ -10,10 +10,13 @@ import { BackgroundBeams } from '../components/BackgroundBeams'
 import { Footer } from '../components/Footer'
 import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
-import { initVoidEngine } from '../legacy/voidEngine'
+import { BootSplash } from '../components/BootSplash'
 import { mindSession } from '../lib/mindClient'
 
 export default function LandingPage() {
+  const [booting, setBooting] = useState(true)
+  const [ready, setReady] = useState(false)
+
   useEffect(() => {
     mindSession().catch(() => {})
   }, [])
@@ -21,31 +24,44 @@ export default function LandingPage() {
   useEffect(() => {
     let destroy = null
     let cancelled = false
-    const start = () => {
+    const failSafe = setTimeout(() => {
+      if (!cancelled) setReady(true)
+    }, 8000)
+
+    const onReady = () => {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          if (!cancelled) setReady(true)
+        })
+      })
+    }
+
+    const start = async () => {
+      if (cancelled) return
+      const { initVoidEngine } = await import('../legacy/voidEngine')
       if (cancelled) return
       destroy = initVoidEngine()
+      if (window.__voidCosmos) onReady()
     }
-    let idleId = null
-    let timeoutId = null
-    if (typeof requestIdleCallback !== 'undefined') {
-      idleId = requestIdleCallback(start, { timeout: 400 })
-    } else {
-      timeoutId = setTimeout(start, 50)
-    }
+
+    window.addEventListener('void-cosmos-ready', onReady)
+    start()
+
     return () => {
       cancelled = true
-      if (idleId != null && typeof cancelIdleCallback !== 'undefined') cancelIdleCallback(idleId)
-      if (timeoutId != null) clearTimeout(timeoutId)
+      clearTimeout(failSafe)
+      window.removeEventListener('void-cosmos-ready', onReady)
       destroy?.()
     }
   }, [])
 
+  const finishBoot = useCallback(() => setBooting(false), [])
+
   return (
     <SmoothScrollProvider>
+      {booting && <BootSplash ready={ready} onDone={finishBoot} />}
       <Nav />
-
       <Hero />
-
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
         <main className="relative z-10 mx-auto max-w-6xl">
@@ -54,11 +70,9 @@ export default function LandingPage() {
           <FAQSection />
         </main>
       </div>
-
       <div className="mx-auto max-w-6xl">
         <Footer />
       </div>
-
       <CosmosArena />
       <SectorTerminal />
       <MindChat />

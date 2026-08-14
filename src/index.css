@@ -34,6 +34,19 @@ body {
   min-width: 0;
 }
 
+@keyframes boot-bar {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+.boot-bar {
+  animation: boot-bar 1.2s ease-in-out infinite;
+}
+
 /* Mobile rhythm: readable type, no horizontal bleed */
 @media (max-width: 640px) {
   .section {

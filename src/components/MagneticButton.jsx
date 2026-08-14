@@ -31,6 +31,7 @@ export function MagneticButton({
   const labelSpringY = useSpring(labelY, LABEL_SPRING)
 
   function handleMouseMove(e) {
+    if (typeof window !== 'undefined' && window.matchMedia('(hover: none)').matches) return
     const el = ref.current
     if (!el) return
     const rect = el.getBoundingClientRect()
