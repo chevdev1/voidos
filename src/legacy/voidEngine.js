@@ -15,6 +15,7 @@ import { mindClaimSync, mindClaimVerify, mindMapOwnerships, loadOwnerships, load
 import { isClaimLiveClient, claimOnChain } from '../lib/rhWallets.js'
 import { getLotKind, buildLotProfile } from '../../shared/lotLore.js'
 import { applyLotBookToConstels, formatUsd } from '../../shared/lotPricing.js'
+import { formatClaimBurn } from '../../shared/rhChain.js'
 
 export function initVoidEngine() {
   'use strict';
@@ -853,7 +854,7 @@ export function initVoidEngine() {
         list.innerHTML = '';
         if (title) title.textContent = 'STACK · 0 constellations';
         if (massEl) massEl.textContent = '0';
-        if (burnEl) burnEl.textContent = formatUsd(0);
+        if (burnEl) burnEl.textContent = formatClaimBurn(0);
         syncTermButtons();
         return;
       }
@@ -866,12 +867,12 @@ export function initVoidEngine() {
           const cb = c.grains.reduce((a, s) => a + (Number(s.usd) || 0), 0);
           return `<button type="button" class="cart-chip constel" data-cid="${c.id}" title="remove">✧ ${escHtml(
             c.name,
-          )} · ${c.grains.length}g · ${escHtml(formatUsd(cb))}</button>`;
+          )} · ${c.grains.length}g · ${escHtml(formatClaimBurn(1))}</button>`;
         })
         .join('');
       if (title) title.textContent = `STACK · ${selectedConstels.size} constellations`;
       if (massEl) massEl.textContent = fmt(mass);
-      if (burnEl) burnEl.textContent = formatUsd(burn);
+      if (burnEl) burnEl.textContent = formatClaimBurn(selectedConstels.size);
       list.querySelectorAll('.cart-chip[data-cid]').forEach((btn) => {
         btn.onclick = () => {
           selectedConstels.delete(btn.dataset.cid);
@@ -1266,12 +1267,12 @@ export function initVoidEngine() {
           : 'kind · ' + kind.label,
         tier: kind.tag + ' · ' + kind.rarity,
         price: owned
-          ? formatUsd(burn) + ' · claimed (yours)'
+          ? 'claimed (yours)'
           : reserved
             ? 'RESERVED · one owner only'
             : isClaimLiveClient()
-              ? formatUsd(burn) + ' · burn $TEST on-chain'
-              : formatUsd(burn) + ' · connect to claim',
+              ? formatClaimBurn(1) + ' · on-chain'
+              : formatClaimBurn(1) + ' · connect to claim',
         size: fmt(mass) + ' cells',
         grav: owned
           ? yours + '/' + c.grains.length + ' owned'
@@ -1661,7 +1662,7 @@ export function initVoidEngine() {
             names.slice(0, 4).join(', ') +
             (names.length > 4 ? '…' : '') +
             ' · ' +
-            formatUsd(burn),
+            formatClaimBurn(nConst),
         );
         if (!ok) return;
         selectedConstels.clear();

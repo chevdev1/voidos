@@ -63,6 +63,18 @@ export function isClaimLive() {
   return isEvmAddress(exoTokenAddress())
 }
 
+export function claimTokensPerLot() {
+  return Number(claimPricePerLotWei()) / 1e18
+}
+
+export function formatClaimBurn(lotCount = 1) {
+  const n = Math.max(0, Number(lotCount) || 0)
+  const t = claimTokensPerLot() * n
+  if (!n || !t) return '0 $TEST'
+  const s = t >= 0.01 ? t.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : t.toPrecision(2)
+  return `${s} $TEST`
+}
+
 /**
  * Claim + quote ABI. Matches contracts/ExoClaim.sol.
  * quote() is optional: if the deployed contract has only claim(), the wallet
