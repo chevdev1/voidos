@@ -131,15 +131,31 @@ function publicClient() {
   })
 }
 
+function isWalletConnectProvider(provider) {
+  if (!provider) return false
+  if (wcProvider && provider === wcProvider) return true
+  return Boolean(provider.isWalletConnect || provider.session)
+}
+
+async function readChainId(provider) {
+  try {
+    const current = await provider.request({ method: 'eth_chainId' })
+    return String(current || '').toLowerCase()
+  } catch {
+    return ''
+  }
+}
+
 async function ensureChain(provider) {
   const chain = getRhChain()
   const hexId = `0x${chain.id.toString(16)}`
-  try {
-    const current = await provider.request({ method: 'eth_chainId' })
-    if (String(current).toLowerCase() === hexId.toLowerCase()) return
-  } catch {
-    /* continue to switch */
-  }
+  const current = await readChainId(provider)
+  if (current && current === hexId.toLowerCase()) return
+
+  // Trust / WalletConnect sessions often have no wallet_switchEthereumChain.
+  // Let the next tx use whatever network the user picked in the wallet.
+  if (isWalletConnectProvider(provider)) return
+
   try {
     await provider.request({
       method: 'wallet_switchEthereumChain',
@@ -149,7 +165,12 @@ async function ensureChain(provider) {
     const msg = String(err?.message || err || '')
     if (/already pending/i.test(msg)) {
       throw new Error(
-        'MetaMask: старый запрос сети ещё открыт. Открой расширение MetaMask → Reject. Потом жми QR · Trust (не MetaMask).',
+        'Wallet still has a pending network request. Open the wallet → Reject, then claim again.',
+      )
+    }
+    if (/Missing or invalid|does not exist|not supported|wallet_switchEthereumChain/i.test(msg)) {
+      throw new Error(
+        'This wallet cannot auto-switch. Pick Robinhood Chain in the wallet, then claim again.',
       )
     }
     if (err?.code === 4902 || /Unrecognized chain/i.test(msg)) {
@@ -173,8 +194,11 @@ async function ensureChain(provider) {
       } catch (addErr) {
         const addMsg = String(addErr?.message || addErr || '')
         if (/already pending/i.test(addMsg)) {
+          throw new Error('Wallet still has a pending Add Network request. Reject it, then retry.')
+        }
+        if (/Missing or invalid|not supported|wallet_addEthereumChain/i.test(addMsg)) {
           throw new Error(
-            'MetaMask: запрос Add Network уже висит. Открой MetaMask → Reject. Потом используй QR · Trust.',
+            'Add Robinhood Chain in the wallet (id 4663), switch to it, then claim again.',
           )
         }
         throw addErr
