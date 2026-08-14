@@ -14,8 +14,8 @@ export const DEFAULT_DEX_URL = `https://dexscreener.com/robinhood/${DEFAULT_POOL
 export const DEFAULT_GECKO_URL = `https://www.geckoterminal.com/robinhood/pools/${DEFAULT_POOL}`
 /** Burn sink — claim sends tokens here (no extra claim contract needed). */
 export const BURN_SINK = '0x000000000000000000000000000000000000dEaD'
-/** Dust per lot (1 wei) — minimum on-chain transfer for test claims. */
-export const DEFAULT_CLAIM_PRICE_WEI = 1n
+/** Tiny but visible amount so wallets don't show "0 TEST" and fail gas estimate. */
+export const DEFAULT_CLAIM_PRICE_WEI = 10n ** 15n
 
 export function rhChainId() {
   const n = Number(process.env.VITE_RH_CHAIN_ID || process.env.RH_CHAIN_ID || RH_CHAIN_MAIN)

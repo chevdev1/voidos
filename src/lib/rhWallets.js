@@ -617,6 +617,41 @@ export async function claimOnChain(lotIds = []) {
   const lotBytes = ids.map(lotIdToBytes32)
   const cost = claimPricePerLotWei() * BigInt(ids.length)
 
+  const [ethBal, tokenBal] = await Promise.all([
+    pub.getBalance({ address }),
+    pub.readContract({
+      address: tokenAddr,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+  ])
+  if (ethBal === 0n) {
+    throw new Error('Need ETH on Robinhood Chain for gas. Bridge or buy a little ETH on this network.')
+  }
+  if (tokenBal < cost) {
+    throw new Error(
+      'Need $TEST on this wallet. Open Buy $TEST, swap a tiny amount, then claim again.',
+    )
+  }
+
+  try {
+    await pub.simulateContract({
+      address: tokenAddr,
+      abi: ERC20_ABI,
+      functionName: 'transfer',
+      args: [BURN_SINK, cost],
+      account: address,
+    })
+  } catch (simErr) {
+    const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
+    throw new Error(
+      /transfer|paused|restrict|blacklist|allow/i.test(sm)
+        ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
+        : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
+    )
+  }
+
   if (claimAddrRaw) {
     const claimAddr = getAddress(claimAddrRaw)
     let quote = 0n
