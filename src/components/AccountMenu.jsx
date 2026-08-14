@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
 import { mindSession, loadUser, saveUser } from '../lib/mindClient'
 import { WalletPanel } from './WalletPanel'
 
@@ -90,13 +89,18 @@ export function AccountMenu() {
                     Already connected — open cabinet. Change wallet only if you need another address.
                   </p>
                 </div>
-                <Link
-                  to="/cabinet"
-                  onClick={() => setOpen(false)}
-                  className="block border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setOpen(false)
+                    if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
+                    else if (window.__openFullMap) window.__openFullMap()
+                    else window.__voidCosmosPendingEnter = true
+                  }}
+                  className="block w-full border border-lime bg-lime px-3 py-3 text-center text-[11px] font-semibold tracking-[0.14em] text-black transition-colors hover:bg-[#d8ff33]"
                 >
-                  OPEN CABINET / ЛК
-                </Link>
+                  OPEN MAP / ЛК
+                </button>
                 <WalletPanel user={user} onUser={onUserChange} />
               </div>
             ) : (

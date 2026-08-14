@@ -1628,6 +1628,17 @@ export function initVoidEngine() {
     }
 
     function enterArena() {
+      // The boot splash (see BootSplash.jsx / LandingPage.jsx) sits at
+      // z-[400000] — above the arena popup (z-index:80) — and its own
+      // ready->fade sequence takes at least 2 rAFs + 520ms even after the
+      // engine signals it's loaded. If the map is opened early (e.g. a
+      // #map URL hash on cold load, or a very fast click), the arena was
+      // opening correctly *underneath* the still-visible splash: exactly
+      // "black screen but clickable" (click-through starts as soon as the
+      // splash's fade-out flips on pointer-events:none, well before the
+      // pixels are actually gone). This tells the boot sequence to skip
+      // straight to done instead of racing it.
+      window.dispatchEvent(new Event('void-map-opened'));
       const pop = document.getElementById('map');
       const stage = document.getElementById('arenaStage');
       const placeholder = document.getElementById('arenaPlaceholder');
