@@ -227,7 +227,7 @@ export function initVoidEngine() {
       // a slightly larger brightness/size range below, per the request to
       // trade raw particle count for rendered size rather than fill-rate.
       // Fewer stars = map stays live while wallet / claim run on the same thread.
-      for (let i = 0; i < 3800; i++) {
+      for (let i = 0; i < 2800; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -782,15 +782,28 @@ export function initVoidEngine() {
     function paintHudLeaders() {
       const el = document.getElementById('hudLeaders');
       if (!el) return;
+      const top = (mapLeaders || []).slice(0, 8);
+      if (!top.length) {
+        el.innerHTML =
+          '<p class="hud-board-cap">PRETENDERS</p><p class="hud-board-row">no claims yet</p>';
+        return;
+      }
       el.innerHTML =
-        '<button type="button" class="hud-board-btn" data-open-board>PRETENDERS BOARD</button>';
+        '<p class="hud-board-cap">PRETENDERS</p>' +
+        top
+          .map(
+            (r, i) =>
+              `<div class="hud-board-row"><b>#${i + 1}</b> <span>${shortWallet(r.wallet)}</span> <em>${r.count}</em></div>`,
+          )
+          .join('') +
+        '<button type="button" class="hud-board-btn" data-open-board>full board</button>';
     }
 
     window.__voidHydrateTaken = hydrateTakenFromPublic;
 
     async function refreshMapOwnerships() {
       try {
-        const data = await mindMapOwnerships({ force: true });
+        const data = await mindMapOwnerships({ force: false });
         hydrateTakenFromPublic(data);
         const n = Array.isArray(data?.lots) ? data.lots.length : 0;
         const claimed = Number(data?.totals?.claimed) || n;

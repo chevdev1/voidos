@@ -122,7 +122,15 @@
   }
 
   body.arena-live .cosmos-hud {
-    display: none !important;
+    display: flex !important;
+    font-size: 9px;
+    gap: 8px;
+    flex-wrap: wrap;
+    max-width: min(78vw, 280px);
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: 8px;
+    left: auto;
+    bottom: auto;
   }
 
   body.arena-live .minimap {

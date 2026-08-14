@@ -408,6 +408,18 @@ export async function mindMapOwnerships({ force = false } = {}) {
     leaders: Array.isArray(data.leaders) ? data.leaders : [],
     totals: data.totals || { claimed: 0, available: 200, total: 200 },
   }
+  if (!_mapOwnsCache.leaders.length && _mapOwnsCache.lots.length) {
+    const by = new Map()
+    for (const l of _mapOwnsCache.lots) {
+      const w = String(l.wallet || '').trim()
+      if (!w) continue
+      const k = w.toLowerCase()
+      const prev = by.get(k)
+      if (!prev) by.set(k, { wallet: w, count: 1 })
+      else prev.count += 1
+    }
+    _mapOwnsCache.leaders = [...by.values()].sort((a, b) => b.count - a.count).slice(0, 50)
+  }
   _mapOwnsAt = now
   try {
     window.__voidHydrateTaken?.(_mapOwnsCache)

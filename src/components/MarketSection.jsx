@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ScrambleText } from './ScrambleText'
 import { BuyExoButton } from './BuyExoButton'
 import { VoidChart } from './VoidChart'
 import { getDexUrl, getExoCa, copyExoCa } from '../lib/buyExo'
 import { DEFAULT_GECKO_URL } from '../../shared/rhChain.js'
+import { candlesForTimeframe } from '../../shared/geckoMarket.js'
 import '../legacy/void.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
@@ -47,7 +48,7 @@ export function MarketSection() {
     let dead = false
     async function load() {
       try {
-        const r = await fetch('/api/market?tf=' + encodeURIComponent(tf), { cache: 'no-store' })
+        const r = await fetch('/api/market?tf=15m', { cache: 'no-store' })
         const j = await r.json()
         if (!r.ok) throw new Error(j.error || 'feed failed')
         if (!dead) {
@@ -59,12 +60,17 @@ export function MarketSection() {
       }
     }
     load()
-    const id = setInterval(load, tf === '1m' ? 12000 : 30000)
+    const id = setInterval(load, 30000)
     return () => {
       dead = true
       clearInterval(id)
     }
-  }, [tf])
+  }, [])
+
+  const candles = useMemo(
+    () => candlesForTimeframe(feed?.series || feed?.candles || [], tf),
+    [feed, tf],
+  )
 
   async function onCopyCa() {
     const ok = await copyExoCa()
@@ -208,7 +214,7 @@ export function MarketSection() {
         </div>
         <VoidChart
           key={tf}
-          candles={feed?.candles || []}
+          candles={candles}
           tf={tf}
           emptyHint={err ? 'feed offline' : 'indexing prints…'}
         />

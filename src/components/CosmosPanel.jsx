@@ -21,6 +21,11 @@ export function CosmosPanel() {
       <canvas id="cosmos" />
       <div className="cosmos-fx" aria-hidden="true" />
       <div className="cosmos-scan" aria-hidden="true" />
+      <div className="cosmos-hud">
+        <div className="hud-board" id="hudLeaders">
+          <p className="hud-board-cap">PRETENDERS</p>
+        </div>
+      </div>
       <div className="tip" id="tip">
         <div className="t1" id="tip1">
           sector #0

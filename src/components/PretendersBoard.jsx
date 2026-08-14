@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { loadUser, mindMapOwnerships } from '../lib/mindClient'
+import { loadUser, mindMapOwnerships, peekMapOwnerships } from '../lib/mindClient'
 
 function shortWallet(w) {
   const s = String(w || '')
@@ -32,6 +32,11 @@ export function PretendersBoard({ compact = false }) {
 
   useEffect(() => {
     let cancelled = false
+    const peek = peekMapOwnerships()
+    if (peek?.leaders?.length) {
+      setLeaders(peek.leaders)
+      setTotals(peek.totals || null)
+    }
     mindMapOwnerships({ force: true })
       .then((data) => {
         if (cancelled) return

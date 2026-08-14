@@ -344,21 +344,16 @@ export async function listMapOwnerships() {
     trained_at: r.trained_at || null,
   }))
 
-  const leaderRows = rows(
-    await getDb().execute({
-      sql: `SELECT u.wallet_pubkey AS wallet, COUNT(*) AS count
-            FROM ownerships o
-            JOIN users u ON u.id = o.user_id
-            WHERE u.wallet_pubkey IS NOT NULL AND u.wallet_pubkey != ''
-            GROUP BY lower(u.wallet_pubkey)
-            ORDER BY count DESC
-            LIMIT 50`,
-    }),
-  )
-  const leaders = leaderRows.map((r) => ({
-    wallet: String(r.wallet),
-    count: Number(r.count) || 0,
-  }))
+  const byWallet = new Map()
+  for (const l of lots) {
+    const w = String(l.wallet || '').trim()
+    if (!w) continue
+    const k = w.toLowerCase()
+    const prev = byWallet.get(k)
+    if (!prev) byWallet.set(k, { wallet: w, count: 1 })
+    else prev.count += 1
+  }
+  const leaders = [...byWallet.values()].sort((a, b) => b.count - a.count).slice(0, 50)
 
   const claimed = lots.length
   return {

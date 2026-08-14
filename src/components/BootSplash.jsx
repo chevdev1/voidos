@@ -19,7 +19,17 @@ export function BootSplash({ ready, onDone }) {
   const [progress, setProgress] = useState(0)
   const [loadingText, setLoadingText] = useState(stageText(0))
   const [leaving, setLeaving] = useState(false)
-  const [gone, setGone] = useState(false)
+  const [gone, setGone] = useState(() => {
+    try {
+      return sessionStorage.getItem('void_boot') === '1'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    if (gone) onDone?.()
+  }, [gone, onDone])
 
   useEffect(() => {
     if (ready) return undefined
@@ -49,8 +59,13 @@ export function BootSplash({ ready, onDone }) {
     if (!leaving || gone) return
     const t = setTimeout(() => {
       setGone(true)
+      try {
+        sessionStorage.setItem('void_boot', '1')
+      } catch {
+        /* ignore */
+      }
       onDone?.()
-    }, 520)
+    }, 180)
     return () => clearTimeout(t)
   }, [leaving, gone, onDone])
 
