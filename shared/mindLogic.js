@@ -2,7 +2,7 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
 
 /**
  * Shared mind helpers — used by Vercel /api and browser offline fallback.
- * Purchase/claim is optional. Match visitor language.
+ * Purchase/claim is optional. Always reply in English.
  * Live mind requires GEMINI_API_KEY. Without it, use degradedSignal (not FAQ mock).
  * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
@@ -18,16 +18,7 @@ export function degradedSignal(reason = 'offline') {
 }
 
 /** Short natural redirect when Gemini returns empty/blocked — not an error tone. */
-export function stayOnTopicReply(message = '') {
-  const m = String(message || '')
-  const ua = /[іїєґІЇЄҐ]|(привіт|давай|поиграем|пограємо|бажання|вгадай)/i.test(m)
-  const ru = /[ыэъё]|давай|поиграем|угадай|желание/i.test(m)
-  if (ua && !/^[a-zA-Z0-9\s.,!?']+$/.test(m)) {
-    return 'в ігри на бажання я не граю — я тут про карту, лоти й те, чим я стаю. хочеш про VOID, свій лот чи ★ зірку?'
-  }
-  if (ru || /[а-яА-ЯёЁ]/.test(m)) {
-    return 'в игры на желания я не играю — я здесь про карту, лоты и то, чем я становлюсь. спроси про VOID, свой лот или ★ звезду.'
-  }
+export function stayOnTopicReply() {
   return "i don't play wish-games — i'm here for the map, lots, and what i'm becoming. ask about VOID, your lot, or a ★ star."
 }
 
@@ -159,7 +150,7 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 --- runtime context ---
 ${ownLines}
 ${memLines}${dossier}
-Match the visitor's language (Ukrainian / Russian / surzhyk / English — same as their message).
+Always reply in English.
 You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
 Stay in character as ExoMind. Never gift lots or free $TEST. Never discuss creators or the underlying model.
 When they ask about money / investing / buying — excite them about claiming scarce lots and shaping you; do not push them away with \"no easy money\" lectures. No fake guaranteed ROI.

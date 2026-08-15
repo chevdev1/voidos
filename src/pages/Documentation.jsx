@@ -46,7 +46,7 @@ const SECTIONS = [
           the total $TEST supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Live site: claiming a lot burns a <b>dust min</b> of $TEST per lot (test pricing) to the
+          Live site: claiming a lot burns $TEST per lot to the
           dead address on Robinhood Chain. Buy $TEST on Dex, connect the wallet, then claim on the
           map.
         </p>
@@ -72,8 +72,8 @@ const SECTIONS = [
           signal into it always costs something. Silence is free. Influence isn't.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Until mint is live: use <b>Train patch (test)</b> in CABINET — free ledger training that
-          marks the lot as fed on the map. Claim already burns $TEST; training burn follows.
+          Use <b>Train lot</b> in CABINET to mark a claimed lot as fed on the map.
+          Claim already burns $TEST.
         </p>
       </>
     ),
@@ -242,7 +242,7 @@ function DocumentationContent() {
             </h1>
             <p className="mt-3 max-w-xl font-mono text-[13px] leading-relaxed text-gray-400">
               The reference manual for the probe, the lots, and the fuel that runs both. Claim burns
-              $TEST on Robinhood Chain; training stays a free test patch for now.
+              $TEST on Robinhood Chain. Train a claimed lot in CABINET to mark it as fed.
             </p>
           </motion.div>
 

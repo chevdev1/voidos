@@ -7,7 +7,6 @@ import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
 import { WalletPanel } from '../components/WalletPanel'
 import { PretendersBoard } from '../components/PretendersBoard'
-import { isClaimLiveClient } from '../lib/rhWallets'
 
 /**
  * Personal cabinet — owned constellation lots by kind, rotatable viewer + full lore.
@@ -186,13 +185,8 @@ export default function Cabinet() {
         >
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-[11px] uppercase tracking-[0.2em] text-muted">
-            personal ledger
+              personal ledger
             </p>
-            {!isClaimLiveClient() ? (
-            <span className="border border-lime/35 bg-lime/10 px-2 py-0.5 text-[9px] uppercase tracking-[0.16em] text-lime">
-              test mode
-            </span>
-            ) : null}
           </div>
           <h1 className="mt-2 font-display text-3xl font-extrabold tracking-tight sm:text-5xl">
             your <span className="text-lime">lots</span>
@@ -205,7 +199,7 @@ export default function Cabinet() {
           </p>
           <p className="mt-2 max-w-xl text-[11px] leading-relaxed text-muted/90">
             Identity is your <span className="text-lime">Robinhood Wallet</span>. One lot = one
-            owner (others see RESERVED). Claim burns a test-min dust of $TEST per lot.
+            owner (others see RESERVED). Claim burns $TEST per lot.
           </p>
         </motion.div>
 
@@ -434,7 +428,7 @@ export default function Cabinet() {
                           disabled={Boolean(active.lot.trained)}
                           onClick={trainActiveLot}
                         >
-                          {active.lot.trained ? 'trained ✓' : 'Train patch (test)'}
+                          {active.lot.trained ? 'trained ✓' : 'Train lot'}
                         </button>
                         <button
                           type="button"
@@ -448,7 +442,7 @@ export default function Cabinet() {
                         <p className="text-[11px] text-lime/90">{trainNote}</p>
                       ) : (
                         <p className="text-[10px] text-muted">
-                          training is a free ledger mark for now — claim already burns $TEST.
+                          training marks the lot as fed on the map. Claim already burns $TEST.
                         </p>
                       )}
                     </div>

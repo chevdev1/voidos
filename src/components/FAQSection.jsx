@@ -8,7 +8,7 @@ const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 const FAQS = [
   {
     q: 'How do I claim a constellation lot?',
-    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns a dust amount of $TEST per lot (test minimum).',
+    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns $TEST per lot.',
   },
   {
     q: 'What happens if I sell my $TEST?',
@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: 'How does training work?',
-    a: 'In CABINET, open a claimed lot and use Train patch (test). That marks the lot as trained on the map. Claim already burns $TEST dust; training burn comes next.',
+    a: 'In CABINET, open a claimed lot and use Train lot. That marks the lot as trained on the map. Claim already burns $TEST.',
   },
 ]
 

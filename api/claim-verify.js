@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   try {
     if (!isClaimLive()) {
       return res.status(503).json({
-        error: 'claim contract not live — use /api/claim-sync for test claims',
+        error: 'claim is not available',
         claimLive: false,
       })
     }

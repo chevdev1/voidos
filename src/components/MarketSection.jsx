@@ -144,8 +144,7 @@ export function MarketSection() {
         <div className="min-w-0 flex-1">
           <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $test</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
-            Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map (dust burn per
-            lot — test min).
+            Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map. Each claim burns $TEST.
           </p>
           {ca ? (
             <button
