@@ -262,7 +262,7 @@ export function Hero() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-                  className="pointer-events-auto mx-4 max-w-xs rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
+                  className="pointer-events-auto my-6 w-[90vw] max-w-xs mx-auto rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
                 >
                   <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
                   <h3 className="mb-2 font-display text-lg font-extrabold text-white">

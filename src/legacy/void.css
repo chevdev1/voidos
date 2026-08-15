@@ -913,22 +913,19 @@ body.arena-live .void-toast.claim.show{
 }
 
 @media(max-width:960px){
-  .hero{grid-template-columns:1fr;padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));gap:12px;padding-bottom:16px;padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
+  /* align-content:start (not the base rule's implicit stretch) — .hero
+     keeps min-height:100dvh here, and with grid-template-columns collapsed
+     to a single column, two auto-sized rows (hero-left, hero-cosmos-slot)
+     stretching to fill that leftover height is what let the cosmos slot's
+     box — and the absolute-positioned LIVE DEMO prompt inside it — grow
+     past its real content height and bleed into the section below. */
+  .hero{grid-template-columns:1fr;align-content:start;padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));gap:12px;padding-bottom:16px;padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
   .hero-left{order:1;min-width:0;width:100%}
-  .hero-cosmos-slot{
-    order:2;margin-right:0;
-    min-height:min(42vh,360px);
-    height:min(42vh,360px);
-    max-height:min(46vh,400px);
-    min-width:0;width:100%;
-  }
-  .hero-right:not(.in-arena){
-    min-height:min(42vh,360px);
-    max-height:min(46vh,400px);
-    height:auto;
-    mask-image:none;-webkit-mask-image:none;margin-right:0;
-    width:100%;
-  }
+  /* Slot/right sizing at this breakpoint lives in phoneMap.css (loaded
+     after this file everywhere it's imported, so it's the rule that
+     actually wins) — a second, differently-numbered copy used to be
+     defined here too, silently shadowed. One source of truth now. */
+  .hero-cosmos-slot{order:2;min-width:0;width:100%}
   .hero h1{font-size:clamp(36px,12vw,56px)}
   .lead{max-width:100%;font-size:13px}
   .ca-row{max-width:100%}
@@ -995,3 +992,14 @@ body.arena-live .void-toast.claim.show{
     border-radius:12px 12px 0 0 !important;
   }
 }
+
+/* Thin themed scrollbar for compact in-card lists (pretenders board) —
+   the site's default ::-webkit-scrollbar is 10px, too heavy inside a
+   small bordered box. */
+.custom-scrollbar::-webkit-scrollbar{width:6px}
+.custom-scrollbar::-webkit-scrollbar-track{background:transparent}
+.custom-scrollbar::-webkit-scrollbar-thumb{
+  background:rgba(204,255,0,.25);border-radius:8px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover{background:rgba(204,255,0,.45)}
+.custom-scrollbar{scrollbar-width:thin;scrollbar-color:rgba(204,255,0,.25) transparent}

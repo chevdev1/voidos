@@ -59,7 +59,7 @@ export function PretendersBoard({ compact = false }) {
   const maxCount = Math.max(1, ...leaders.map((r) => Number(r.count) || 0))
   const claimed = Number(totals?.claimed) || lots.length || leaders.reduce((a, r) => a + (Number(r.count) || 0), 0)
   const totalLots = Number(totals?.total) || 200
-  const list = compact ? leaders.slice(0, 12) : leaders
+  const list = compact ? leaders.slice(0, 20) : leaders
   const podium = leaders.slice(0, 3)
   const unnamedLots = lots.filter((l) => !/^0x[a-fA-F0-9]{40}$/i.test(String(l.wallet || '')))
 
@@ -135,37 +135,56 @@ export function PretendersBoard({ compact = false }) {
       ) : null}
 
       {list.length > 0 ? (
-        <ol className="mt-6 border border-white/10">
-          <li className="grid grid-cols-[3rem_1fr_auto] border-b border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-muted">
-            <span>rank</span>
-            <span>wallet</span>
-            <span>lots</span>
-          </li>
-          {list.map((r, idx) => {
-            const place = idx
-            const mine = String(r.wallet).toLowerCase() === me
-            const w = Math.max(6, Math.round((Number(r.count) / maxCount) * 100))
-            return (
-              <li
-                key={r.wallet}
-                className={`relative grid grid-cols-[3rem_1fr_auto] items-center px-3 py-2.5 ${
-                  mine ? 'bg-lime/10' : idx % 2 ? 'bg-white/[0.02]' : ''
-                }`}
-              >
-                <span
-                  className="pointer-events-none absolute inset-y-0 left-0 bg-lime/10"
-                  style={{ width: `${w}%` }}
-                />
-                <span className="relative font-mono text-[11px] text-muted">{rankMark(place)}</span>
-                <span className="relative truncate font-mono text-[12px]" title={r.wallet}>
-                  {shortWallet(r.wallet)}
-                  {mine ? <span className="text-lime"> · you</span> : ''}
-                </span>
-                <span className="relative font-mono text-[12px] text-lime">{r.count}</span>
+        <>
+          <p className="mb-4 text-center font-mono text-xs text-green-500/70">
+            Top-ranking wallets receive core yield percentages and bonus token airdrops.
+          </p>
+          <div className="custom-scrollbar mt-6 max-h-80 overflow-y-auto border border-white/10">
+            <ol>
+              <li className="sticky top-0 grid grid-cols-[3rem_1fr_auto] border-b border-white/10 bg-void px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-muted">
+                <span>rank</span>
+                <span>wallet</span>
+                <span>lots</span>
               </li>
-            )
-          })}
-        </ol>
+              {list.map((r, idx) => {
+                const place = idx
+                const mine = String(r.wallet).toLowerCase() === me
+                const w = Math.max(6, Math.round((Number(r.count) / maxCount) * 100))
+                const rankCls =
+                  place === 0
+                    ? 'text-yellow-400'
+                    : place === 1
+                      ? 'text-gray-300'
+                      : place === 2
+                        ? 'text-amber-600'
+                        : 'text-muted'
+                return (
+                  <li
+                    key={r.wallet}
+                    className={`relative grid grid-cols-[3rem_1fr_auto] items-center px-3 py-2.5 ${
+                      mine ? 'bg-lime/10' : idx % 2 ? 'bg-white/[0.02]' : ''
+                    } ${place < 3 ? 'border-l-2' : ''} ${
+                      place === 0 ? 'border-yellow-400' : place === 1 ? 'border-gray-300' : place === 2 ? 'border-amber-600' : ''
+                    }`}
+                  >
+                    <span
+                      className="pointer-events-none absolute inset-y-0 left-0 bg-lime/10"
+                      style={{ width: `${w}%` }}
+                    />
+                    <span className={`relative font-mono text-[11px] ${rankCls}`}>{rankMark(place)}</span>
+                    <span className="relative truncate font-mono text-[12px]" title={r.wallet}>
+                      {shortWallet(r.wallet)}
+                      {mine ? <span className="text-lime"> · you</span> : ''}
+                    </span>
+                    <span className={`relative font-mono text-[12px] ${place < 3 ? rankCls : 'text-lime'}`}>
+                      {r.count}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          </div>
+        </>
       ) : null}
 
       {unnamedLots.length > 0 ? (
@@ -179,7 +198,7 @@ export function PretendersBoard({ compact = false }) {
         </div>
       ) : null}
 
-      {compact && leaders.length > 12 ? (
+      {compact && leaders.length > 20 ? (
         <Link to="/board" className="mt-4 inline-block text-[11px] tracking-wide text-lime">
           full pretenders board →
         </Link>
