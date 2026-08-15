@@ -433,43 +433,26 @@ export function peekMapOwnerships() {
   return _mapOwnsCache
 }
 
-/** Mark a claimed lot as trained (persists to Turso when online). */
-export async function mindTrainLot(constelId) {
+/** Mark a claimed lot as trained after an on-chain $TEST burn (when live). */
+export async function mindTrainLot(constelId, { txHash } = {}) {
   const id = String(constelId || '').trim()
   if (!id) return loadOwnerships()
-  const list = loadOwnerships()
-  const next = list.map((o) => {
-    if (String(o.constel_id) !== id) return o
-    return {
-      ...o,
-      trained: true,
-      trained_at: o.trained_at || new Date().toISOString(),
-    }
+  const data = await api('/api/lot-train', {
+    guestKey: loadGuestKey(),
+    constelId: id,
+    txHash: txHash || undefined,
   })
-  if (!next.some((o) => String(o.constel_id) === id && o.trained)) {
-    return list
-  }
-  saveOwnerships(next)
+  const state = applyServerState(data)
+  notifyOwnershipHydrate(state.ownerships)
   try {
-    window.__voidTrainLot?.(id)
+    const trained = (state.ownerships || []).find((o) => String(o.constel_id) === id && o.trained)
+    if (trained) window.__voidTrainLot?.(id)
   } catch {
     /* ignore */
   }
-  notifyOwnershipHydrate(next)
-  try {
-    const data = await api('/api/lot-train', {
-      guestKey: loadGuestKey(),
-      constelId: id,
-    })
-    const state = applyServerState(data)
-    notifyOwnershipHydrate(state.ownerships)
-    _mapOwnsAt = 0
-    mindMapOwnerships({ force: true }).catch(() => {})
-    return state.ownerships
-  } catch (err) {
-    console.warn('[void] train sync failed', err)
-    return next
-  }
+  _mapOwnsAt = 0
+  mindMapOwnerships({ force: true }).catch(() => {})
+  return state.ownerships
 }
 
 export function voidToast(text, ms = 2800) {

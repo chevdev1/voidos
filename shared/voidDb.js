@@ -120,6 +120,18 @@ export async function migrate() {
   } catch (err) {
     console.warn('[voidDb] idx_ownerships_constel:', err?.message || err)
   }
+  try {
+    await db.execute(`
+      CREATE TABLE IF NOT EXISTS paid_txs (
+        tx_hash TEXT PRIMARY KEY,
+        kind TEXT NOT NULL,
+        user_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      )
+    `)
+  } catch (err) {
+    console.warn('[voidDb] paid_txs:', err?.message || err)
+  }
 
   _migrated = true
   return db
@@ -325,11 +337,12 @@ export async function markLotTrained(userId, constelId) {
   if (!id) throw new Error('missing lot')
   const mine = row(
     await getDb().execute({
-      sql: 'SELECT id FROM ownerships WHERE user_id = ? AND constel_id = ?',
+      sql: 'SELECT id, trained, trained_at FROM ownerships WHERE user_id = ? AND constel_id = ?',
       args: [userId, id],
     }),
   )
   if (!mine) throw new Error('lot not owned')
+  if (lotTrainedFlag(mine)) throw new Error('lot already trained')
   const user = await getUserById(userId)
   const wallet = ownerWallet(user?.wallet_pubkey)
   if (wallet) await stampUserLotsWallet(userId, wallet)
@@ -340,6 +353,23 @@ export async function markLotTrained(userId, constelId) {
     args: [userId, id],
   })
   return listOwnerships(userId)
+}
+
+export async function consumePaidTx(userId, txHash, kind) {
+  await migrate()
+  const hash = String(txHash || '').trim().toLowerCase()
+  if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) throw new Error('invalid tx hash')
+  try {
+    await getDb().execute({
+      sql: `INSERT INTO paid_txs (tx_hash, kind, user_id) VALUES (?, ?, ?)`,
+      args: [hash, String(kind || 'pay').slice(0, 24), userId ?? null],
+    })
+  } catch (e) {
+    if (/UNIQUE|unique|constraint/i.test(String(e?.message || e))) {
+      throw new Error('this burn tx was already used')
+    }
+    throw e
+  }
 }
 
 /**

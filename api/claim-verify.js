@@ -1,7 +1,7 @@
 import {
   getOrCreateUser,
   upsertOwnerships,
-  listOwnerships,
+  consumePaidTx,
   publicUser,
   resolveGuestKey,
   sidCookie,
@@ -46,6 +46,7 @@ export default async function handler(req, res) {
       minAmount: claimPricePerLotWei() * BigInt(lots.length),
     })
 
+    await consumePaidTx(user.id, txHash, 'claim')
     const ownerships = await upsertOwnerships(user.id, lots)
     res.setHeader('Set-Cookie', sidCookie(user.guest_key, { secure: isSecureReq(req) }))
     return res.status(200).json({

@@ -32,10 +32,12 @@ import {
   unlinkWallet,
   syncOwnedLotNames,
   listMapOwnerships,
+  consumePaidTx,
   markLotTrained,
 } from '../shared/voidDb.js'
 import { getAddress } from 'viem'
-import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt } from '../shared/rhVerify.js'
+import { verifyEvmLinkSignature, readRhBalances, verifyClaimReceipt, verifyBurnReceipt } from '../shared/rhVerify.js'
+import { isEvmAddress, isClaimLive, claimPricePerLotWei } from '../shared/rhChain.js'
 import { fetchTokenMarket, MARKET_TFS } from '../shared/geckoMarket.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -254,6 +256,7 @@ app.post('/api/claim-verify', async (req, res) => {
       expectedFrom: user.wallet_pubkey,
       minAmount: claimPricePerLotWei() * BigInt(lots.length),
     })
+    await consumePaidTx(user.id, txHash, 'claim')
     const ownerships = await upsertOwnerships(user.id, lots)
     res.json({
       ok: true,
@@ -284,7 +287,25 @@ app.post('/api/lot-train', async (req, res) => {
       return res.status(401).json({ error: 'link wallet first', code: 'WALLET_REQUIRED' })
     }
     const constelId = String(req.body?.constelId || req.body?.constel_id || req.body?.id || '').trim()
-    if (!constelId) return res.status(400).json({ error: 'missing constelId' })
+    if (!constelId) return res.status(400).json({ error: 'missing lot' })
+    const mine = (await listOwnerships(user.id)).find((o) => String(o.constel_id) === constelId)
+    if (!mine) return res.status(400).json({ error: 'lot not owned' })
+    if (mine.trained) return res.status(400).json({ error: 'lot already trained' })
+    if (isClaimLive()) {
+      const txHash = String(req.body?.txHash || req.body?.hash || '').trim()
+      if (!txHash) {
+        return res.status(403).json({
+          error: 'paid train only — burn $TEST, then send the tx hash',
+          code: 'TRAIN_PAID_ONLY',
+        })
+      }
+      await verifyBurnReceipt({
+        txHash,
+        expectedFrom: user.wallet_pubkey,
+        minAmount: claimPricePerLotWei(),
+      })
+      await consumePaidTx(user.id, txHash, 'train')
+    }
     const ownerships = await markLotTrained(user.id, constelId)
     res.json({ ok: true, guestKey: user.guest_key, user: publicUser(user), ownerships })
   } catch (err) {

@@ -767,3 +767,79 @@ export async function claimOnChain(lotIds = []) {
   const receipt = await withTimeout(pub.waitForTransactionReceipt({ hash }), 90000, 'burn tx')
   return { hash, receipt, address, lotIds: ids }
 }
+
+/** Same $TEST / lot price as claim, always ERC-20 transfer to dead (never ExoClaim). */
+export async function burnTestOnChain(lotCount = 1) {
+  if (!isClaimLiveClient()) {
+    throw new Error('claim token not set')
+  }
+  const n = Math.max(1, Number(lotCount) || 1)
+  const cost = claimPricePerLotWei() * BigInt(n)
+
+  let { provider, address } = await providerForClaim()
+  provider = await ensureChainForClaim(provider)
+  if (provider === getInjectedEvm() || provider === getRobinhoodInjected()) {
+    try {
+      const acc = await provider.request({ method: 'eth_accounts' })
+      if (acc?.[0]) address = getAddress(acc[0])
+    } catch {
+      /* keep address */
+    }
+  }
+
+  const walletClient = createWalletClient({
+    account: address,
+    chain: getRhChain(),
+    transport: custom(provider),
+  })
+  const pub = publicClient()
+  const tokenAddr = getAddress(exoTokenClient())
+
+  const [ethBal, tokenBal] = await Promise.all([
+    pub.getBalance({ address }),
+    pub.readContract({
+      address: tokenAddr,
+      abi: ERC20_ABI,
+      functionName: 'balanceOf',
+      args: [address],
+    }),
+  ])
+  if (ethBal === 0n) {
+    throw new Error('Need ETH on Robinhood Chain for gas. Bridge or buy a little ETH on this network.')
+  }
+  if (tokenBal < cost) {
+    throw new Error(
+      'Need $TEST on this wallet. Open Buy $TEST, swap a tiny amount, then train again.',
+    )
+  }
+
+  if (!isMobileDevice() && !isTrustInjected()) {
+    try {
+      await pub.simulateContract({
+        address: tokenAddr,
+        abi: ERC20_ABI,
+        functionName: 'transfer',
+        args: [BURN_SINK, cost],
+        account: address,
+      })
+    } catch (simErr) {
+      const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
+      throw new Error(
+        /transfer|paused|restrict|blacklist|allow/i.test(sm)
+          ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
+          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
+      )
+    }
+  }
+
+  const hash = await walletClient.writeContract({
+    address: tokenAddr,
+    abi: ERC20_ABI,
+    functionName: 'transfer',
+    args: [BURN_SINK, cost],
+    account: address,
+    chain: getRhChain(),
+  })
+  const receipt = await withTimeout(pub.waitForTransactionReceipt({ hash }), 90000, 'burn tx')
+  return { hash, receipt, address }
+}

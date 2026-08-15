@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { mindSession, loadOwnerships, loadUser, mindTrainLot, saveUser } from '../lib/mindClient'
+import { isClaimLiveClient, burnTestOnChain } from '../lib/rhWallets'
+import { formatClaimBurn } from '../../shared/rhChain.js'
 import { LotFigure, buildLotProfile, LOT_KINDS } from '../components/LotFigure'
 import { AccountMenu } from '../components/AccountMenu'
 import { MindChat } from '../components/MindChat'
@@ -19,6 +21,7 @@ export default function Cabinet() {
   const [loading, setLoading] = useState(true)
   const [selectedStar, setSelectedStar] = useState(null)
   const [trainNote, setTrainNote] = useState('')
+  const [trainBusy, setTrainBusy] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -111,15 +114,42 @@ export default function Cabinet() {
   }
 
   async function trainActiveLot() {
-    if (!active?.lot?.constel_id) return
+    if (!active?.lot?.constel_id || trainBusy) return
     if (active.lot.trained) {
       setTrainNote('already trained — map filter sees this patch as fed.')
       return
     }
-    const next = await mindTrainLot(active.lot.constel_id)
-    setOwnerships(next)
-    setTrainNote('trained — saved to ledger. Map trained count updates.')
-    setTimeout(() => setTrainNote(''), 3200)
+    if (!user?.wallet) {
+      setTrainNote('link wallet first, then train.')
+      window.__openWalletMenu?.()
+      return
+    }
+    setTrainBusy(true)
+    setTrainNote(
+      isClaimLiveClient()
+        ? `confirm ${formatClaimBurn(1)} burn in wallet…`
+        : 'training…',
+    )
+    try {
+      let txHash
+      if (isClaimLiveClient()) {
+        const burned = await burnTestOnChain(1)
+        txHash = burned.hash
+        setTrainNote('burn landed · saving to ledger…')
+      }
+      const next = await mindTrainLot(active.lot.constel_id, { txHash })
+      setOwnerships(next)
+      setTrainNote(
+        isClaimLiveClient()
+          ? `trained — burned ${formatClaimBurn(1)}. Map trained count updates.`
+          : 'trained — saved to ledger. Map trained count updates.',
+      )
+      setTimeout(() => setTrainNote(''), 4200)
+    } catch (e) {
+      setTrainNote(e?.message || 'train failed')
+    } finally {
+      setTrainBusy(false)
+    }
   }
 
   return (
@@ -425,10 +455,16 @@ export default function Cabinet() {
                         <button
                           type="button"
                           className="border border-lime/40 px-4 py-2 text-[11px] tracking-wide text-lime disabled:opacity-50"
-                          disabled={Boolean(active.lot.trained)}
+                          disabled={Boolean(active.lot.trained) || trainBusy}
                           onClick={trainActiveLot}
                         >
-                          {active.lot.trained ? 'trained ✓' : 'Train lot'}
+                          {active.lot.trained
+                            ? 'trained ✓'
+                            : trainBusy
+                              ? 'training…'
+                              : isClaimLiveClient()
+                                ? `Train lot · burn ${formatClaimBurn(1)}`
+                                : 'Train lot'}
                         </button>
                         <button
                           type="button"
@@ -442,7 +478,7 @@ export default function Cabinet() {
                         <p className="text-[11px] text-lime/90">{trainNote}</p>
                       ) : (
                         <p className="text-[10px] text-muted">
-                          training marks the lot as fed on the map. Claim already burns $TEST.
+                          training burns {formatClaimBurn(1)} to dead, then marks the lot as fed.
                         </p>
                       )}
                     </div>

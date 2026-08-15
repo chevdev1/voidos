@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: 'How does training work?',
-    a: 'In CABINET, open a claimed lot and use Train lot. That marks the lot as trained on the map. Claim already burns $TEST.',
+    a: 'In CABINET, open a claimed lot and use Train lot. That burns $TEST (same amount as one claim) to the dead address, then marks the lot as fed on the map. Silence / chat stays free.',
   },
 ]
 

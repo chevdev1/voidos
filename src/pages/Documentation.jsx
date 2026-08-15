@@ -72,8 +72,8 @@ const SECTIONS = [
           signal into it always costs something. Silence is free. Influence isn't.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Use <b>Train lot</b> in CABINET to mark a claimed lot as fed on the map.
-          Claim already burns $TEST.
+          Use <b>Train lot</b> in CABINET to burn $TEST (same amount as one claim) and mark
+          the lot as fed on the map.
         </p>
       </>
     ),
