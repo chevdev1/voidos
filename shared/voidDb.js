@@ -133,6 +133,22 @@ function rows(result) {
   return result.rows || []
 }
 
+function ownerWallet(addr) {
+  const w = String(addr || '').trim()
+  return /^0x[a-fA-F0-9]{40}$/.test(w) ? w : ''
+}
+
+async function stampUserLotsWallet(userId, pubkey) {
+  const w = ownerWallet(pubkey)
+  if (!w || userId == null) return
+  await getDb().execute({
+    sql: `UPDATE ownerships
+          SET wallet = COALESCE(NULLIF(wallet, ''), ?)
+          WHERE user_id = ?`,
+    args: [w, userId],
+  })
+}
+
 export function newGuestKey() {
   return `guest_${Date.now().toString(36)}_${randomBytes(6).toString('hex')}`
 }
@@ -144,7 +160,12 @@ export async function getOrCreateUser(guestKey) {
   const existing = row(
     await db.execute({ sql: 'SELECT * FROM users WHERE guest_key = ?', args: [key] }),
   )
-  if (existing) return existing
+  if (existing) {
+    if (ownerWallet(existing.wallet_pubkey)) {
+      await stampUserLotsWallet(existing.id, existing.wallet_pubkey)
+    }
+    return existing
+  }
   await db.execute({
     sql: 'INSERT INTO users (guest_key) VALUES (?)',
     args: [key],
@@ -239,11 +260,6 @@ export async function listOwnerships(userId) {
 /** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */
 export const TOTAL_MAP_LOTS = 200
 
-function ownerWallet(addr) {
-  const w = String(addr || '').trim()
-  return /^0x[a-fA-F0-9]{40}$/.test(w) ? w : ''
-}
-
 /**
  * Claim lots for a user. One constel_id → one owner worldwide.
  * One wallet may own many lots. Re-claiming your own lot is idempotent.
@@ -314,6 +330,9 @@ export async function markLotTrained(userId, constelId) {
     }),
   )
   if (!mine) throw new Error('lot not owned')
+  const user = await getUserById(userId)
+  const wallet = ownerWallet(user?.wallet_pubkey)
+  if (wallet) await stampUserLotsWallet(userId, wallet)
   await getDb().execute({
     sql: `UPDATE ownerships
           SET trained = 1, trained_at = COALESCE(trained_at, datetime('now'))
@@ -381,10 +400,10 @@ export async function listMapOwnerships() {
   const byOwner = new Map()
   for (const l of lots) {
     const w = ownerWallet(l.wallet)
-    if (!w) continue
-    const k = w.toLowerCase()
-    const prev = byOwner.get(k)
-    if (!prev) byOwner.set(k, { wallet: w, count: 1 })
+    const key = w ? w.toLowerCase() : 'unlinked'
+    const label = w || 'unlinked'
+    const prev = byOwner.get(key)
+    if (!prev) byOwner.set(key, { wallet: label, count: 1 })
     else prev.count += 1
   }
   const leaders = [...byOwner.values()].sort((a, b) => b.count - a.count).slice(0, 50)
@@ -598,7 +617,10 @@ export async function linkWallet(userId, pubkey) {
   if (!/^0x[a-fA-F0-9]{40}$/.test(key)) throw new Error('invalid wallet')
 
   const owner = await getUserByWallet(key)
-  if (owner) return owner
+  if (owner) {
+    await stampUserLotsWallet(owner.id, key)
+    return owner
+  }
 
   const current = await getUserById(userId)
   if (!current) throw new Error('no user')
@@ -608,20 +630,27 @@ export async function linkWallet(userId, pubkey) {
       sql: 'UPDATE users SET wallet_pubkey = ? WHERE id = ?',
       args: [key, userId],
     })
+    await stampUserLotsWallet(userId, key)
     return getUserById(userId)
   }
-  if (curW.toLowerCase() === key.toLowerCase()) return current
+  if (curW.toLowerCase() === key.toLowerCase()) {
+    await stampUserLotsWallet(userId, key)
+    return current
+  }
 
   const fresh = await getOrCreateUser(newGuestKey())
   await getDb().execute({
     sql: 'UPDATE users SET wallet_pubkey = ? WHERE id = ?',
     args: [key, fresh.id],
   })
+  await stampUserLotsWallet(fresh.id, key)
   return getUserById(fresh.id)
 }
 
 export async function unlinkWallet(userId) {
   await migrate()
+  const current = await getUserById(userId)
+  await stampUserLotsWallet(userId, current?.wallet_pubkey)
   await getDb().execute({
     sql: 'UPDATE users SET wallet_pubkey = NULL WHERE id = ?',
     args: [userId],

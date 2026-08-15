@@ -412,10 +412,10 @@ export async function mindMapOwnerships({ force = false } = {}) {
     const by = new Map()
     for (const l of _mapOwnsCache.lots) {
       const w = String(l.wallet || '').trim()
-      if (!/^0x[a-fA-F0-9]{40}$/.test(w)) continue
-      const k = w.toLowerCase()
-      const prev = by.get(k)
-      if (!prev) by.set(k, { wallet: w, count: 1 })
+      const key = /^0x[a-fA-F0-9]{40}$/.test(w) ? w.toLowerCase() : 'unlinked'
+      const label = /^0x[a-fA-F0-9]{40}$/.test(w) ? w : 'unlinked'
+      const prev = by.get(key)
+      if (!prev) by.set(key, { wallet: label, count: 1 })
       else prev.count += 1
     }
     _mapOwnsCache.leaders = [...by.values()].sort((a, b) => b.count - a.count).slice(0, 50)

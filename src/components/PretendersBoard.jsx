@@ -4,7 +4,9 @@ import { loadUser, mindMapOwnerships, peekMapOwnerships } from '../lib/mindClien
 
 function shortWallet(w) {
   const s = String(w || '')
-  if (s.length < 12) return s || '—'
+  if (!s || s === 'unlinked') return 'unlinked'
+  if (!/^0x[a-fA-F0-9]{40}$/i.test(s)) return s
+  if (s.length < 12) return s
   return `${s.slice(0, 6)}…${s.slice(-4)}`
 }
 
@@ -20,6 +22,7 @@ function rankMark(i) {
  */
 export function PretendersBoard({ compact = false }) {
   const [leaders, setLeaders] = useState([])
+  const [lots, setLots] = useState([])
   const [totals, setTotals] = useState(null)
   const [err, setErr] = useState('')
   const [me, setMe] = useState(() => (loadUser()?.wallet || '').toLowerCase())
@@ -33,14 +36,16 @@ export function PretendersBoard({ compact = false }) {
   useEffect(() => {
     let cancelled = false
     const peek = peekMapOwnerships()
-    if (peek?.leaders?.length) {
-      setLeaders(peek.leaders)
+    if (peek?.leaders?.length || peek?.lots?.length) {
+      setLeaders(peek.leaders || [])
+      setLots(peek.lots || [])
       setTotals(peek.totals || null)
     }
     mindMapOwnerships({ force: true })
       .then((data) => {
         if (cancelled) return
         setLeaders(data.leaders || [])
+        setLots(data.lots || [])
         setTotals(data.totals || null)
       })
       .catch((e) => {
@@ -52,11 +57,11 @@ export function PretendersBoard({ compact = false }) {
   }, [])
 
   const maxCount = Math.max(1, ...leaders.map((r) => Number(r.count) || 0))
-  const claimed =
-    leaders.reduce((a, r) => a + (Number(r.count) || 0), 0) || Number(totals?.claimed) || 0
+  const claimed = Number(totals?.claimed) || lots.length || leaders.reduce((a, r) => a + (Number(r.count) || 0), 0)
   const totalLots = Number(totals?.total) || 200
   const list = compact ? leaders.slice(0, 12) : leaders
   const podium = leaders.slice(0, 3)
+  const unnamedLots = lots.filter((l) => !/^0x[a-fA-F0-9]{40}$/i.test(String(l.wallet || '')))
 
   const podiumOrder = useMemo(() => podium.map((r, i) => ({ ...r, place: i })), [podium])
 
@@ -161,6 +166,17 @@ export function PretendersBoard({ compact = false }) {
             )
           })}
         </ol>
+      ) : null}
+
+      {unnamedLots.length > 0 ? (
+        <div className="mt-6 border border-white/10 px-3 py-3">
+          <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-muted">
+            {unnamedLots.length} claimed lots · wallet unlinked
+          </p>
+          <p className="mt-2 font-mono text-[11px] leading-relaxed text-muted">
+            {unnamedLots.map((l) => l.constel_name || l.constel_id).join(' · ')}
+          </p>
+        </div>
       ) : null}
 
       {compact && leaders.length > 12 ? (
