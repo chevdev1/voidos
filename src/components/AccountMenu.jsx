@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { mindSession, loadUser, saveUser } from '../lib/mindClient'
 import { WalletPanel } from './WalletPanel'
-import { abortWalletConnect, prefetchWalletConnect } from '../lib/rhWallets'
+import { abortWalletConnect, releaseMapUiLocks } from '../lib/rhWallets'
 
 /**
  * Account panel — identity = linked wallet.
@@ -37,16 +37,13 @@ export function AccountMenu() {
 
   useEffect(() => {
     if (!open) {
-      document.body.classList.remove('wallet-ui-open')
+      releaseMapUiLocks()
       return
     }
     document.body.classList.add('wallet-ui-open')
-    prefetchWalletConnect()
-    const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
-      document.body.classList.remove('wallet-ui-open')
-      document.body.style.overflow = prev
+      releaseMapUiLocks()
     }
   }, [open])
 
@@ -57,7 +54,8 @@ export function AccountMenu() {
 
   function closeModal() {
     setOpen(false)
-    if (!loadUser()?.wallet) abortWalletConnect()
+    abortWalletConnect()
+    releaseMapUiLocks()
   }
 
   const wallet = user?.wallet || null

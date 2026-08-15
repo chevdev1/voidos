@@ -329,7 +329,7 @@ export async function listMapOwnerships() {
   await migrate()
   const lotRows = rows(
     await getDb().execute({
-      sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at, u.wallet_pubkey AS wallet
+      sql: `SELECT o.user_id, o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at, u.wallet_pubkey AS wallet
             FROM ownerships o
             LEFT JOIN users u ON u.id = o.user_id
             ORDER BY o.claimed_at ASC`,
@@ -344,16 +344,20 @@ export async function listMapOwnerships() {
     trained_at: r.trained_at || null,
   }))
 
-  const byWallet = new Map()
-  for (const l of lots) {
-    const w = String(l.wallet || '').trim()
-    if (!w) continue
-    const k = w.toLowerCase()
-    const prev = byWallet.get(k)
-    if (!prev) byWallet.set(k, { wallet: w, count: 1 })
-    else prev.count += 1
+  const byOwner = new Map()
+  for (const r of lotRows) {
+    const w = r.wallet ? String(r.wallet).trim() : ''
+    const uid = r.user_id != null ? String(r.user_id) : ''
+    const key = w.toLowerCase() || (uid ? `user:${uid}` : '')
+    if (!key) continue
+    const prev = byOwner.get(key)
+    if (!prev) {
+      byOwner.set(key, { wallet: w || `guest · ${uid}`, count: 1 })
+    } else {
+      prev.count += 1
+    }
   }
-  const leaders = [...byWallet.values()].sort((a, b) => b.count - a.count).slice(0, 50)
+  const leaders = [...byOwner.values()].sort((a, b) => b.count - a.count).slice(0, 50)
 
   const claimed = lots.length
   return {

@@ -72,6 +72,7 @@ export function MindChat() {
   // one" action, not implicitly just because an overlay went away.
   useEffect(() => {
     if (open) window.__voidCosmos?.pauseDemo?.()
+    else window.__voidCosmos?.resumeDemo?.()
   }, [open])
 
   async function runChat(text, { silentUser = false } = {}) {

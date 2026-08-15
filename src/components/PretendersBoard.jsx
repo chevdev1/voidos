@@ -56,14 +56,8 @@ export function PretendersBoard({ compact = false }) {
   const totalLots = Number(totals?.total) || 200
   const list = compact ? leaders.slice(0, 12) : leaders
   const podium = leaders.slice(0, 3)
-  const rest = list.slice(3)
 
-  const podiumOrder = useMemo(() => {
-    if (podium.length < 2) return podium.map((r, i) => ({ ...r, place: i }))
-    const tagged = podium.map((r, i) => ({ ...r, place: i }))
-    if (tagged.length === 2) return [tagged[1], tagged[0]]
-    return [tagged[1], tagged[0], tagged[2]]
-  }, [podium])
+  const podiumOrder = useMemo(() => podium.map((r, i) => ({ ...r, place: i })), [podium])
 
   return (
     <section className={compact ? '' : 'mt-2'}>
@@ -79,14 +73,26 @@ export function PretendersBoard({ compact = false }) {
       {err ? <p className="mt-4 text-[12px] text-red-400">{err}</p> : null}
 
       {podium.length > 0 ? (
-        <div className="mt-8 grid grid-cols-3 items-end gap-2 sm:gap-4">
+        <div
+          className={`mt-8 grid items-end gap-2 sm:gap-4 ${
+            podium.length >= 3 ? 'grid-cols-3' : podium.length === 2 ? 'grid-cols-2' : 'grid-cols-1'
+          } mx-auto max-w-3xl`}
+        >
           {podiumOrder.map((r) => {
             const h = 28 + Math.round((Number(r.count) / maxCount) * (r.place === 0 ? 88 : 56))
             const mine = String(r.wallet).toLowerCase() === me
             return (
               <div
                 key={r.wallet}
-                className={`flex flex-col items-center ${r.place === 0 ? 'order-2' : r.place === 1 ? 'order-1' : 'order-3'}`}
+                className={`flex flex-col items-center ${
+                  podium.length >= 3
+                    ? r.place === 0
+                      ? 'order-2'
+                      : r.place === 1
+                        ? 'order-1'
+                        : 'order-3'
+                    : ''
+                }`}
               >
                 <p className="mb-2 font-mono text-[10px] text-lime">{rankMark(r.place)}</p>
                 <div
@@ -122,15 +128,15 @@ export function PretendersBoard({ compact = false }) {
         </div>
       ) : null}
 
-      {rest.length > 0 ? (
+      {list.length > 0 ? (
         <ol className="mt-6 border border-white/10">
           <li className="grid grid-cols-[3rem_1fr_auto] border-b border-white/10 px-3 py-2 text-[9px] uppercase tracking-[0.16em] text-muted">
             <span>rank</span>
             <span>wallet</span>
             <span>lots</span>
           </li>
-          {rest.map((r, idx) => {
-            const place = idx + 3
+          {list.map((r, idx) => {
+            const place = idx
             const mine = String(r.wallet).toLowerCase() === me
             const w = Math.max(6, Math.round((Number(r.count) / maxCount) * 100))
             return (

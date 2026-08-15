@@ -168,6 +168,13 @@ body.wc-modal-open canvas,
 body.wallet-ui-open canvas {
   pointer-events: none !important;
 }
+body.wallet-ui-open .account-menu,
+body.wallet-ui-open .account-menu-sheet,
+body.wallet-ui-open .account-menu-backdrop,
+body.wc-modal-open w3m-modal,
+body.wc-modal-open wcm-modal {
+  pointer-events: auto !important;
+}
 
 @media (max-width: 640px) {
   wcm-modal .wcm-container,

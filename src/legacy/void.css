@@ -159,11 +159,7 @@ body.arena-live #cosmosFrame{
 }
 .arena-stage .cosmos-bar,
 body.arena-live .cosmos-bar,
-.hero-right.in-arena .cosmos-bar,
-body.arena-live .mind-legend,
-body.arena-live .mind-meta,
-body.arena-live .mind-sep,
-body.arena-live:not(.mind-dock-open) .mind-actions {
+.hero-right.in-arena .cosmos-bar {
   display: none !important;
 }
 .arena-placeholder{

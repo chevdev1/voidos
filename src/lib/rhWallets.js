@@ -306,9 +306,28 @@ export function prefetchWalletConnect() {
   return wcModulesPromise
 }
 
+export function releaseMapUiLocks() {
+  if (typeof document === 'undefined') return
+  document.body.classList.remove('wc-modal-open')
+  if (!document.querySelector('.account-menu-sheet')) {
+    document.body.classList.remove('wallet-ui-open')
+    document.body.style.removeProperty('overflow')
+  }
+  try {
+    window.__voidCosmos?.resumeDemo?.()
+  } catch {
+    /* ignore */
+  }
+}
+
 export async function abortWalletConnect() {
   wcBusy = false
-  if (typeof document !== 'undefined') document.body.classList.remove('wc-modal-open')
+  try {
+    wcProvider?.modal?.closeModal?.()
+  } catch {
+    /* ignore */
+  }
+  releaseMapUiLocks()
   if (!wcProvider) return
   try {
     await wcProvider.disconnect()
@@ -461,6 +480,11 @@ async function connectWalletConnect() {
   } finally {
     wcBusy = false
     if (typeof document !== 'undefined') document.body.classList.remove('wc-modal-open')
+    try {
+      window.__voidCosmos?.resumeDemo?.()
+    } catch {
+      /* ignore */
+    }
   }
 }
 

@@ -1805,6 +1805,14 @@ export function initVoidEngine() {
       closeMap: exitArena,
       pauseDemo,
       resumeDemo,
+      releaseUi: () => {
+        document.body.classList.remove('wc-modal-open')
+        if (!document.querySelector('.account-menu-sheet')) {
+          document.body.classList.remove('wallet-ui-open')
+          document.body.style.removeProperty('overflow')
+        }
+        resumeDemo()
+      },
       relocateTo(parent) {
         if (parent && frame) {
           parent.appendChild(frame);
@@ -2010,6 +2018,8 @@ export function initVoidEngine() {
       document.querySelectorAll('#mindActions .mind-btn').forEach((b) => {
         if (b.dataset.act !== 'heat') b.classList.remove('on');
       });
+      resumeDemo();
+      kickDraw('mindPanel');
     }
 
     function wireMindBar() {
@@ -2200,13 +2210,20 @@ export function initVoidEngine() {
       }
     }
     function pauseDemo() {
+      if (arenaMode) return;
       demoActive = false;
-      console.info('[void cosmos] pauseDemo', { arenaMode, rafId });
     }
     function resumeDemo() {
       demoActive = true;
       kickDraw('resumeDemo');
     }
+    const onPageShow = () => {
+      document.body.classList.remove('wc-modal-open');
+      resumeDemo();
+      kickDraw('pageshow');
+    };
+    window.addEventListener('pageshow', onPageShow);
+    onCleanup(() => window.removeEventListener('pageshow', onPageShow));
     const visibilityObserver = new IntersectionObserver(
       ([entry]) => {
         const wasInView = inView;

@@ -29,6 +29,10 @@ export function isBuyLive() {
 
 function pauseMapForNav() {
   try {
+    // Same-tab Dex (Trust): pause the sky so the in-app browser can navigate.
+    // Desktop new-tab: do NOT leave wc-modal-open — that class kills canvas
+    // pointer-events and the rAF loop, so the map stays frozen after the popup.
+    if (!shouldBuyInSameTab()) return
     document.body.classList.add('wc-modal-open')
     window.__voidCosmos?.pauseDemo?.()
   } catch {
