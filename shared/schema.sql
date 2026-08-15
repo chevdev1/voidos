@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS ownerships (
   claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
   trained INTEGER NOT NULL DEFAULT 0,
   trained_at TEXT,
+  wallet TEXT,
   UNIQUE(user_id, constel_id)
 );
 

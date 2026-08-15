@@ -412,7 +412,7 @@ export async function mindMapOwnerships({ force = false } = {}) {
     const by = new Map()
     for (const l of _mapOwnsCache.lots) {
       const w = String(l.wallet || '').trim()
-      if (!w) continue
+      if (!/^0x[a-fA-F0-9]{40}$/.test(w)) continue
       const k = w.toLowerCase()
       const prev = by.get(k)
       if (!prev) by.set(k, { wallet: w, count: 1 })

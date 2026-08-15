@@ -52,7 +52,8 @@ export function PretendersBoard({ compact = false }) {
   }, [])
 
   const maxCount = Math.max(1, ...leaders.map((r) => Number(r.count) || 0))
-  const claimed = Number(totals?.claimed) || leaders.reduce((a, r) => a + (Number(r.count) || 0), 0)
+  const claimed =
+    leaders.reduce((a, r) => a + (Number(r.count) || 0), 0) || Number(totals?.claimed) || 0
   const totalLots = Number(totals?.total) || 200
   const list = compact ? leaders.slice(0, 12) : leaders
   const podium = leaders.slice(0, 3)

@@ -210,6 +210,12 @@ app.post('/api/claim-sync', async (req, res) => {
         claimLive: true,
       })
     }
+    if (lots.length && (!user.wallet_pubkey || !isEvmAddress(user.wallet_pubkey))) {
+      return res.status(401).json({
+        error: 'link wallet before claiming lots',
+        code: 'WALLET_REQUIRED',
+      })
+    }
     const ownerships = lots.length
       ? await upsertOwnerships(user.id, lots)
       : await listOwnerships(user.id)

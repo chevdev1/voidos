@@ -73,12 +73,33 @@ export async function migrate() {
     }
   }
 
-  for (const col of ['trained INTEGER NOT NULL DEFAULT 0', 'trained_at TEXT']) {
+  for (const col of [
+    'trained INTEGER NOT NULL DEFAULT 0',
+    'trained_at TEXT',
+    'wallet TEXT',
+  ]) {
     try {
       await db.execute(`ALTER TABLE ownerships ADD COLUMN ${col}`)
     } catch {
       /* exists */
     }
+  }
+  try {
+    await db.execute(`
+      UPDATE ownerships
+      SET wallet = (
+        SELECT u.wallet_pubkey FROM users u WHERE u.id = ownerships.user_id
+      )
+      WHERE (wallet IS NULL OR wallet = '')
+        AND EXISTS (
+          SELECT 1 FROM users u
+          WHERE u.id = ownerships.user_id
+            AND u.wallet_pubkey IS NOT NULL
+            AND u.wallet_pubkey != ''
+        )
+    `)
+  } catch (err) {
+    console.warn('[voidDb] ownerships wallet backfill:', err?.message || err)
   }
 
   // Exclusive lots: drop duplicate constel_id rows (keep earliest claim), then unique index
@@ -218,6 +239,11 @@ export async function listOwnerships(userId) {
 /** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */
 export const TOTAL_MAP_LOTS = 200
 
+function ownerWallet(addr) {
+  const w = String(addr || '').trim()
+  return /^0x[a-fA-F0-9]{40}$/.test(w) ? w : ''
+}
+
 /**
  * Claim lots for a user. One constel_id → one owner worldwide.
  * One wallet may own many lots. Re-claiming your own lot is idempotent.
@@ -227,6 +253,9 @@ export const TOTAL_MAP_LOTS = 200
 export async function upsertOwnerships(userId, lots) {
   await migrate()
   const db = getDb()
+  const user = await getUserById(userId)
+  const wallet = ownerWallet(user?.wallet_pubkey)
+  if (!wallet) throw new Error('link wallet before claiming lots')
   const prepared = []
   for (const l of lots || []) {
     const id = String(l.constel_id || l.id || '').trim().slice(0, 64)
@@ -254,11 +283,12 @@ export async function upsertOwnerships(userId, lots) {
   for (const { id, name } of prepared) {
     try {
       await db.execute({
-        sql: `INSERT INTO ownerships (user_id, constel_id, constel_name, claimed_at)
-              VALUES (?, ?, ?, datetime('now'))
+        sql: `INSERT INTO ownerships (user_id, constel_id, constel_name, claimed_at, wallet)
+              VALUES (?, ?, ?, datetime('now'), ?)
               ON CONFLICT(user_id, constel_id) DO UPDATE SET
-                constel_name = excluded.constel_name`,
-        args: [userId, id, name],
+                constel_name = excluded.constel_name,
+                wallet = COALESCE(ownerships.wallet, excluded.wallet)`,
+        args: [userId, id, name, wallet],
       })
     } catch (e) {
       if (/UNIQUE|unique|constraint/i.test(String(e?.message || e))) {
@@ -329,33 +359,33 @@ export async function listMapOwnerships() {
   await migrate()
   const lotRows = rows(
     await getDb().execute({
-      sql: `SELECT o.user_id, o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at, u.wallet_pubkey AS wallet
+      sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at,
+                   COALESCE(NULLIF(o.wallet, ''), u.wallet_pubkey) AS wallet
             FROM ownerships o
             LEFT JOIN users u ON u.id = o.user_id
             ORDER BY o.claimed_at ASC`,
     }),
   )
-  const lots = lotRows.map((r) => ({
-    constel_id: String(r.constel_id),
-    constel_name: String(r.constel_name || r.constel_id),
-    wallet: r.wallet ? String(r.wallet) : null,
-    claimed_at: r.claimed_at || null,
-    trained: Boolean(Number(r.trained) || r.trained_at),
-    trained_at: r.trained_at || null,
-  }))
+  const lots = lotRows.map((r) => {
+    const w = ownerWallet(r.wallet)
+    return {
+      constel_id: String(r.constel_id),
+      constel_name: String(r.constel_name || r.constel_id),
+      wallet: w || null,
+      claimed_at: r.claimed_at || null,
+      trained: Boolean(Number(r.trained) || r.trained_at),
+      trained_at: r.trained_at || null,
+    }
+  })
 
   const byOwner = new Map()
-  for (const r of lotRows) {
-    const w = r.wallet ? String(r.wallet).trim() : ''
-    const uid = r.user_id != null ? String(r.user_id) : ''
-    const key = w.toLowerCase() || (uid ? `user:${uid}` : '')
-    if (!key) continue
-    const prev = byOwner.get(key)
-    if (!prev) {
-      byOwner.set(key, { wallet: w || `guest · ${uid}`, count: 1 })
-    } else {
-      prev.count += 1
-    }
+  for (const l of lots) {
+    const w = ownerWallet(l.wallet)
+    if (!w) continue
+    const k = w.toLowerCase()
+    const prev = byOwner.get(k)
+    if (!prev) byOwner.set(k, { wallet: w, count: 1 })
+    else prev.count += 1
   }
   const leaders = [...byOwner.values()].sort((a, b) => b.count - a.count).slice(0, 50)
 
