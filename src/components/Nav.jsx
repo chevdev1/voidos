@@ -9,7 +9,6 @@ import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
   { label: 'MAP', to: '/map' },
-  { label: 'BOARD', to: '/board' },
   { label: 'CABINET', to: '/cabinet' },
   { label: 'ASK THE MIND', hash: '#mind' },
   { label: 'CONCEPT', hash: '#concept' },

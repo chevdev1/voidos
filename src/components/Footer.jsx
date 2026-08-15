@@ -10,7 +10,6 @@ const LINKS = [
   { label: 'GitHub', href: GITHUB_URL },
   { label: 'Documentation', to: '/docs' },
   { label: 'Cabinet', to: '/cabinet' },
-  { label: 'Pretenders', to: '/board' },
   { label: 'DexScreener', href: DEX_URL },
 ]
 
