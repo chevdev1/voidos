@@ -7,6 +7,7 @@ import {
   formatEther,
   formatUnits,
   toHex,
+  zeroAddress,
 } from 'viem'
 import {
   RH_CHAIN_MAIN,
@@ -685,7 +686,7 @@ export async function claimOnChain(lotIds = []) {
     )
   }
 
-  if (!isMobileDevice() && !isTrustInjected()) {
+  if (!isMobileDevice() && !isTrustInjected() && !claimAddrRaw) {
     try {
       await pub.simulateContract({
         address: tokenAddr,
@@ -706,6 +707,22 @@ export async function claimOnChain(lotIds = []) {
 
   if (claimAddrRaw) {
     const claimAddr = getAddress(claimAddrRaw)
+    for (const id of lotBytes) {
+      let locked
+      try {
+        locked = await pub.readContract({
+          address: claimAddr,
+          abi: CLAIM_ABI,
+          functionName: 'claimedBy',
+          args: [id],
+        })
+      } catch {
+        locked = zeroAddress
+      }
+      if (locked && String(locked).toLowerCase() !== zeroAddress) {
+        throw new Error('lot already locked on chain')
+      }
+    }
     let quote = 0n
     try {
       quote = await pub.readContract({

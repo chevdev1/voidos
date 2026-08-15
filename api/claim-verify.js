@@ -44,6 +44,7 @@ export default async function handler(req, res) {
       txHash,
       expectedFrom: user.wallet_pubkey,
       minAmount: claimPricePerLotWei() * BigInt(lots.length),
+      lotIds: lots,
     })
 
     await consumePaidTx(user.id, txHash, 'claim')

@@ -255,6 +255,7 @@ app.post('/api/claim-verify', async (req, res) => {
       txHash,
       expectedFrom: user.wallet_pubkey,
       minAmount: claimPricePerLotWei() * BigInt(lots.length),
+      lotIds: lots,
     })
     await consumePaidTx(user.id, txHash, 'claim')
     const ownerships = await upsertOwnerships(user.id, lots)

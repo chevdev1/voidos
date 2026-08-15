@@ -187,8 +187,14 @@ function localSession(guestKey) {
 
 /** Notify map engine that ownerships changed (server hydrate / claim). */
 export function notifyOwnershipHydrate(list) {
+  const lots = list || loadOwnerships()
   try {
-    window.__voidHydrateOwns?.(list || loadOwnerships())
+    window.__voidHydrateOwns?.(lots)
+  } catch {
+    /* ignore */
+  }
+  try {
+    window.dispatchEvent(new CustomEvent('void-owns', { detail: lots }))
   } catch {
     /* ignore */
   }

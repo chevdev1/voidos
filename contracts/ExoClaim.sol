@@ -17,6 +17,7 @@ contract ExoClaim {
     mapping(bytes32 => address) public claimedBy;
 
     event Claimed(address indexed user, bytes32[] lotIds, uint256 exoPaid);
+    event Seeded(bytes32 indexed lotId, address indexed owner);
 
     constructor(address token, uint256 defaultPriceWei) {
         require(token != address(0), "token");
@@ -41,6 +42,17 @@ contract ExoClaim {
 
     function setLotPrice(bytes32 lotId, uint256 priceWei) external onlyOwner {
         lotPrice[lotId] = priceWei;
+    }
+
+    /// Lock already-bought Turso lots onto chain without a second burn.
+    function seedClaimed(bytes32[] calldata lotIds, address[] calldata owners) external onlyOwner {
+        require(lotIds.length == owners.length, "len");
+        for (uint256 i = 0; i < lotIds.length; i++) {
+            require(owners[i] != address(0), "owner");
+            require(claimedBy[lotIds[i]] == address(0), "taken");
+            claimedBy[lotIds[i]] = owners[i];
+            emit Seeded(lotIds[i], owners[i]);
+        }
     }
 
     function quote(bytes32[] calldata lotIds) public view returns (uint256 cost) {

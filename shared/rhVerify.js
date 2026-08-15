@@ -1,4 +1,4 @@
-import { verifyMessage, getAddress, createPublicClient, http, formatEther, formatUnits, decodeEventLog } from 'viem'
+import { verifyMessage, getAddress, createPublicClient, http, formatEther, formatUnits, decodeEventLog, zeroAddress } from 'viem'
 import {
   rhChainId,
   rhRpcUrl,
@@ -6,9 +6,11 @@ import {
   claimContractAddress,
   isEvmAddress,
   ERC20_ABI,
+  CLAIM_ABI,
   BURN_SINK,
   RH_CHAIN_MAIN,
   RH_CHAIN_TEST,
+  lotIdToBytes32,
 } from './rhChain.js'
 
 function chainDef() {
@@ -85,7 +87,7 @@ export async function readRhBalances(address) {
  * Confirm a claim tx on RH Chain before ledger write.
  * When claim contract is set, require receipt success + matching to (optional).
  */
-export async function verifyClaimReceipt({ txHash, expectedFrom, minAmount = 0n }) {
+export async function verifyClaimReceipt({ txHash, expectedFrom, minAmount = 0n, lotIds = [] }) {
   const hash = String(txHash || '').trim()
   if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
     throw new Error('invalid tx hash')
@@ -98,10 +100,27 @@ export async function verifyClaimReceipt({ txHash, expectedFrom, minAmount = 0n 
   const contract = claimContractAddress()
   const token = exoTokenAddress()
   const to = String(receipt.to || '').toLowerCase()
+  const ids = (lotIds || []).map((l) => String(l?.constel_id || l?.id || l || '').trim()).filter(Boolean)
 
   if (contract && isEvmAddress(contract)) {
     if (to !== getAddress(contract).toLowerCase()) {
       throw new Error('tx not sent to claim contract')
+    }
+    if (expectedFrom && isEvmAddress(expectedFrom) && ids.length) {
+      for (const id of ids) {
+        const locked = await pub.readContract({
+          address: getAddress(contract),
+          abi: CLAIM_ABI,
+          functionName: 'claimedBy',
+          args: [lotIdToBytes32(id)],
+        })
+        if (!locked || String(locked).toLowerCase() === zeroAddress) {
+          throw new Error('lot not locked on chain')
+        }
+        if (getAddress(locked) !== getAddress(expectedFrom)) {
+          throw new Error('lot locked to a different wallet on chain')
+        }
+      }
     }
   } else if (token && isEvmAddress(token)) {
     if (to !== getAddress(token).toLowerCase()) {

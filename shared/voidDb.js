@@ -254,19 +254,38 @@ function lotTrainedFlag(r) {
 
 export async function listOwnerships(userId) {
   await migrate()
-  return rows(
-    await getDb().execute({
-      sql: `SELECT constel_id, constel_name, claimed_at, trained, trained_at FROM ownerships
-            WHERE user_id = ? ORDER BY claimed_at DESC`,
-      args: [userId],
-    }),
-  ).map((r) => ({
-    constel_id: String(r.constel_id),
-    constel_name: String(r.constel_name || r.constel_id),
-    claimed_at: r.claimed_at || null,
-    trained: lotTrainedFlag(r),
-    trained_at: r.trained_at || null,
-  }))
+  const user = await getUserById(userId)
+  const w = ownerWallet(user?.wallet_pubkey)
+  const result = w
+    ? await getDb().execute({
+        sql: `SELECT o.constel_id, o.constel_name, o.claimed_at, o.trained, o.trained_at
+              FROM ownerships o
+              LEFT JOIN users u ON u.id = o.user_id
+              WHERE o.user_id = ?
+                 OR lower(COALESCE(NULLIF(o.wallet, ''), u.wallet_pubkey, '')) = lower(?)
+              ORDER BY o.claimed_at DESC`,
+        args: [userId, w],
+      })
+    : await getDb().execute({
+        sql: `SELECT constel_id, constel_name, claimed_at, trained, trained_at FROM ownerships
+              WHERE user_id = ? ORDER BY claimed_at DESC`,
+        args: [userId],
+      })
+  const seen = new Set()
+  const out = []
+  for (const r of rows(result)) {
+    const id = String(r.constel_id)
+    if (seen.has(id)) continue
+    seen.add(id)
+    out.push({
+      constel_id: id,
+      constel_name: String(r.constel_name || r.constel_id),
+      claimed_at: r.claimed_at || null,
+      trained: lotTrainedFlag(r),
+      trained_at: r.trained_at || null,
+    })
+  }
+  return out
 }
 
 /** Total claimable constellation lots on the shared map (CONSTEL_DEFS). */

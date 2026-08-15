@@ -97,6 +97,23 @@ export const CLAIM_ABI = [
   },
   {
     type: 'function',
+    name: 'claimedBy',
+    stateMutability: 'view',
+    inputs: [{ name: 'lotId', type: 'bytes32' }],
+    outputs: [{ type: 'address' }],
+  },
+  {
+    type: 'function',
+    name: 'seedClaimed',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'lotIds', type: 'bytes32[]' },
+      { name: 'owners', type: 'address[]' },
+    ],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'exoToken',
     stateMutability: 'view',
     inputs: [],

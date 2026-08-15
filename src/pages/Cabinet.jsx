@@ -49,8 +49,16 @@ export default function Cabinet() {
       setUser(e.detail || null)
       setOwnerships(loadOwnerships())
     }
+    const onOwns = (e) => {
+      if (Array.isArray(e.detail)) setOwnerships(e.detail)
+      else setOwnerships(loadOwnerships())
+    }
     window.addEventListener('void-user', onUser)
-    return () => window.removeEventListener('void-user', onUser)
+    window.addEventListener('void-owns', onOwns)
+    return () => {
+      window.removeEventListener('void-user', onUser)
+      window.removeEventListener('void-owns', onOwns)
+    }
   }, [])
 
   const profiles = useMemo(
