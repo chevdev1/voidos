@@ -16,7 +16,7 @@ const CA = String(
     DEFAULT_EXO_TOKEN ||
     '',
 ).trim()
-const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
+const X_URL = String(import.meta.env.VITE_X_URL || 'https://x.com/_voidos').trim()
 const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()
 const caLive = Boolean(CA)
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { DEFAULT_DEX_URL } from '../../shared/rhChain.js'
 
-const X_URL = String(import.meta.env.VITE_X_URL || '').trim()
+const X_URL = String(import.meta.env.VITE_X_URL || 'https://x.com/_voidos').trim()
 const GITHUB_URL = String(import.meta.env.VITE_GITHUB_URL || '').trim()
 const DEX_URL = String(import.meta.env.VITE_DEX_URL || DEFAULT_DEX_URL || '').trim()
 
