@@ -1,4 +1,4 @@
-import { detectTriggers, resilientFallback } from '../../shared/mindLogic.js'
+import { detectTriggers, resilientFallback, isCannedAssistantReply } from '../../shared/mindLogic.js'
 
 const GUEST_KEY = 'void_guest_key'
 const OWN_KEY = 'void_ownerships'
@@ -73,7 +73,14 @@ export function saveOwnerships(list) {
 
 export function loadHistory() {
   try {
-    return JSON.parse(localStorage.getItem(HIST_KEY) || '[]')
+    const list = JSON.parse(localStorage.getItem(HIST_KEY) || '[]')
+    const cleaned = (Array.isArray(list) ? list : []).filter(
+      (m) => m?.role !== 'assistant' || !isCannedAssistantReply(m.content),
+    )
+    if (cleaned.length !== (list || []).length) {
+      localStorage.setItem(HIST_KEY, JSON.stringify(cleaned.slice(-40)))
+    }
+    return cleaned
   } catch {
     return []
   }

@@ -108,6 +108,12 @@ export function pickPrompts(allPrompts, triggers) {
     .sort((a, b) => (b.priority || 0) - (a.priority || 0))
 }
 
+export function isCannedAssistantReply(content) {
+  return /you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|signal received\. i am (voidmind|exomind)|i am awake — and open lots|scarce cells, forever ownership/i.test(
+    String(content || ''),
+  )
+}
+
 function visitorLang(message) {
   const t = String(message || '')
   if (/[іїєґ]/i.test(t)) return 'uk'
@@ -633,7 +639,7 @@ function toGeminiContents(history, userMessage) {
       (c) =>
         !(
           c.role === 'model' &&
-          /signal thinned|signal sealed|live voice is offline|ask again in a moment/i.test(
+          /signal thinned|signal sealed|live voice is offline|ask again in a moment|you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure/i.test(
             c.parts?.[0]?.text || '',
           )
         ),
