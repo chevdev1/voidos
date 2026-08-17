@@ -201,7 +201,7 @@ export function MindChat() {
                 transition={{ duration: 0.35, ease: [0.23, 1, 0.32, 1] }}
                 className={`mind-chat-msg ${m.role}`}
               >
-                <span className="who">{m.role === 'user' ? 'you' : 'mind'}</span>
+                <span className="who">{m.role === 'user' ? 'you' : 'voidmind'}</span>
                 <p>{m.content}</p>
               </motion.div>
             ))}
@@ -214,7 +214,7 @@ export function MindChat() {
                 transition={{ duration: 0.2 }}
                 className="mind-chat-msg assistant"
               >
-                <span className="who">mind</span>
+                <span className="who">voidmind</span>
                 {status && status !== 'listening…' ? (
                   <p>{status}</p>
                 ) : (

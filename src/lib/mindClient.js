@@ -271,7 +271,7 @@ export async function mindChat(message) {
         guestKey,
         ownerships,
       },
-      { timeoutMs: 18000 },
+      { timeoutMs: 28000 },
     )
     const state = applyServerState(data)
     if (data.reply) {

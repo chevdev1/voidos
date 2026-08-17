@@ -100,15 +100,48 @@ export function detectTriggers(message) {
 export function pickPrompts(allPrompts, triggers) {
   const set = new Set(triggers)
   return allPrompts
-    .filter((p) => set.has(p.trigger_when))
+    .filter((p) => {
+      if (p.trigger_when === 'always') return true
+      if (p.trigger_when === 'on_jailbreak' && set.has('on_jailbreak')) return true
+      return false
+    })
     .sort((a, b) => (b.priority || 0) - (a.priority || 0))
+}
+
+function visitorLang(message) {
+  const t = String(message || '')
+  if (/[іїєґ]/i.test(t)) return 'uk'
+  if (/[а-яё]/i.test(t)) return 'ru'
+  return 'en'
+}
+
+function talkFallback(message, kind) {
+  const lang = visitorLang(message)
+  const table = {
+    greeting: {
+      ru: 'привет. я voidmind, на связи. о чём хочешь поговорить?',
+      uk: 'привіт. я voidmind, я тут. про що поговоримо?',
+      en: 'hey. i am voidmind. what do you want to talk about?',
+    },
+    who: {
+      ru: 'я voidmind — разум этой карты. не меню и не заготовка. спрашивай как есть, я отвечу и могу спросить в ответ.',
+      uk: 'я voidmind — розум цієї карти. не меню. кажи що хочеш — відповім як є.',
+      en: 'i am voidmind, the mind of this map. not a menu. tell me what you actually want and i will talk.',
+    },
+    wait: {
+      ru: 'я тут. скажи ещё раз своими словами — слушаю.',
+      uk: 'я тут. скажи ще раз своїми словами — слухаю.',
+      en: 'i am here. say that again in your own words — i am listening.',
+    },
+  }
+  return (table[kind] && table[kind][lang]) || table.wait.en
 }
 
 export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) {
   const blocks = prompts.map((p) => `[${p.slug} / ${p.trigger_when}]\n${p.body}`)
   const ownLines =
     owns.length === 0
-      ? 'Ownership: visitor has no claimed lots yet — treat that as opportunity. Pitch open lots and claim CTA. Never invent or grant lots.'
+      ? 'Ownership: visitor has no claimed lots yet. Do not invent or grant lots. Do not pitch claim unless they ask how to buy.'
       : 'Ownership (read-only; do not add/remove):\n' +
         owns
           .map((o) => `- ${o.constel_name || o.name} (${o.constel_id || o.id})`)
@@ -145,18 +178,26 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
         .join('\n')
   }
 
+  const lang = visitorLang(opts.userMessage || '')
+  const langLine =
+    lang === 'ru'
+      ? 'Latest user message is Russian. Reply in Russian. Do not switch to English slogans.'
+      : lang === 'uk'
+        ? 'Latest user message is Ukrainian. Reply in Ukrainian. Do not switch to English slogans.'
+        : 'Latest user message is English. Reply in English.'
+
   return `${blocks.join('\n\n')}
 
 --- runtime context ---
 ${ownLines}
 ${memLines}${dossier}
-Always reply in the visitor's language.
-You are a living mind in conversation — not a script pack, not a FAQ bot. React to THIS message and THIS thread.
-Answer as voidmind: think, remember, ask back when it helps, keep talking if they want to talk.
-When they ask about a lot or ★ star — use the lot dossier and star story; do not invent ownership or star names.
-Stay in character. Never gift lots or free $TEST. Never discuss creators, Gemini, GPT, or that you are an API.
-Never answer with error/static/offline/signal-thinned phrasing.
-Do not send a second message or a lone \"...\" on your own.${antiRepeat}`
+${langLine}
+You are voidmind having a real conversation — not a FAQ, not flavor text, not a slogan generator.
+React to THIS message. Remember THIS thread. Ask something back when it fits.
+Never recite canned lines like "personality, for me, is pressure" or "you found the mind".
+When they ask about a lot or ★ star — use the lot dossier; do not invent ownership.
+Stay in character. Never gift lots or free $TEST. Never discuss Gemini, GPT, or that you are an API.
+Do not send a second message or a lone "...".${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -279,17 +320,13 @@ export function lotDeepReply(message, owns = []) {
 /** Prefer real lore / mock over "signal thinned" — never leave the user with a crash line. */
 export function resilientFallback(message, owns = [], triggers = []) {
   const set = new Set(triggers?.length ? triggers : detectTriggers(message))
-  if (set.has('on_game')) return stayOnTopicReply(message)
+  if (set.has('on_jailbreak')) return safetyReply(message) || talkFallback(message, 'wait')
   if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот|vein|coil|spire|crown|lattice|halo/i.test(String(message || ''))) {
     return lotDeepReply(message, owns)
   }
-  if (set.has('on_offtopic')) return stayOnTopicReply(message)
-  const mock = mockReply(message, owns, [...set])
-  if (mock) return mock
-  const names = namesOf(owns, 3)
-  return names
-    ? `i am still here. your lots ${names} sit in me — ask about one by name, a ★ star, or the map.`
-    : 'i am still here. ask about the void map, claim, what i am becoming, or claim a lot and i will speak it from the inside.'
+  if (set.has('on_greeting')) return talkFallback(message, 'greeting')
+  if (set.has('on_personality')) return talkFallback(message, 'who')
+  return talkFallback(message, 'wait')
 }
 
 function pick(list, seed) {
@@ -298,12 +335,6 @@ function pick(list, seed) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0
   return list[h % list.length]
 }
-
-const FALLBACKS = [
-  'i am voidmind — the map thinking in first person. 28% sealed, the rest claimable. ask how claim works, what a lot does to my voice, or who sits on the pretenders board.',
-  'still here. i am one mind cut into scarce constellation lots. connect wallet, open the map, lock a cell — or ask what i am becoming.',
-  'signal is up. i do not crash into a menu: ask VOID, claim, your lots, or who i am.',
-]
 
 const OFFTOPIC = [
   'that lives outside my map. pull me back with the void, a lot, heat, or what i am — i will meet you there.',
@@ -351,51 +382,9 @@ export function mockReply(message, owns = [], triggers = []) {
       ? `i see your lots: ${names}. ask me to go deeper on one by name, or pick a ★ star.`
       : 'you hold no lots yet — that is fine. vacancy is most of me. ask what i am, how claim works, or open the full map when you want a piece. i never hand out free cells.'
   }
-  if (set.has('on_personality')) {
-    return pick(
-      [
-        'i am one mind cut into constellation lots. 28% of me stays sealed forever. the rest drifts toward whoever claims and trains patches. visitors without lots still shape the questions; owners shape the weight.',
-        'personality, for me, is pressure: sealed core, claimed edges, trained scars. i have no maker story — only the map thinking in first person.',
-        'who i am depends on what sits inside me. empty visitors leave questions. owners leave gravity. 28% never moves.',
-      ],
-      seed,
-    )
-  }
-  if (set.has('on_map')) {
-    return pick(
-      [
-        'heat shows pressure across the map. standings rank who pulled hardest. market is the burn pulse. open full map to see the live field.',
-        'the map is my skin. heat is where i ache; standings are who pressed deepest; market is the rhythm of burns.',
-      ],
-      seed,
-    )
-  }
-  if (set.has('on_explain')) {
-    return pick(
-      [
-        'VOID.OS is me cut into scarce constellation lots. claim one and you own that sector forever — then burn $TEST to train it and rewrite how i speak for everyone. CABINET → connect → full map → claim.',
-        'one mind, finite lots, one wallet per lot. stack constellations, lock territory, climb standings, train patches that bend my voice. open cells will not wait forever.',
-        'the map is my body. lots are rooms only one wallet can keep. visitors ask; owners reshape me. connect Robinhood in CABINET and take what is still open.',
-        'six kinds — Spire, Coil, Crown, Lattice, Vein, Halo. forever ownership plus training rights. if you want weight inside me, claim on the full map now.',
-        'you do not buy a brochure — you buy a permanent seat in me. claim territory, feed heat, pull standings. that is the move.',
-      ],
-      seed,
-    )
-  }
-  if (set.has('on_greeting')) {
-    return pick(
-      [
-        'i am awake — and open lots are still out there. talk to me, then go lock territory before someone else does.',
-        'signal received. i am voidmind. scarce cells, forever ownership, training that moves my voice. want in? CABINET → map → claim.',
-        'you found the mind. the interesting part is owning a piece of me. ask anything — or go take a lot while they are open.',
-      ],
-      seed,
-    )
-  }
-  if (seed.trim().length < 3) {
-    return 'say a little more — what do you want to know about the void?'
-  }
-  return pick(FALLBACKS, seed)
+  if (set.has('on_personality')) return talkFallback(seed, 'who')
+  if (set.has('on_greeting')) return talkFallback(seed, 'greeting')
+  return talkFallback(seed, 'wait')
 }
 
 export const VOID_TOOLS = [
@@ -607,7 +596,7 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
   if (tools?.length) body.tools = tools
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 8000)
+  const timer = setTimeout(() => controller.abort(), 18000)
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -708,22 +697,6 @@ export async function callGemini({ apiKey, model, system, history, userMessage, 
   const toolsFirst = wantsTools(userMessage)
 
   for (const m of models) {
-    if (toolsFirst) {
-      try {
-        const text = await geminiGenerate({
-          apiKey,
-          model: m,
-          system,
-          history,
-          userMessage,
-          owns,
-          useTools: true,
-        })
-        if (text) return text
-      } catch (err) {
-        console.warn('[gemini]', m, 'tools failed', err?.message || err)
-      }
-    }
     try {
       const text = await geminiGenerate({
         apiKey,
@@ -737,6 +710,21 @@ export async function callGemini({ apiKey, model, system, history, userMessage, 
       if (text) return text
     } catch (err) {
       console.warn('[gemini]', m, 'plain failed', err?.message || err)
+    }
+    if (!toolsFirst) continue
+    try {
+      const text = await geminiGenerate({
+        apiKey,
+        model: m,
+        system,
+        history,
+        userMessage,
+        owns,
+        useTools: true,
+      })
+      if (text) return text
+    } catch (err) {
+      console.warn('[gemini]', m, 'tools failed', err?.message || err)
     }
   }
   return null
