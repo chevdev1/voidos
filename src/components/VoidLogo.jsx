@@ -1,7 +1,7 @@
 /**
  * Brand mark. Query bump forces browsers/CDN to drop the previous PNG.
  */
-export const VOID_LOGO_SRC = '/assets/void-logo.png?v=3'
+export const VOID_LOGO_SRC = '/assets/void-logo.png?v=4'
 
 export function VoidLogo({ className = 'h-10 w-10 sm:h-12 sm:w-12', alt = '' }) {
   return (
