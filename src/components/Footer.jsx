@@ -61,9 +61,9 @@ export function Footer() {
     <footer className="border-t border-white/10 px-5 py-10 sm:px-10">
       <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xs">
-          <div className="flex items-center gap-2.5">
-            <VoidLogo className="h-10 w-10 sm:h-12 sm:w-12" />
-            <span className="font-display text-base font-extrabold tracking-tight text-ink">
+          <div className="flex items-center gap-2">
+            <VoidLogo className="h-8 w-8 sm:h-9 sm:w-9" />
+            <span className="font-display text-sm font-extrabold tracking-tight text-ink sm:text-base">
               VOID<span className="text-lime">.OS</span>
             </span>
           </div>

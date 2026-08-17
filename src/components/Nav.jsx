@@ -90,10 +90,10 @@ export function Nav() {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-void via-void/85 to-transparent" />
 
-      <div className="flex min-h-16 items-center justify-between gap-2 sm:min-h-[4.5rem]">
+      <div className="flex min-h-14 items-center justify-between gap-2 sm:min-h-16">
         <Link
           to="/"
-          className="flex min-w-0 shrink items-center gap-2.5 sm:gap-3.5"
+          className="flex min-w-0 shrink items-center gap-2 sm:gap-2.5"
           onClick={(e) => {
             if (onHome) {
               e.preventDefault()
@@ -101,8 +101,8 @@ export function Nav() {
             }
           }}
         >
-          <VoidLogo className="h-10 w-10 sm:h-12 sm:w-12 lg:h-12 lg:w-12" />
-          <span className="font-display text-base font-extrabold tracking-wide text-ink sm:text-lg">
+          <VoidLogo className="h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10" />
+          <span className="font-display text-sm font-extrabold tracking-wide text-ink sm:text-base">
             VOID<span className="text-lime">.OS</span>
           </span>
         </Link>
