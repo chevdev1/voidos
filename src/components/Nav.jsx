@@ -5,6 +5,7 @@ import { useLenis } from '../lib/SmoothScroll'
 import { ScrambleText } from './ScrambleText'
 import { AccountMenu } from './AccountMenu'
 import { BuyExoButton } from './BuyExoButton'
+import { VoidLogo } from './VoidLogo'
 import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
@@ -89,10 +90,10 @@ export function Nav() {
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-void via-void/85 to-transparent" />
 
-      <div className="flex min-h-12 items-center justify-between gap-2">
+      <div className="flex min-h-16 items-center justify-between gap-2 sm:min-h-[4.5rem]">
         <Link
           to="/"
-          className="flex min-w-0 shrink items-center gap-2"
+          className="flex min-w-0 shrink items-center gap-2.5 sm:gap-3.5"
           onClick={(e) => {
             if (onHome) {
               e.preventDefault()
@@ -100,8 +101,8 @@ export function Nav() {
             }
           }}
         >
-          <img src="/assets/void-logo.png" alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
-          <span className="font-display text-sm font-extrabold tracking-wide text-ink">
+          <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16 lg:h-[4.5rem] lg:w-[4.5rem]" />
+          <span className="font-display text-base font-extrabold tracking-wide text-ink sm:text-lg">
             VOID<span className="text-lime">.OS</span>
           </span>
         </Link>

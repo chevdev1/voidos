@@ -222,7 +222,10 @@ body.arena-live .cosmos-bar,
   color:var(--text);font-family:'Syne',sans-serif;font-weight:800;font-size:12px;
   transition:border-color .18s ease-out,background .18s ease-out;
 }
-.arena-home img{width:22px;height:22px;border-radius:50%;object-fit:cover}
+.arena-home img,
+.arena-home span{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+}
 .arena-home em{font-style:normal;color:var(--lime)}
 .arena-home:hover{border-color:var(--lime);background:rgba(204,255,0,.08)}
 

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { DEFAULT_DEX_URL } from '../../shared/rhChain.js'
+import { VoidLogo } from './VoidLogo'
 
 const X_URL = String(import.meta.env.VITE_X_URL || 'https://x.com/_voidos').trim()
 const GITHUB_URL = String(import.meta.env.VITE_GITHUB_URL || '').trim()
@@ -61,7 +62,7 @@ export function Footer() {
       <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xs">
           <div className="flex items-center gap-2.5">
-            <img src="/assets/void-logo.png" alt="" className="h-8 w-8 rounded-full object-cover" />
+            <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16" />
             <span className="font-display text-base font-extrabold tracking-tight text-ink">
               VOID<span className="text-lime">.OS</span>
             </span>

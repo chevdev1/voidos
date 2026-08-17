@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { SmoothScrollProvider, useLenis } from '../lib/SmoothScroll'
+import { VoidLogo } from '../components/VoidLogo'
 
 const SPRING = { type: 'spring', stiffness: 260, damping: 26 }
 
@@ -208,8 +209,8 @@ function DocumentationContent() {
     <div className="min-h-screen bg-void text-ink">
       <header className="sticky top-0 z-20 border-b border-white/10 bg-void/90 px-5 py-4 backdrop-blur-md sm:px-10">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <Link to="/" className="flex items-center gap-2.5">
-            <img src="/assets/void-logo.png" alt="" className="h-8 w-8 rounded-full object-cover" />
+          <Link to="/" className="flex items-center gap-3">
+            <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16" />
             <span className="font-display text-sm font-extrabold tracking-wide text-ink">
               VOID<span className="text-lime">.OS</span>{' '}
               <span className="text-muted-2">/ docs</span>

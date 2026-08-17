@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { VoidLogo } from './VoidLogo'
 
 function stageText(p) {
   if (p < 30) return 'INITIALIZING VOID.OS...'
@@ -80,10 +81,10 @@ export function BootSplash({ ready, onDone }) {
       aria-live="polite"
       aria-busy={!ready}
     >
-      <div className="relative mb-8 flex h-16 w-16 items-center justify-center">
+      <div className="relative mb-8 flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
         <span className="absolute inset-0 animate-ping rounded-full border border-lime/30" />
         <span className="absolute inset-2 animate-pulse rounded-full border border-lime/50" />
-        <img src="/assets/void-logo.png" alt="" className="relative h-10 w-10 rounded-full object-cover" />
+        <VoidLogo className="relative h-20 w-20 sm:h-24 sm:w-24" />
       </div>
       <p className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
         VOID<span className="text-lime">.OS</span>

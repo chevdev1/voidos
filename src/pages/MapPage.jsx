@@ -5,6 +5,7 @@ import { SectorTerminal } from '../components/SectorTerminal'
 import { MindChat } from '../components/MindChat'
 import { AccountMenu } from '../components/AccountMenu'
 import { BuyExoButton } from '../components/BuyExoButton'
+import { VoidLogo } from '../components/VoidLogo'
 import { BootSplash } from '../components/BootSplash'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
@@ -136,7 +137,7 @@ export default function MapPage() {
                 className="arena-home shrink-0 whitespace-nowrap"
                 aria-label="back to home"
               >
-                <img src="/assets/void-logo.png" alt="" />
+                <VoidLogo className="h-9 w-9" />
                 VOID<em>.OS</em>
               </Link>
               <p className="arena-eyebrow whitespace-nowrap">FULL MAP</p>

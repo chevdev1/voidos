@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { useLenis } from '../lib/SmoothScroll'
+import { VoidLogo } from './VoidLogo'
 
 function openMapPop() {
   if (window.__voidCosmos?.enterArena) window.__voidCosmos.enterArena()
@@ -66,7 +67,7 @@ export function CosmosArena() {
         <div className="arena-hud-top">
           <div>
             <button type="button" className="arena-home" onClick={goHome} aria-label="back to home">
-              <img src="/assets/void-logo.png" alt="" />
+              <VoidLogo className="h-9 w-9" />
               VOID<em>.OS</em>
             </button>
             <p className="arena-eyebrow">FULL MAP · POP</p>
