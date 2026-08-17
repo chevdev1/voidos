@@ -62,6 +62,19 @@ body {
   .hero-left {
     min-width: 0;
     width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .hero-left .lead,
+  .hero-left .price-note {
+    display: block;
+    width: 100%;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 }
 

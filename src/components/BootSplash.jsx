@@ -83,7 +83,7 @@ export function BootSplash({ ready, onDone }) {
       <div className="relative mb-8 flex h-16 w-16 items-center justify-center">
         <span className="absolute inset-0 animate-ping rounded-full border border-lime/30" />
         <span className="absolute inset-2 animate-pulse rounded-full border border-lime/50" />
-        <img src="/assets/void-logo.png" alt="" className="relative h-8 w-8" />
+        <img src="/assets/void-logo.png" alt="" className="relative h-10 w-10 rounded-full object-cover" />
       </div>
       <p className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
         VOID<span className="text-lime">.OS</span>

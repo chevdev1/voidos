@@ -75,14 +75,19 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 .hero-cosmos-slot{
   position:relative;z-index:8;
   width:100%;
+  max-width:100%;
   height:calc(100dvh - 108px);
   min-height:calc(100dvh - 108px);
   max-height:none;
   margin-right:clamp(-8px,-2vw,-24px);
+  overflow:hidden;
+  box-sizing:border-box;
 }
 .hero-cosmos-slot > .relative{
   height:100%;
   min-height:100%;
+  max-width:100%;
+  overflow:hidden;
 }
 .hero-right{
   position:relative;z-index:8;
@@ -217,7 +222,7 @@ body.arena-live .cosmos-bar,
   color:var(--text);font-family:'Syne',sans-serif;font-weight:800;font-size:12px;
   transition:border-color .18s ease-out,background .18s ease-out;
 }
-.arena-home img{width:18px;height:18px;border-radius:50%}
+.arena-home img{width:22px;height:22px;border-radius:50%;object-fit:cover}
 .arena-home em{font-style:normal;color:var(--lime)}
 .arena-home:hover{border-color:var(--lime);background:rgba(204,255,0,.08)}
 
@@ -919,8 +924,8 @@ body.arena-live .void-toast.claim.show{
      stretching to fill that leftover height is what let the cosmos slot's
      box — and the absolute-positioned LIVE DEMO prompt inside it — grow
      past its real content height and bleed into the section below. */
-  .hero{grid-template-columns:1fr;align-content:start;padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));gap:12px;padding-bottom:16px;padding-left:max(12px, env(safe-area-inset-left));padding-right:max(12px, env(safe-area-inset-right))}
-  .hero-left{order:1;min-width:0;width:100%}
+  .hero{grid-template-columns:1fr;align-content:start;padding-top:max(72px, calc(env(safe-area-inset-top) + 56px));gap:12px;padding-bottom:16px;padding-left:max(16px, env(safe-area-inset-left));padding-right:max(16px, env(safe-area-inset-right));overflow-x:hidden}
+  .hero-left{order:1;min-width:0;width:100%;max-width:100%;overflow:visible;z-index:14}
   /* Slot/right sizing at this breakpoint lives in phoneMap.css (loaded
      after this file everywhere it's imported, so it's the rule that
      actually wins) — a second, differently-numbered copy used to be

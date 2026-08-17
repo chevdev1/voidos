@@ -8,7 +8,7 @@ export default function Board() {
     <div className="min-h-screen bg-void text-ink">
       <header className="relative z-10 flex items-center justify-between gap-3 px-4 py-5 sm:px-10">
         <Link to="/" className="flex items-center gap-2.5">
-          <img src="/assets/void-logo.png" alt="" className="h-6 w-6" />
+          <img src="/assets/void-logo.png" alt="" className="h-8 w-8 rounded-full object-cover" />
           <span className="font-display text-sm font-extrabold tracking-wide">
             VOID<span className="text-lime">.OS</span>
           </span>

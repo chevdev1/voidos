@@ -100,7 +100,7 @@ export function Nav() {
             }
           }}
         >
-          <img src="/assets/void-logo.png" alt="" className="h-6 w-6 shrink-0" />
+          <img src="/assets/void-logo.png" alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
           <span className="font-display text-sm font-extrabold tracking-wide text-ink">
             VOID<span className="text-lime">.OS</span>
           </span>

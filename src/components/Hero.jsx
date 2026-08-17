@@ -255,14 +255,14 @@ export function Hero() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.4, ease: EASE_OUT }}
-                className="hero-map-prompt absolute inset-0 z-30 flex items-center justify-center bg-black/55 backdrop-blur-md pointer-events-none"
+                className="hero-map-prompt absolute inset-0 z-30 flex items-center justify-center overflow-hidden bg-black/55 backdrop-blur-md pointer-events-none"
               >
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
                   transition={{ type: 'spring', stiffness: 260, damping: 24 }}
-                  className="pointer-events-auto my-6 w-[90vw] max-w-xs mx-auto rounded-2xl border border-lime/25 bg-black/80 p-6 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)]"
+                  className="pointer-events-auto mx-3 my-3 w-full max-w-[18rem] max-h-full overflow-y-auto rounded-2xl border border-lime/25 bg-black/80 p-5 text-center shadow-[0_0_40px_rgba(204,255,0,0.12)] sm:p-6"
                 >
                   <p className="mb-1 text-[10px] tracking-[0.2em] text-lime/70">LIVE DEMO</p>
                   <h3 className="mb-2 font-display text-lg font-extrabold text-white">

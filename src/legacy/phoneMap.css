@@ -28,6 +28,12 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    overflow: hidden;
+  }
+
+  .hero-right:not(.in-arena) {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
   }
 
   .hero-right:not(.in-arena) {
