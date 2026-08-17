@@ -898,6 +898,32 @@ body.arena-live .void-toast.claim.show{
   padding:20px;overflow:auto;
 }
 .term.open{transform:translateX(0);opacity:1;pointer-events:auto}
+
+/* Map chrome sits at z-index 5100 (above the landing nav). When a lot is
+   selected the drawer must cover that cluster — otherwise cabinet / Buy
+   $TEST / wallet paint on top of the lot title. */
+body.term-open .term{z-index:5200}
+
+@media (min-width: 961px) {
+  body.term-open .arena-hud-actions {
+    right: calc(min(360px, 100vw) + 10px);
+    max-width: min(52vw, calc(100vw - min(360px, 100vw) - 24px));
+  }
+  body.term-open .cosmos-hud {
+    right: calc(min(360px, 100vw) + 14px);
+  }
+  body.term-open .vc {
+    right: calc(min(360px, 100vw) + 10px);
+  }
+}
+
+@media (max-width: 960px) {
+  body.term-open .arena-hud-actions,
+  body.term-open .cosmos-hud {
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
 .term h3{font-family:'Syne',sans-serif;color:var(--lime);font-size:17px;padding-right:88px}
 .term .sub{color:var(--muted2);font-size:12px;margin:4px 0 14px}
 .term .x{
