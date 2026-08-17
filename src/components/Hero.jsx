@@ -16,8 +16,6 @@ const CA = String(
     DEFAULT_EXO_TOKEN ||
     '',
 ).trim()
-const X_URL = String(import.meta.env.VITE_X_URL || 'https://x.com/_voidos').trim()
-const TG_URL = String(import.meta.env.VITE_TELEGRAM_URL || '').trim()
 const caLive = Boolean(CA)
 
 // Let the visitor spin the demo for a beat before nudging them toward the
@@ -169,26 +167,6 @@ export function Hero() {
             {caLive ? (copied ? '✓' : '⧉') : '—'}
           </motion.button>
         </motion.div>
-
-        {(X_URL || TG_URL) && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.36 }}
-            className="mt-3 flex flex-wrap gap-2"
-          >
-            {X_URL ? (
-              <a href={X_URL} target="_blank" rel="noopener noreferrer" className="btn-ghost">
-                Follow
-              </a>
-            ) : null}
-            {TG_URL ? (
-              <a href={TG_URL} target="_blank" rel="noopener noreferrer" className="btn-ghost">
-                Telegram
-              </a>
-            ) : null}
-          </motion.div>
-        )}
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
