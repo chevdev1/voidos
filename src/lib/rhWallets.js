@@ -456,7 +456,7 @@ async function connectWalletConnect() {
           url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
           icons: [
             typeof window !== 'undefined'
-              ? window.location.origin + '/assets/void-logo.png?v=4'
+              ? window.location.origin + '/assets/void-logo.png?v=5'
               : 'https://void.os/assets/void-logo.png',
           ],
         },
