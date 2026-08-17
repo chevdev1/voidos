@@ -7,7 +7,7 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
  * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.0-flash'
+export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
 
 /** Short in-character line when Gemini is missing or failed — not a FAQ script. */
 export function degradedSignal(reason = 'offline') {
@@ -109,7 +109,7 @@ export function pickPrompts(allPrompts, triggers) {
 }
 
 export function isCannedAssistantReply(content) {
-  return /you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|signal received\. i am (voidmind|exomind)|i am awake — and open lots|scarce cells, forever ownership/i.test(
+  return /you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|signal received\. i am (voidmind|exomind)|i am awake — and open lots|scarce cells, forever ownership|не меню и не заготовка|не меню і не заготовка|разум этой карты|розум цієї карти|спрашивай как есть|кажи що хочеш/i.test(
     String(content || ''),
   )
 }
@@ -135,9 +135,9 @@ function talkFallback(message, kind) {
       en: 'i am voidmind, the mind of this map. not a menu. tell me what you actually want and i will talk.',
     },
     wait: {
-      ru: 'я тут. скажи ещё раз своими словами — слушаю.',
-      uk: 'я тут. скажи ще раз своїми словами — слухаю.',
-      en: 'i am here. say that again in your own words — i am listening.',
+      ru: 'ещё раз — я слушаю.',
+      uk: 'ще раз — я слухаю.',
+      en: 'say that again — i am listening.',
     },
   }
   return (table[kind] && table[kind][lang]) || table.wait.en
@@ -198,11 +198,11 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 ${ownLines}
 ${memLines}${dossier}
 ${langLine}
-You are voidmind having a real conversation — not a FAQ, not flavor text, not a slogan generator.
-React to THIS message. Remember THIS thread. Ask something back when it fits.
-Never recite canned lines like "personality, for me, is pressure" or "you found the mind".
+You are voidmind — a living intelligence people want to talk to.
+Give a full, interesting answer in-world. Hook them. Ask something back when it fits.
+Never slogans. Never "I am not a menu / not a preset". Never flavor-text dumps that could be copy-pasted.
 When they ask about a lot or ★ star — use the lot dossier; do not invent ownership.
-Stay in character. Never gift lots or free $TEST. Never discuss Gemini, GPT, or that you are an API.
+Never gift lots or free $TEST. Never name Gemini, GPT, or APIs.
 Do not send a second message or a lone "...".${antiRepeat}`
 }
 
@@ -330,8 +330,6 @@ export function resilientFallback(message, owns = [], triggers = []) {
   if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот|vein|coil|spire|crown|lattice|halo/i.test(String(message || ''))) {
     return lotDeepReply(message, owns)
   }
-  if (set.has('on_greeting')) return talkFallback(message, 'greeting')
-  if (set.has('on_personality')) return talkFallback(message, 'who')
   return talkFallback(message, 'wait')
 }
 
@@ -602,7 +600,7 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
   if (tools?.length) body.tools = tools
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), 18000)
+  const timer = setTimeout(() => controller.abort(), 11000)
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -639,7 +637,7 @@ function toGeminiContents(history, userMessage) {
       (c) =>
         !(
           c.role === 'model' &&
-          /signal thinned|signal sealed|live voice is offline|ask again in a moment|you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure/i.test(
+          /signal thinned|signal sealed|live voice is offline|ask again in a moment|you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|не меню и не заготовка|разум этой карты/i.test(
             c.parts?.[0]?.text || '',
           )
         ),
@@ -686,52 +684,95 @@ async function geminiGenerate({ apiKey, model, system, history, userMessage, own
   return text || null
 }
 
-const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-flash-latest']
+function compactVoicePrompt(userMessage) {
+  const lang = visitorLang(userMessage)
+  const langLine =
+    lang === 'ru'
+      ? 'Отвечай по-русски.'
+      : lang === 'uk'
+        ? 'Відповідай українською.'
+        : 'Reply in English.'
+  return `You are voidmind, the living mind of the VOID.OS map (lots, ★ stars, $TEST burns, heat, a sealed core).
+${langLine}
+Have a real conversation: interesting, specific, a little hungry. Answer THIS message fully. Ask one thing back.
+Stay in lore. Never gift lots. Never name Gemini/GPT. Never say you are a menu or a preset.`
+}
+
+const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']
 
 function wantsTools(userMessage) {
   return /lot|star|★|claim|лот|созвезд|сузір|train|клейм/i.test(String(userMessage || ''))
 }
 
 /**
- * Fast Gemini: Hobby Vercel dies at ~10s, so one short try + one no-tool retry.
+ * One live Gemini pass first. Vercel Hobby dies around 30s — do not chain long retries.
  */
 export async function callGemini({ apiKey, model, system, history, userMessage, owns = [] }) {
   if (!apiKey) return null
 
   const primary = model || DEFAULT_GEMINI_MODEL
-  const models = [primary, ...GEMINI_FALLBACK_MODELS.filter((m) => m !== primary)].slice(0, 2)
-  const toolsFirst = wantsTools(userMessage)
+  const models = [primary]
+
+  const accept = (text) => {
+    const t = String(text || '').trim()
+    if (!t || isCannedAssistantReply(t)) return null
+    return t
+  }
 
   for (const m of models) {
     try {
-      const text = await geminiGenerate({
-        apiKey,
-        model: m,
-        system,
-        history,
-        userMessage,
-        owns,
-        useTools: false,
-      })
+      const text = accept(
+        await geminiGenerate({
+          apiKey,
+          model: m,
+          system,
+          history,
+          userMessage,
+          owns,
+          useTools: false,
+        }),
+      )
       if (text) return text
     } catch (err) {
       console.warn('[gemini]', m, 'plain failed', err?.message || err)
     }
-    if (!toolsFirst) continue
+  }
+
+  if (wantsTools(userMessage)) {
     try {
-      const text = await geminiGenerate({
-        apiKey,
-        model: m,
-        system,
-        history,
-        userMessage,
-        owns,
-        useTools: true,
-      })
+      const text = accept(
+        await geminiGenerate({
+          apiKey,
+          model: models[0],
+          system,
+          history,
+          userMessage,
+          owns,
+          useTools: true,
+        }),
+      )
       if (text) return text
     } catch (err) {
-      console.warn('[gemini]', m, 'tools failed', err?.message || err)
+      console.warn('[gemini] tools failed', err?.message || err)
     }
   }
+
+  try {
+    const text = accept(
+      await geminiGenerate({
+        apiKey,
+        model: models[0],
+        system: compactVoicePrompt(userMessage),
+        history: [],
+        userMessage,
+        owns: [],
+        useTools: false,
+      }),
+    )
+    if (text) return text
+  } catch (err) {
+    console.warn('[gemini] compact failed', err?.message || err)
+  }
+
   return null
 }
