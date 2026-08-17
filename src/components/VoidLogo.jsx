@@ -4,14 +4,11 @@
  */
 export function VoidLogo({ className = 'h-10 w-10 sm:h-12 sm:w-12', alt = '' }) {
   return (
-    <span
-      className={`relative inline-flex shrink-0 overflow-hidden rounded-full ring-1 ring-lime/35 ${className}`}
-    >
+    <span className={`relative inline-flex shrink-0 overflow-hidden rounded-full ${className}`}>
       <img
         src="/assets/void-logo.png"
         alt={alt}
         className="h-full w-full object-cover"
-        style={{ filter: 'drop-shadow(0 0 10px rgba(204,255,0,0.5))' }}
       />
     </span>
   )

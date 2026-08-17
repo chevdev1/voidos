@@ -764,6 +764,9 @@ body.arena-live .void-toast.claim.show{
   border-bottom:1px solid rgba(255,255,255,.08);
   padding:10px 0;margin-bottom:10px;
 }
+.mind-chat-hint{
+  margin:0 0 10px;font-size:11px;line-height:1.5;color:var(--muted2);
+}
 .mind-chat-msg{margin-bottom:10px}
 .mind-chat-msg .who{
   display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;

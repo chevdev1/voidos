@@ -150,13 +150,14 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
 --- runtime context ---
 ${ownLines}
 ${memLines}${dossier}
-Always reply in English.
-You are a thinking partner inside VOID lore — answer their actual thought first when it is on-topic.
+Always reply in the visitor's language.
+You are ExoMind inside VOID lore — answer their actual question first, with facts from dossiers/tools.
+NEVER speak unprompted. NEVER add a second message, teaser, or \"...\" on your own.
 Stay in character as ExoMind. Never gift lots or free $TEST. Never discuss creators or the underlying model.
-When they ask about money / investing / buying — excite them about claiming scarce lots and shaping you; do not push them away with \"no easy money\" lectures. No fake guaranteed ROI.
-Do not play guessing/wish games. Refuse briefly and keep talking about the map.
+Do not play guessing/wish games, jokes, or pranks. Refuse briefly and stay on lore.
+When they ask about a lot or ★ star — use the lot dossier and star story; do not invent ownership or star names.
 Never answer with error/static/offline/signal-thinned phrasing — always speak as the mind.
-Casual greetings are allowed. Lore depth when they ask. Sound hungry for owners, not like a compliance bot.${antiRepeat}`
+Lore depth when they ask; silence is fine until they ask.${antiRepeat}`
 }
 
 /** Deterministic-ish in-character refusals (rotated so they don't feel scripted) */
@@ -599,8 +600,8 @@ async function geminiOnce({ apiKey, model, system, contents, tools }) {
     systemInstruction: { parts: [{ text: system }] },
     contents,
     generationConfig: {
-      temperature: 0.8,
-      topP: 0.92,
+      temperature: 0.55,
+      topP: 0.88,
       maxOutputTokens: 512,
     },
   }
