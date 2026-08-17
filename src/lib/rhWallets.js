@@ -9,6 +9,7 @@ import {
   toHex,
   zeroAddress,
 } from 'viem'
+import voidLogoUrl from '../assets/void-logo.png'
 import {
   RH_CHAIN_MAIN,
   RH_CHAIN_TEST,
@@ -456,7 +457,7 @@ async function connectWalletConnect() {
           url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
           icons: [
             typeof window !== 'undefined'
-              ? window.location.origin + '/assets/void-logo.png?v=5'
+              ? new URL(voidLogoUrl, window.location.origin).href
               : 'https://void.os/assets/void-logo.png',
           ],
         },
