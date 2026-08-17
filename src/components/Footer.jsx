@@ -84,7 +84,7 @@ export function Footer() {
       </div>
 
       <div className="mt-8 flex flex-col gap-2 border-t border-white/5 pt-5 text-[10px] tracking-wide text-muted-2 sm:flex-row sm:items-center sm:justify-between">
-        <span>© {new Date().getFullYear()} VOID.OS / EXOMIND</span>
+        <span>© {new Date().getFullYear()} VOID.OS / VOIDMIND</span>
         <span>SIGNAL STATUS: NOMINAL</span>
       </div>
     </footer>

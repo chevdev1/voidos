@@ -89,7 +89,7 @@ export default async function handler(req, res) {
     const owns = mergeOwnsForChat(dbOwns, clientOwns)
     const memories = await loadMemories(user.id)
     const conv = await getOrCreateConversation(user.id)
-    const history = await loadHistory(conv.id, 16)
+    const history = await loadHistory(conv.id, 24)
 
     const blocked = safetyReply(message)
     if (blocked) {

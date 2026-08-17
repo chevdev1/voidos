@@ -1,4 +1,4 @@
--- VOID.OS / ExoMind durable client schema (SQLite / libSQL / Turso)
+-- VOID.OS / voidmind durable client schema (SQLite / libSQL / Turso)
 
 CREATE TABLE IF NOT EXISTS users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

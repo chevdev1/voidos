@@ -129,7 +129,7 @@ export function Hero() {
           transition={{ duration: 0.5, ease: EASE_OUT }}
           className="live"
         >
-          <i /> Live probe · ExoMind online
+          <i /> Live probe · voidmind online
         </motion.div>
 
         <motion.h1

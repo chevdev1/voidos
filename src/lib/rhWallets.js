@@ -452,7 +452,7 @@ async function connectWalletConnect() {
         },
         metadata: {
           name: 'VOID.OS',
-          description: 'ExoMind constellation lots on Robinhood Chain',
+          description: 'voidmind constellation lots on Robinhood Chain',
           url: typeof window !== 'undefined' ? window.location.origin : 'https://void.os',
           icons: [
             typeof window !== 'undefined'

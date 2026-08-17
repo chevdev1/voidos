@@ -5,7 +5,7 @@ import { mindSession, mindChat, loadHistory, loadOwnerships, loadUser } from '..
 import { buildLotProfile } from '../../shared/lotLore.js'
 
 /**
- * ExoMind chat — replies only when the visitor sends a message (or cabinet prefill).
+ * voidmind chat — replies only when the visitor sends a message (or cabinet prefill).
  */
 export function MindChat() {
   const [open, setOpen] = useState(false)
@@ -191,7 +191,7 @@ export function MindChat() {
         <div className="mind-chat-log" ref={scroller}>
           <AnimatePresence initial={false}>
             {!messages.length && !busy ? (
-              <p className="mind-chat-hint">write a question — i answer from VOID lore only when you ask.</p>
+              <p className="mind-chat-hint">say something — i'll talk. i wait until you do.</p>
             ) : null}
             {messages.map((m, i) => (
               <motion.div
@@ -235,8 +235,8 @@ export function MindChat() {
             onChange={(e) => setInput(e.target.value)}
             placeholder={
               ownerships.length
-                ? 'ask about a lot or ★ star…'
-                : 'ask the void anything…'
+                ? 'talk — lots, stars, or anything on your mind…'
+                : 'talk to the mind…'
             }
             disabled={busy}
             autoComplete="off"

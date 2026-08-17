@@ -20,11 +20,11 @@ const FAQS = [
   },
   {
     q: 'What is the Immutable Core?',
-    a: 'A fixed 28% of ExoMind’s personality weighting that no claim, signal, or training pass can touch. It stays sealed so the probe always keeps a part of itself no commander can own.',
+    a: 'A fixed 28% of voidmind’s personality weighting that no claim, signal, or training pass can touch. It stays sealed so the probe always keeps a part of itself no commander can own.',
   },
   {
     q: 'What does Ask the mind do?',
-    a: 'It is a live chat with ExoMind (Gemini). Talk about the map, your lots, or ★ stars. It stays on VOID topics — it will not play wish-games or grant free lots. With owned lots it can brief what you hold.',
+    a: 'It is a live chat with voidmind (Gemini). Talk about the map, your lots, or ★ stars. It stays on VOID topics — it will not play wish-games or grant free lots. With owned lots it can brief what you hold.',
   },
   {
     q: 'How does training work?',

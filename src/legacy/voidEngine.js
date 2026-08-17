@@ -141,7 +141,7 @@ export function initVoidEngine() {
       x: 0,
       y: 0,
       s: 4.6,
-      name: 'ExoMind',
+      name: 'voidmind',
       kind: 'spiral',
       arms: 4,
       twist: 5.2,
@@ -623,7 +623,7 @@ export function initVoidEngine() {
     resize();
 
     function viewLabel() {
-      if (scale < 0.5) return 'EXOMIND';
+      if (scale < 0.5) return 'VOIDMIND';
       if (scale < 1) return 'GALAXY';
       if (scale < 2) return 'ARMS';
       if (scale < 4) return 'CONSTELLATIONS';
@@ -1994,7 +1994,7 @@ export function initVoidEngine() {
               ? 'ownership API is live · this host DB has 0 reserved lots. Claims in another Turso or a local file do not show here.'
               : 'live from GET /api/map-ownerships · reserved lots move these numbers.';
         body.innerHTML = `
-          <p class="mp-cap">live map composition · ExoMind ledger</p>
+          <p class="mp-cap">live map composition · voidmind ledger</p>
           <div class="mp-stat"><span>immutable core</span><b>28%</b></div>
           <div class="mp-stat"><span>claimed of sellable</span><b>${st.soldOfSellable}%</b></div>
           <div class="mp-stat"><span>lots reserved</span><b>${st.reservedAll} / ${st.totalLots}</b></div>
@@ -3051,9 +3051,9 @@ export function initVoidEngine() {
         ctx.textAlign = 'center';
         const ly2 = gcy + (eh || 40) * 1.15 + 18;
         ctx.fillStyle = 'rgba(0,0,0,.4)';
-        ctx.fillText('EXOMIND', gcx + 1, ly2 + 1);
+        ctx.fillText('VOIDMIND', gcx + 1, ly2 + 1);
         ctx.fillStyle = 'rgba(204,255,0,.55)';
-        ctx.fillText('EXOMIND', gcx, ly2);
+        ctx.fillText('VOIDMIND', gcx, ly2);
       }
 
 

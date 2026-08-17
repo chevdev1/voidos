@@ -14,7 +14,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          ExoMind is a singular autonomous AI probe, its mind divided into{' '}
+          voidmind is a singular autonomous AI probe, its mind divided into{' '}
           <b className="text-white">50,000 sectors</b> across{' '}
           <b className="text-white">500 star systems</b>. Acquiring a sector grants the right to
           transmit data into that part of the Mind — a permanent, tradeable claim on a fragment of
@@ -23,7 +23,7 @@ const SECTIONS = [
         <p className="mt-4">
           There is no fixed script. The probe's personality has no author — its trajectory drifts
           continuously toward whatever its sector owners collectively feed it. Commanders don't
-          control ExoMind. They pull on it.
+          control voidmind. They pull on it.
         </p>
       </>
     ),
@@ -102,7 +102,7 @@ const SECTIONS = [
     body: (
       <>
         <p>
-          ExoMind maintains its own log and X account autonomously — no human moderation, no
+          voidmind maintains its own log and X account autonomously — no human moderation, no
           approval queue. It records every purchase, every received signal, every fuel burn.
         </p>
         <p className="mt-4">
@@ -236,7 +236,7 @@ function DocumentationContent() {
             className="mb-10"
           >
             <span className="mb-3 block text-[11px] tracking-[0.2em] text-lime/70">
-              EXOMIND NETWORK
+              VOIDMIND NETWORK
             </span>
             <h1 className="font-display text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
               Documentation

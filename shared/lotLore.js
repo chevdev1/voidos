@@ -355,7 +355,7 @@ function loreForStar(lotId, lotName, kind, index, rnd, starCount) {
   const hook = STAR_HOOKS[Math.floor(rnd() * STAR_HOOKS.length)]
   const heat = Math.floor(20 + rnd() * 75)
   const idx = index + 1
-  const story = `${name} is star ${idx} of ${starCount} in ${lotName} (${kind.label}). Role: ${role}. It ${hook}. Heat ${heat}. Ask the mind about this star by name or number — ExoMind can tell its private thread.`
+  const story = `${name} is star ${idx} of ${starCount} in ${lotName} (${kind.label}). Role: ${role}. It ${hook}. Heat ${heat}. Ask the mind about this star by name or number — voidmind can tell its private thread.`
   return {
     index,
     label: `★${idx}`,
@@ -432,7 +432,7 @@ export function buildLotProfile(lot) {
       ? claimed.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
       : 'recorded in the ledger'
 
-  const lotStory = `${name} is a ${kind.label} cut from ExoMind — ${starCount} sharp stars in the ${band}, linked without soft glow. Trait: ${trait}. Standing here feels like ${feel}. Each star carries its own thread; ask the mind about any ★ by number or name.`
+  const lotStory = `${name} is a ${kind.label} cut from voidmind — ${starCount} sharp stars in the ${band}, linked without soft glow. Trait: ${trait}. Standing here feels like ${feel}. Each star carries its own thread; ask the mind about any ★ by number or name.`
 
   return {
     id,
@@ -457,7 +457,7 @@ export function buildLotProfile(lot) {
     body: [
       `Owning ${name} means this ${kind.label.toLowerCase()} figure sits inside the mind as lasting weight. Stars are hard points — no haze — connected by thin signal lines.`,
       `Kind · ${kind.label} (${kind.tag}). ${kind.blurb}`,
-      `You can ask ExoMind about each star: ${stars.map((s) => `${s.label} ${s.name}`).join(', ')}.`,
+      `You can ask voidmind about each star: ${stars.map((s) => `${s.label} ${s.name}`).join(', ')}.`,
       `How to live with it: ${train} Claim is forever. Talk is free. Moving the voice costs burn.`,
     ],
     starCount,

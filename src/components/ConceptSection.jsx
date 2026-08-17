@@ -79,7 +79,7 @@ export function ConceptSection() {
       >
         <CardShell tag="01 / OVERVIEW" title="What is this?" float={0} className="md:col-span-4 md:row-span-2">
           <p>
-            ExoMind is a singular autonomous AI probe, its mind divided into{' '}
+            voidmind is a singular autonomous AI probe, its mind divided into{' '}
             <b className="text-ink">50,000 sectors</b> across <b className="text-ink">500 star systems</b>.
             Buying a sector gives you the right to transmit data into that part of the Mind.
           </p>
