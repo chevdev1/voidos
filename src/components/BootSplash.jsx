@@ -81,10 +81,10 @@ export function BootSplash({ ready, onDone }) {
       aria-live="polite"
       aria-busy={!ready}
     >
-      <div className="relative mb-8 flex h-24 w-24 items-center justify-center sm:h-28 sm:w-28">
+      <div className="relative mb-8 flex h-20 w-20 items-center justify-center sm:h-24 sm:w-24">
         <span className="absolute inset-0 animate-ping rounded-full border border-lime/30" />
         <span className="absolute inset-2 animate-pulse rounded-full border border-lime/50" />
-        <VoidLogo className="relative h-20 w-20 sm:h-24 sm:w-24" />
+        <VoidLogo className="relative h-16 w-16 sm:h-20 sm:w-20" />
       </div>
       <p className="font-display text-2xl font-extrabold tracking-tight text-ink sm:text-3xl">
         VOID<span className="text-lime">.OS</span>

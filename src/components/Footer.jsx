@@ -62,7 +62,7 @@ export function Footer() {
       <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between">
         <div className="max-w-xs">
           <div className="flex items-center gap-2.5">
-            <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16" />
+            <VoidLogo className="h-10 w-10 sm:h-12 sm:w-12" />
             <span className="font-display text-base font-extrabold tracking-tight text-ink">
               VOID<span className="text-lime">.OS</span>
             </span>

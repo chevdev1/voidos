@@ -137,7 +137,7 @@ export default function MapPage() {
                 className="arena-home shrink-0 whitespace-nowrap"
                 aria-label="back to home"
               >
-                <VoidLogo className="h-9 w-9" />
+                <VoidLogo className="h-8 w-8" />
                 VOID<em>.OS</em>
               </Link>
               <p className="arena-eyebrow whitespace-nowrap">FULL MAP</p>

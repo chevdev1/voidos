@@ -67,7 +67,7 @@ export function CosmosArena() {
         <div className="arena-hud-top">
           <div>
             <button type="button" className="arena-home" onClick={goHome} aria-label="back to home">
-              <VoidLogo className="h-9 w-9" />
+              <VoidLogo className="h-8 w-8" />
               VOID<em>.OS</em>
             </button>
             <p className="arena-eyebrow">FULL MAP · POP</p>

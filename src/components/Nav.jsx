@@ -101,7 +101,7 @@ export function Nav() {
             }
           }}
         >
-          <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16 lg:h-[4.5rem] lg:w-[4.5rem]" />
+          <VoidLogo className="h-10 w-10 sm:h-12 sm:w-12 lg:h-12 lg:w-12" />
           <span className="font-display text-base font-extrabold tracking-wide text-ink sm:text-lg">
             VOID<span className="text-lime">.OS</span>
           </span>

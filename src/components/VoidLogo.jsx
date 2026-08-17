@@ -2,7 +2,7 @@
  * Brand mark — lattice already cropped tight in the PNG so it fills
  * the circle at header size instead of reading as a tiny green speck.
  */
-export function VoidLogo({ className = 'h-12 w-12 sm:h-16 sm:w-16', alt = '' }) {
+export function VoidLogo({ className = 'h-10 w-10 sm:h-12 sm:w-12', alt = '' }) {
   return (
     <span
       className={`relative inline-flex shrink-0 overflow-hidden rounded-full ring-1 ring-lime/35 ${className}`}

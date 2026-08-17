@@ -173,7 +173,7 @@ export default function Cabinet() {
 
       <header className="relative z-10 flex items-center justify-between px-5 py-5 sm:px-10">
         <Link to="/" className="flex items-center gap-3">
-          <VoidLogo className="h-12 w-12 sm:h-16 sm:w-16" />
+          <VoidLogo className="h-10 w-10 sm:h-12 sm:w-12" />
           <span className="font-display text-sm font-extrabold tracking-wide">
             VOID<span className="text-lime">.OS</span>
           </span>
