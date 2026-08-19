@@ -180,7 +180,7 @@
   /* Kill the giant title that covers the galaxy */
   body.arena-live .arena-hud {
     max-width: none;
-    padding: max(10px, env(safe-area-inset-top)) 12px 0;
+    padding: max(12px, calc(env(safe-area-inset-top) + 6px)) 12px 0;
     background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, transparent 70%);
   }
 
@@ -200,7 +200,7 @@
   }
 
   body.arena-live .arena-hud-actions {
-    top: max(10px, env(safe-area-inset-top));
+    top: max(12px, calc(env(safe-area-inset-top) + 6px));
     right: 8px;
     gap: 5px;
     flex-wrap: nowrap;
