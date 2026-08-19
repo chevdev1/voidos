@@ -1272,17 +1272,17 @@ export function initVoidEngine() {
         const c = g0.constels.find((x) => x.id === grain.s.constel);
         if (c) return { c, p: constelWorld(c, g0) };
       }
-      let best = null,
-        bd = 1e9;
+          let best = null,
+            bd = 1e9;
       const hitR = g0.R * (scale < 2 ? 0.22 : scale < 5 ? 0.16 : 0.11);
-      for (const c of g0.constels) {
-        const p = constelWorld(c, g0);
-        const d = Math.hypot(wx - p.x, wy - p.y);
+          for (const c of g0.constels) {
+            const p = constelWorld(c, g0);
+            const d = Math.hypot(wx - p.x, wy - p.y);
         if (d < hitR && d < bd) {
-          bd = d;
-          best = { c, p };
-        }
-      }
+              bd = d;
+              best = { c, p };
+            }
+          }
       return best;
     }
 
@@ -2321,11 +2321,11 @@ export function initVoidEngine() {
           H / 2,
           Math.max(W, H) * 0.75,
         );
-        deep.addColorStop(0, '#050a18');
-        deep.addColorStop(0.55, '#02040c');
-        deep.addColorStop(1, '#000');
-        ctx.fillStyle = deep;
-        ctx.fillRect(0, 0, W, H);
+      deep.addColorStop(0, '#050a18');
+      deep.addColorStop(0.55, '#02040c');
+      deep.addColorStop(1, '#000');
+      ctx.fillStyle = deep;
+      ctx.fillRect(0, 0, W, H);
       }
       if (W > 4 && H > 4 && !window.__voidMapPainted) {
         window.__voidMapPainted = true;
@@ -2361,9 +2361,9 @@ export function initVoidEngine() {
           }
         }
         if (quality !== 'low') {
-          for (const c of g.constels) {
-            const p = constelWorld(c, g);
-            c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+        for (const c of g.constels) {
+          const p = constelWorld(c, g);
+          c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
           }
         }
       } else {
@@ -2798,8 +2798,8 @@ export function initVoidEngine() {
               ctx.lineTo(x + d, y + d);
               ctx.moveTo(x - d, y + d);
               ctx.lineTo(x + d, y - d);
-              ctx.stroke();
-            }
+          ctx.stroke();
+        }
           }
 
           // warm core
@@ -3081,8 +3081,8 @@ export function initVoidEngine() {
           if (tip1) tip1.textContent = `${hover.s.cName} · #${hover.s.id}`;
           if (tip2)
             tip2.textContent = `${hover.s.tier} · ${hover.s.size}c · ${formatUsd(hover.s.usd)} · ${
-              hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
-            }`;
+          hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
+        }`;
         }
         const [sx, sy] = w2s(hover.wx, hover.wy);
         tip.style.left = Math.min(W - 200, sx + 12) + 'px';
@@ -3098,7 +3098,7 @@ export function initVoidEngine() {
         console.error('[void cosmos] draw() frame threw — recovering, will retry next frame', err);
       } finally {
         if (alive && !uiPaused && pageVisible && (inView || arenaMode) && (demoActive || arenaMode)) {
-          rafId = requestAnimationFrame(draw);
+      rafId = requestAnimationFrame(draw);
         }
       }
     }
