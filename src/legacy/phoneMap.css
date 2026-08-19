@@ -227,22 +227,44 @@
     min-height: 40px;
   }
 
+  /* The board and the zoom column were both pinned to right:8px, so the
+     column sat straight on top of the board's count column. The board keeps
+     the top-right corner; it just stops one column-width short of it. */
   body.arena-live .cosmos-hud {
     display: flex !important;
     font-size: 9px;
     gap: 8px;
     flex-wrap: wrap;
-    max-width: min(78vw, 280px);
+    max-width: min(58vw, 220px);
     top: max(52px, calc(env(safe-area-inset-top) + 44px));
-    right: 8px;
+    right: 60px;
     left: auto;
     bottom: auto;
   }
 
+  /* Clears the collapsed dock, which is a z-40 layer over the whole bottom
+     edge and used to swallow the lower half of the minimap. */
   body.arena-live .minimap {
     display: block !important;
-    transform: scale(0.85);
-    transform-origin: bottom left;
+    width: 104px;
+    right: 8px;
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
+    padding: 5px;
+    transform: none;
+  }
+
+  body.arena-live .minimap canvas {
+    height: 62px;
+  }
+
+  body.arena-live .minimap .cap {
+    font-size: 8px;
+    line-height: 1.3;
+  }
+
+  /* Nothing to clear once the dock is expanded — it owns that whole band. */
+  body.arena-live.mind-dock-open .minimap {
+    display: none !important;
   }
 
   body.arena-live .vc {
@@ -411,6 +433,7 @@
   /* The preview claims the whole band above the sheet; everything else that
      normally lives up there would sit on top of it. */
   body.arena-live.term-open .arena-hud,
+  body.arena-live.term-open .minimap,
   body.arena-live.term-open .vc {
     visibility: hidden;
     pointer-events: none;

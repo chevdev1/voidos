@@ -428,25 +428,34 @@ body.arena-live .cart-dock{bottom:78px}
   margin-top:10px;
   text-align:left;
   display:inline-block;
+  width:100%;
   min-width:168px;
-  background:rgba(0,0,0,.82);
-  border:1px solid rgba(204,255,0,.4);
-  padding:8px 10px;
+  box-sizing:border-box;
+  background:rgba(3,6,2,.9);
+  border:1px solid rgba(204,255,0,.3);
+  border-radius:12px;
+  padding:9px 11px 10px;
+  box-shadow:0 12px 30px rgba(0,0,0,.55);
 }
 .hud-board-cap{
-  font-size:8px;letter-spacing:.16em;color:var(--lime);margin:0 0 6px;text-transform:uppercase;
+  font-size:8px;letter-spacing:.18em;color:var(--lime);margin:0 0 7px;text-transform:uppercase;
 }
 .hud-board-row{
-  display:flex;gap:8px;align-items:baseline;font-size:10px;color:#f0f0f0;margin:3px 0;
+  display:flex;gap:8px;align-items:baseline;font-size:10px;color:#f0f0f0;margin:4px 0;
 }
-.hud-board-row b{color:var(--lime);width:22px;flex-shrink:0}
-.hud-board-row em{margin-left:auto;color:var(--lime);font-style:normal}
+.hud-board-row b{color:var(--lime);width:20px;flex-shrink:0}
+/* The wallet is the only elastic column — it has to give way rather than
+   push the count out of the card. */
+.hud-board-row span{
+  flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.hud-board-row em{margin-left:auto;flex-shrink:0;color:var(--lime);font-style:normal}
 .hud-board-btn{
   pointer-events:auto;
-  display:block;width:100%;margin-top:6px;
-  border:1px solid rgba(204,255,0,.5);background:rgba(204,255,0,.12);
+  display:block;width:100%;margin-top:9px;
+  border:1px solid rgba(204,255,0,.55);border-radius:999px;background:rgba(204,255,0,.14);
   color:var(--lime);font-size:9px;letter-spacing:.12em;text-transform:uppercase;
-  padding:7px 8px;cursor:pointer;
+  padding:8px;cursor:pointer;
 }
 
 .cosmos-fx,.cosmos-scan{display:none !important}
