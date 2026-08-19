@@ -114,7 +114,7 @@ export default function MapPage() {
         <Link to="/cabinet" className="arena-close" style={{ position: 'static' }}>
           cabinet
         </Link>
-        <BuyExoButton filled label="Buy $TEST" className="!rounded-full !px-3 !py-2 !text-[10px]" />
+        <BuyExoButton filled label="Buy $TEST" className="arena-buy" />
         <AccountMenu />
         <button type="button" className="arena-close arena-close-x" onClick={closeMap}>
           ✕ close

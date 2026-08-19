@@ -207,10 +207,13 @@
     max-width: calc(100vw - 76px);
   }
 
-  body.arena-live .arena-hud-actions .arena-close {
-    min-height: 34px;
-    padding: 0 9px;
+  body.arena-live .arena-hud-actions .arena-close,
+  body.arena-live .arena-hud-actions .arena-buy,
+  body.arena-live .arena-hud-actions .account-menu > button {
+    min-height: 38px;
+    padding: 0 11px;
     font-size: 9px;
+    letter-spacing: 0.06em;
     white-space: nowrap;
   }
 
@@ -271,11 +274,17 @@
     top: max(52px, calc(env(safe-area-inset-top) + 44px));
     bottom: auto;
     right: 8px;
+    border-radius: 12px;
+    border-color: rgba(204, 255, 0, 0.22);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
   }
 
   body.arena-live .vc button {
     width: 42px;
     height: 42px;
+    font-size: 15px;
+    background: rgba(3, 6, 2, 0.82);
+    border-bottom-color: rgba(204, 255, 0, 0.12);
   }
 
   body.arena-live .mind-bar,
