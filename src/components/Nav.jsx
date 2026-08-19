@@ -88,7 +88,13 @@ export function Nav() {
       transition={{ duration: 0.6, ease: [0.23, 1, 0.32, 1], delay: 0.1 }}
       className="fixed inset-x-0 top-0 z-[200] px-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-6 lg:px-10"
     >
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-void via-void/85 to-transparent" />
+      {/* The fade used to run across the header's own box, so its lower half
+          was near-transparent and whatever scrolled underneath — hero copy,
+          the lime "Claim a sector" button — cut straight through the logo and
+          the wallet chip. The bar is solid now; the fade lives entirely below
+          it, where there's nothing to collide with. */}
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-void" />
+      <div className="pointer-events-none absolute inset-x-0 top-full -z-10 h-8 bg-gradient-to-b from-void to-transparent" />
 
       <div className="flex min-h-14 items-center justify-between gap-2 sm:min-h-16">
         <Link
