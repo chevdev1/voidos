@@ -32,6 +32,7 @@ export function initVoidEngine() {
     const el = document.getElementById('term')
     if (el) el.classList.remove('open')
     document.body.classList.remove('term-open')
+    window.dispatchEvent(new Event('void-lot-close'))
   }
 
   function openTerm(d) {
@@ -1328,6 +1329,19 @@ export function initVoidEngine() {
               ' One buyer only — after claim this lot is reserved for everyone else.',
       });
       syncTermButtons();
+      // Feeds the phone-only preview window (LotPreview.jsx) — same seed
+      // inputs figureForConstel uses, so it draws the same silhouette.
+      window.dispatchEvent(
+        new CustomEvent('void-lot-open', {
+          detail: {
+            id: String(c.id),
+            name: c.name,
+            figure: typeof c.figure === 'number' ? c.figure : undefined,
+            kind: kind.label,
+            stars: c.grains.length,
+          },
+        }),
+      );
     }
 
     let pendingTouch = null
@@ -1336,7 +1350,7 @@ export function initVoidEngine() {
         t instanceof Element &&
         Boolean(
           t.closest(
-            '#term, .cart-dock, .arena-close, .arena-hud-actions, .account-menu, .arena-home, .mind-bar, .mind-panel, .mind-chat, .filters, .vc, .minimap, .cosmos-bar, .cosmos-explore',
+            '#term, .cart-dock, .arena-close, .arena-hud-actions, .account-menu, .arena-home, .lot-preview, .mind-bar, .mind-panel, .mind-chat, .filters, .vc, .minimap, .cosmos-bar, .cosmos-explore',
           ),
         )
       )
@@ -1785,6 +1799,7 @@ export function initVoidEngine() {
       document.body.classList.remove('arena-live');
       document.body.classList.remove('mind-dock-open');
       document.body.classList.remove('term-open');
+      window.dispatchEvent(new Event('void-lot-close'));
       arenaMode = false;
       frame.classList.remove('in-arena');
       setMapActive(false);

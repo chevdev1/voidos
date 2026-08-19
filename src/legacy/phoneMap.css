@@ -13,6 +13,65 @@
   display: none;
 }
 
+/* Lives in the band between the header and the lot sheet. Only mounted on
+   phones (see LotPreview.jsx), so no breakpoint guard is needed here — the
+   height budget is what keeps it clear of the sheet on short viewports. */
+.lot-preview {
+  position: fixed;
+  z-index: 5300;
+  left: 8px;
+  right: 8px;
+  top: max(54px, calc(env(safe-area-inset-top) + 48px));
+  /* LotFigure scales the silhouette off min(width, height), so in a wide
+     box the height is what decides how big the constellation reads. */
+  height: min(24vh, 176px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(204, 255, 0, 0.34);
+  border-radius: 14px;
+  background: rgba(2, 5, 10, 0.92);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.62);
+}
+
+.lot-preview-figure {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  touch-action: none;
+}
+
+.lot-preview-figure canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.lot-preview-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 5px 10px 7px;
+  border-top: 1px solid rgba(204, 255, 0, 0.16);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lot-preview-cap b {
+  overflow: hidden;
+  color: var(--lime);
+  text-overflow: ellipsis;
+}
+
+.lot-preview-cap span {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
 @media (max-width: 960px) {
   .hero,
   .hero-cosmos-slot,
@@ -119,8 +178,37 @@
     display: none !important;
   }
 
+  /* The logo pill and the board/cabinet/Buy cluster are two independent
+     absolutely-positioned layers. Anchoring the pill right put both in the
+     same corner, so the pill (z-20) sat under the cluster (z-5100). Pill
+     stays left; the cluster gets a hard right-hand budget that can't reach
+     into it. */
   body.arena-live .arena-hud-top {
-    justify-content: flex-end;
+    justify-content: flex-start;
+  }
+
+  body.arena-live .arena-hud-actions {
+    top: max(10px, env(safe-area-inset-top));
+    right: 8px;
+    gap: 5px;
+    flex-wrap: nowrap;
+    max-width: calc(100vw - 76px);
+  }
+
+  body.arena-live .arena-hud-actions .arena-close {
+    min-height: 34px;
+    padding: 0 9px;
+    font-size: 9px;
+    white-space: nowrap;
+  }
+
+  /* Mark reads as the home button on its own — the wordmark only costs
+     width the action cluster needs. */
+  body.arena-live .arena-home {
+    gap: 0;
+    margin-bottom: 0;
+    padding: 4px;
+    font-size: 0;
   }
 
   body.arena-live .arena-back {
@@ -132,21 +220,32 @@
     font-size: 9px;
     gap: 8px;
     flex-wrap: wrap;
-    max-width: min(78vw, 280px);
-    top: max(52px, calc(env(safe-area-inset-top) + 44px));
-    right: 8px;
+    max-width: min(62vw, 240px);
+    top: max(56px, calc(env(safe-area-inset-top) + 48px));
+    right: 58px;
     left: auto;
     bottom: auto;
   }
 
+  /* Was pinned to bottom:8px under the tools dock (z-40 vs z-7), i.e.
+     permanently half-covered. Sits above the dock instead, and steps aside
+     entirely whenever the dock or the lot sheet expands. */
   body.arena-live .minimap {
     display: block !important;
     transform: scale(0.85);
-    transform-origin: bottom left;
+    transform-origin: bottom right;
+    right: 8px;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    z-index: 12;
+  }
+
+  body.arena-live.mind-dock-open .minimap,
+  body.arena-live.term-open .minimap {
+    display: none !important;
   }
 
   body.arena-live .vc {
-    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    top: max(56px, calc(env(safe-area-inset-top) + 48px));
     bottom: auto;
     right: 8px;
   }
@@ -307,12 +406,36 @@
     opacity: 0.25;
     pointer-events: none;
   }
+
+  /* The preview claims the whole band above the sheet; everything else that
+     normally lives up there would sit on top of it. */
+  body.arena-live.term-open .arena-hud,
+  body.arena-live.term-open .vc {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* 70vh + the preview leaves no gap on a short phone; the sheet scrolls
+     internally, so the height it gives up costs nothing.
+     Opaque, unlike the desktop drawer: here the stack dock sits directly
+     behind the sheet, and 4% translucency was enough to read its lime text
+     straight through the lot details. */
+  body.arena-live .term {
+    max-height: 62vh;
+    background: #040600;
+  }
 }
 
 @media (max-width: 560px) {
   .hero-right:not(.in-arena) {
     min-height: min(56vh, 460px);
     height: min(56vh, 460px);
+  }
+
+  /* Same destination as the logo pill — the only control here worth its
+     width on a narrow phone is the one that isn't a duplicate. */
+  body.arena-live .arena-close-x {
+    display: none;
   }
 
   .hero-map-actions {

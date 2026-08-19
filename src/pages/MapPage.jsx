@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { CosmosPanel } from '../components/CosmosPanel'
 import { SectorTerminal } from '../components/SectorTerminal'
+import { LotPreview } from '../components/LotPreview'
 import { MindChat } from '../components/MindChat'
 import { AccountMenu } from '../components/AccountMenu'
 import { BuyExoButton } from '../components/BuyExoButton'
@@ -115,7 +116,7 @@ export default function MapPage() {
         </Link>
         <BuyExoButton filled label="Buy $TEST" className="!rounded-full !px-3 !py-2 !text-[10px]" />
         <AccountMenu />
-        <button type="button" className="arena-close" onClick={closeMap}>
+        <button type="button" className="arena-close arena-close-x" onClick={closeMap}>
           ✕ close
         </button>
       </div>
@@ -153,6 +154,7 @@ export default function MapPage() {
         </p>
       </div>
 
+      <LotPreview />
       <SectorTerminal />
       <MindChat />
     </div>
