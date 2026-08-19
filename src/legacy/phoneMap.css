@@ -200,7 +200,7 @@
   }
 
   body.arena-live .arena-hud-actions {
-    top: max(12px, calc(env(safe-area-inset-top) + 6px));
+    top: max(15px, calc(env(safe-area-inset-top) + 9px));
     right: 8px;
     gap: 5px;
     flex-wrap: nowrap;
