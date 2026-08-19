@@ -1,3 +1,4 @@
+@layer legacy {
 /* Phone map UX
    - Demo: explore + zoom/orbit on map, actions under map
    - Full map: map stays free; tools in a collapsed bottom dock
@@ -203,7 +204,8 @@
     top: max(10px, env(safe-area-inset-top));
     right: 8px;
     gap: 5px;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
+    overflow: hidden;
     max-width: calc(100vw - 76px);
   }
 
@@ -291,7 +293,7 @@
   .hero-right.in-arena .mind-bar {
     left: 8px;
     right: 8px;
-    bottom: max(8px, env(safe-area-inset-bottom));
+    bottom: calc(8px + env(safe-area-inset-bottom));
     transform: none;
     width: auto;
     max-width: none;
@@ -431,7 +433,7 @@
 
   body.arena-live.term-open .cart-dock {
     bottom: max(10px, env(safe-area-inset-bottom));
-    z-index: 112;
+    z-index: 5250;
   }
 
   body.arena-live.term-open .mind-bar {
@@ -482,6 +484,10 @@
   }
 }
 
+@media (min-width: 768px) {
+  .lot-preview { display: none !important; }
+}
+
 /* Landscape phones: keep dock ultra-thin */
 @media (max-width: 960px) and (orientation: landscape) and (max-height: 500px) {
   body.arena-live .mind-bar {
@@ -503,4 +509,5 @@
     width: 36px;
     height: 36px;
   }
+}
 }

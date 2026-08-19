@@ -1,3 +1,4 @@
+@layer legacy;
 @import "tailwindcss";
 
 @theme {

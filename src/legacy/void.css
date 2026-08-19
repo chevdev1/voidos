@@ -1,3 +1,4 @@
+@layer legacy {
 /**
  * Ported near-verbatim from the original VOID.OS static site's inline
  * <style> block. This drives the hero/cosmos galaxy widget, the market
@@ -89,7 +90,7 @@ body{background:#000;color:var(--text);font-family:'IBM Plex Mono',monospace;ove
 }
 .hero-cosmos-slot > .relative{
   height:100%;
-  min-height:100%;
+  min-height:0;
   max-width:100%;
   overflow:hidden;
 }
@@ -444,7 +445,7 @@ body.arena-live .cart-dock{bottom:78px}
      with the densest part of the galaxy (core + most star traffic) right
      under the fixed nav. 34% (not a flat 50%) keeps it clear of the zoom
      controls (.vc) and minimap, which already own the bottom-right corner. */
-  position:absolute;top:34%;left:auto;right:14px;transform:translateY(-50%);
+  position:absolute;top:34%;left:auto;right:52px;transform:translateY(-50%);
   z-index:6;text-align:right;pointer-events:none;max-width:min(280px,70%);
 }
 .cosmos-hud .tag{font-size:9px;letter-spacing:.22em;color:var(--lime);margin-bottom:6px}
@@ -521,7 +522,7 @@ body.arena-live .cart-dock{bottom:78px}
 .vc button:hover,.vc button.on{color:var(--lime);background:rgba(204,255,0,.08)}
 
 .minimap{
-  position:absolute;right:10px;bottom:10px;z-index:7;
+  position:absolute;right:10px;bottom:64px;z-index:7;
   width:132px;background:rgba(0,0,0,.82);
   border:1px solid var(--line);border-radius:10px;padding:6px;text-align:center;
   backdrop-filter:blur(8px);
@@ -635,7 +636,7 @@ body.arena-live .cart-dock{bottom:78px}
 @media(max-width:960px){
   .mind-bar{
     left:8px;right:8px;
-    bottom:max(8px, env(safe-area-inset-bottom));
+    bottom:calc(8px + env(safe-area-inset-bottom));
     transform:none;
     max-width:none;
     flex-wrap:wrap;
@@ -704,12 +705,6 @@ body.arena-live .cart-dock{
   body.arena-live .void-toast.show{
     bottom:calc(96px + env(safe-area-inset-bottom));
   }
-  body.arena-live .cosmos-hud{
-    bottom:auto;
-    top:max(56px, env(safe-area-inset-top));
-    right:48px;
-    max-width:42%;
-  }
   body.arena-live .term{
     width:100vw;
     max-height:70vh;
@@ -770,7 +765,7 @@ body.arena-live .void-toast.claim.show{
 }
 .filters[hidden]{display:none !important}
 .mind-chat{
-  position:fixed;inset:0;z-index:140;
+  position:fixed;inset:0;z-index:5500;
   display:flex;align-items:flex-end;justify-content:center;
   background:rgba(0,0,0,.55);
   padding:12px;
@@ -829,7 +824,7 @@ body.arena-live .void-toast.claim.show{
 .mind-chat-form input{
   flex:1;min-width:0;
   background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.18);
-  color:var(--text);padding:10px 12px;font:inherit;font-size:12px;
+  color:var(--text);padding:10px 12px;font:inherit;font-size:16px;
 }
 .mind-chat-form input:focus{outline:none;border-color:var(--lime)}
 .mind-chat-form .btn-lime{border-radius:0;padding:10px 14px;flex-shrink:0}
@@ -841,7 +836,7 @@ body.arena-live .void-toast.claim.show{
 @media(max-width:768px){
   .mind-chat-x-float{
     display:flex;align-items:center;justify-content:center;
-    position:fixed;z-index:210;
+    position:fixed;z-index:5510;
     top:max(calc(env(safe-area-inset-top) + 14px), 62px);
     right:14px;
     width:38px;height:38px;border-radius:999px;
@@ -876,7 +871,7 @@ body.arena-live .void-toast.claim.show{
 }
 
 @media(max-width:560px){
-  .mind-chat{align-items:stretch;padding:0}
+  .mind-chat{align-items:stretch;padding:0 0 env(safe-area-inset-bottom) 0}
   .mind-chat-card{
     width:100%;max-height:none;height:100%;
     border:none;border-top:1px solid rgba(204,255,0,.35);
@@ -943,7 +938,7 @@ body.arena-live .void-toast.claim.show{
   transform:translateX(105%);opacity:0;pointer-events:none;
   touch-action:auto;
   transition:transform .38s cubic-bezier(.23,1,.32,1),opacity .32s cubic-bezier(.23,1,.32,1);
-  padding:20px;overflow:auto;
+  padding:20px 20px max(20px, calc(20px + env(safe-area-inset-bottom)));overflow:auto;
 }
 .term.open{transform:translateX(0);opacity:1;pointer-events:auto}
 
@@ -1039,7 +1034,6 @@ body.term-open .term{z-index:5200}
   .vc button{width:28px;height:28px}
   .term{width:100vw;max-width:100vw}
   .cart-dock{bottom:10px;width:calc(100vw - 16px);max-width:calc(100% - 16px);padding:10px;box-sizing:border-box}
-  .arena-hud{padding-top:64px;max-width:100%}
   .m-stats{grid-template-columns:1fr 1fr}
   .section{padding:48px max(16px, env(safe-area-inset-left)) 48px max(16px, env(safe-area-inset-right))}
   .chart-tools{flex-wrap:wrap;gap:8px;position:relative;z-index:4}
@@ -1048,12 +1042,6 @@ body.term-open .term{z-index:5200}
 @media(max-width:560px){
   .m-stats{grid-template-columns:1fr 1fr;gap:8px}
   .m-stat .v{font-size:clamp(18px,6vw,24px)}
-  .hero-cosmos-slot,
-  .hero-right:not(.in-arena){
-    min-height:min(36vh,300px);
-    height:min(36vh,300px);
-    max-height:min(40vh,320px);
-  }
   .hero{min-height:auto;padding-bottom:12px}
   .cta .btn-lime,
   .cta .btn-ghost,
@@ -1088,3 +1076,4 @@ body.term-open .term{z-index:5200}
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover{background:rgba(204,255,0,.45)}
 .custom-scrollbar{scrollbar-width:thin;scrollbar-color:rgba(204,255,0,.25) transparent}
+}

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { LotFigure } from './LotFigure'
 
-const PHONE_QUERY = '(max-width: 960px)'
+const PHONE_QUERY = '(max-width: 767px)'
 
 /**
  * Phone-only mirror of the constellation currently open in the lot sheet.
