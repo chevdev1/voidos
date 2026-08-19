@@ -220,32 +220,21 @@
     font-size: 9px;
     gap: 8px;
     flex-wrap: wrap;
-    max-width: min(62vw, 240px);
-    top: max(56px, calc(env(safe-area-inset-top) + 48px));
-    right: 58px;
+    max-width: min(78vw, 280px);
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: 8px;
     left: auto;
     bottom: auto;
   }
 
-  /* Was pinned to bottom:8px under the tools dock (z-40 vs z-7), i.e.
-     permanently half-covered. Sits above the dock instead, and steps aside
-     entirely whenever the dock or the lot sheet expands. */
   body.arena-live .minimap {
     display: block !important;
     transform: scale(0.85);
-    transform-origin: bottom right;
-    right: 8px;
-    bottom: calc(68px + env(safe-area-inset-bottom));
-    z-index: 12;
-  }
-
-  body.arena-live.mind-dock-open .minimap,
-  body.arena-live.term-open .minimap {
-    display: none !important;
+    transform-origin: bottom left;
   }
 
   body.arena-live .vc {
-    top: max(56px, calc(env(safe-area-inset-top) + 48px));
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
     bottom: auto;
     right: 8px;
   }
