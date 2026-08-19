@@ -204,16 +204,18 @@ body.arena-live .cosmos-bar,
 }
 .arena-back{
   pointer-events:auto;
-  border:1px solid rgba(204,255,0,.22);color:var(--muted);
-  padding:8px 14px;border-radius:999px;font-size:11px;letter-spacing:.04em;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:36px;
+  border:none;color:var(--muted);
+  padding:0 14px;border-radius:999px;font-size:11px;letter-spacing:.04em;
   background:rgba(6,10,2,.72);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:0 2px 12px rgba(0,0,0,.4);
   flex-shrink:0;
-  transition:border-color .15s,color .15s,background .15s,box-shadow .15s;
+  transition:color .15s,background .15s,box-shadow .15s;
 }
 .arena-back:hover{
-  border-color:rgba(204,255,0,.55);color:var(--lime);
+  color:var(--lime);
   background:rgba(204,255,0,.08);
   box-shadow:0 0 14px rgba(204,255,0,.12);
 }
@@ -246,7 +248,7 @@ body.arena-live .cosmos-bar,
 .arena-hud-actions{
   pointer-events:auto;
   position:absolute;z-index:5100;
-  top:max(18px, env(safe-area-inset-top));
+  top:max(24px, calc(env(safe-area-inset-top) + 6px));
   right:16px;
   display:flex;align-items:center;gap:6px;
   flex-wrap:wrap;
@@ -260,15 +262,17 @@ body.arena-live .cosmos-bar,
   pointer-events:auto;
   position:absolute;z-index:21;top:18px;right:16px;
   top:max(18px, env(safe-area-inset-top));
-  border:1px solid rgba(204,255,0,.22);color:var(--muted);
-  padding:8px 14px;border-radius:999px;font-size:11px;letter-spacing:.04em;
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:36px;
+  border:none;color:var(--muted);
+  padding:0 14px;border-radius:999px;font-size:11px;letter-spacing:.04em;
   background:rgba(6,10,2,.72);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
   box-shadow:0 2px 12px rgba(0,0,0,.4);
-  transition:border-color .15s,color .15s,background .15s,box-shadow .15s;
+  transition:color .15s,background .15s,box-shadow .15s;
 }
 .arena-close:hover{
-  border-color:rgba(204,255,0,.55);color:var(--lime);
+  color:var(--lime);
   background:rgba(204,255,0,.08);
   box-shadow:0 0 14px rgba(204,255,0,.12);
 }
