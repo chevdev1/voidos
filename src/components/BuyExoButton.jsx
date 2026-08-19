@@ -26,8 +26,8 @@ export function BuyExoButton({
 
   const base =
     filled
-      ? 'inline-flex items-center justify-center rounded-full border border-lime bg-lime px-4 py-2 text-[11px] font-semibold tracking-wide text-black transition-all duration-200 ease-out hover:bg-[#d8ff33] hover:shadow-[0_0_24px_rgba(204,255,0,0.35)] active:scale-[0.98]'
-      : 'inline-flex items-center justify-center rounded-full border border-lime/50 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime transition-all duration-200 ease-out hover:bg-lime hover:text-black'
+      ? 'inline-flex items-center justify-center rounded-full border border-lime/80 bg-lime px-4 py-2 text-[11px] font-bold tracking-wide text-black shadow-[0_0_16px_rgba(204,255,0,.2)] transition-all duration-200 ease-out hover:bg-[#d8ff33] hover:shadow-[0_0_28px_rgba(204,255,0,.4)] active:scale-[0.97]'
+      : 'inline-flex items-center justify-center rounded-full border border-lime/40 bg-lime/10 px-4 py-2 text-[11px] font-semibold tracking-wide text-lime shadow-[0_0_10px_rgba(204,255,0,.06)] transition-all duration-200 ease-out hover:bg-lime/20 hover:border-lime/60 hover:shadow-[0_0_18px_rgba(204,255,0,.15)]'
 
   function flash(msg) {
     setNote(msg)

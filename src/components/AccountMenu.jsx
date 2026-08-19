@@ -66,7 +66,7 @@ export function AccountMenu() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-white/15 px-2.5 py-2 text-[10px] tracking-wide text-muted transition-colors hover:border-lime/50 hover:text-lime sm:px-3 sm:text-[11px]"
+        className="flex items-center gap-2 rounded-full border border-lime/20 bg-[rgba(6,10,2,.72)] px-2.5 py-2 text-[10px] tracking-wide text-muted shadow-[0_2px_12px_rgba(0,0,0,.4)] backdrop-blur-[10px] transition-all duration-150 hover:border-lime/55 hover:text-lime hover:shadow-[0_0_14px_rgba(204,255,0,.12)] sm:px-3 sm:text-[11px]"
         title={wallet || 'connect wallet'}
       >
         {short || 'wallet'}
