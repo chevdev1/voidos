@@ -228,7 +228,7 @@ export function initVoidEngine() {
       // a slightly larger brightness/size range below, per the request to
       // trade raw particle count for rendered size rather than fill-rate.
       // Fewer stars = map stays live while wallet / claim run on the same thread.
-      for (let i = 0; i < 2800; i++) {
+      for (let i = 0; i < 1600; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -566,7 +566,7 @@ export function initVoidEngine() {
       resize();
     }
     const bootPromoteTimer = setTimeout(() => {
-      if (quality === 'low' && targetQuality !== 'low') {
+      if (quality === 'low' && targetQuality !== 'low' && frameMs < 20) {
         // Boot hitches inflate badStreak — clear it or the next frame
         // immediately demotes us back to low and the warm-start never sticks.
         badStreak = 0;
@@ -574,7 +574,7 @@ export function initVoidEngine() {
         frameMs = 16.7;
         setQuality(targetQuality);
       }
-    }, 1600);
+    }, 2200);
     onCleanup(() => clearTimeout(bootPromoteTimer));
     function sampleFrameTime(now) {
       const dt = now - lastSampleT;
@@ -618,9 +618,9 @@ export function initVoidEngine() {
       return 1;
     }
     function renderScaleForQuality() {
-      if (quality === 'high') return 0.85;
-      if (quality === 'medium') return 0.7;
-      return 0.55;
+      if (quality === 'high') return 0.75;
+      if (quality === 'medium') return 0.55;
+      return 0.4;
     }
     function fitHomeScale() {
       if (!W || !H || !g0) return 0.85;
@@ -2328,6 +2328,7 @@ export function initVoidEngine() {
     // the one allocation actually worth removing without rewriting the
     // star loop into a riskier flat-typed-array form I can't visually test.
     const starBatch = [];
+    let lastPaintT = 0;
     let bgDeepGrad = null;
     let bgDeepW = 0;
     let bgDeepH = 0;
@@ -2348,6 +2349,11 @@ export function initVoidEngine() {
       // instead of failing in total silence.
       try {
       sampleFrameTime(now);
+      // Cap paint rate under load — spinning the sky at 60fps with hundreds
+      // of figures is what kept mid PCs stuttering after boot.
+      const minFrameMs = quality === 'low' ? 33 : quality === 'medium' ? 22 : 0;
+      if (minFrameMs && now - lastPaintT < minFrameMs) return;
+      lastPaintT = now;
       const t = (now - t0) / 1000;
       if (autoSpin) rot = t * 0.028;
       const frameYaw = viewYaw + rot * (autoSpin ? g0.spin : 0) + g0.m.roll;
@@ -2434,7 +2440,7 @@ export function initVoidEngine() {
       // this is the actual "halve the particle count under load" lever.
       // 'low' was bumped 3->4: rather than cutting the base count again
       // for every device, struggling ones now shed more automatically.
-      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 1 : 2;
+      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
       const lod = (scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1) * qualityLodMul;
       const [gcx, gcy] = w2s(g.m.x, g.m.y);
       const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
@@ -2468,7 +2474,7 @@ export function initVoidEngine() {
         ctx.stroke();
       }
 
-      {
+      if (quality !== 'low') {
         const R = g.R * scale * 0.85;
         const flat = Math.max(0.08, Math.abs(Math.cos(viewPitch)) * 0.72 + 0.1);
         const hg = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, R * 1.25);
@@ -2642,7 +2648,7 @@ export function initVoidEngine() {
         ctx.fill();
       }
 
-      {
+      if (quality === 'high') {
         const n = 3;
         for (let i = 0; i < n; i++) {
           const phase = (t * 0.22 + i * 1.7) % 4.2;
@@ -2802,7 +2808,22 @@ export function initVoidEngine() {
          * Reads as a real sky sparkle, not a neon + stamp.
          */
         function prettyStar(x, y, col, a, r, twinkle) {
-          const rr = Math.max(1.4, r || 2);
+          const rr = Math.max(1.2, r || 2);
+          // Medium/low: plain disc. Full bloom+spikes createRadialGradient
+          // for ~190 figures was the hitch that kept the map lagging.
+          if (quality !== 'high') {
+            ctx.fillStyle = rgba(col, clamp(a, 0, 1));
+            ctx.beginPath();
+            ctx.arc(x, y, rr * (quality === 'medium' ? 0.85 : 0.7), 0, Math.PI * 2);
+            ctx.fill();
+            if (quality === 'medium' && rr > 2) {
+              ctx.fillStyle = rgba([255, 255, 245], Math.min(1, a * 0.7));
+              ctx.beginPath();
+              ctx.arc(x, y, Math.max(0.6, rr * 0.28), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            return;
+          }
           const tw = twinkle == null ? 1 : twinkle;
           const glowR = rr * (3.8 + tw * 0.6);
           const bloom = ctx.createRadialGradient(x, y, 0, x, y, glowR);
@@ -2889,12 +2910,18 @@ export function initVoidEngine() {
         }
         scored.sort((a, b) => a.priority - b.priority);
 
+        // Cap full figures — 190 × bloom stars froze the map.
+        const maxFigs = quality === 'high' ? 90 : quality === 'medium' ? 36 : 16;
+        const figItems =
+          scored.length > maxFigs ? scored.slice(scored.length - maxFigs) : scored;
+
         const placed = [];
         const crowdRef = scale < 1.15 ? 16 : scale < 1.8 ? 20 : 26;
-        // Fill arm slits with bead chains — especially when zoomed (large px gaps)
-        {
+        // Bead chains only on high; medium keeps a stroke-only arm link.
+        if (quality !== 'low') {
           const byArm = new Map();
-          for (const item of scored) {
+          const armSrc = quality === 'high' ? scored : figItems;
+          for (const item of armSrc) {
             const arm = item.c.arm ?? 0;
             if (!byArm.has(arm)) byArm.set(arm, []);
             byArm.get(arm).push(item);
@@ -2906,25 +2933,24 @@ export function initVoidEngine() {
               const b = list[i + 1];
               if (inCore(a.hx, a.hy, 6) || inCore(b.hx, b.hy, 6)) continue;
               const gap = Math.hypot(a.hx - b.hx, a.hy - b.hy);
-              // Only skip if already overlapping; never skip large gaps (those are the "пролёты")
-              if (gap < 16) continue;
+              if (gap < (quality === 'high' ? 16 : 22)) continue;
               const col = a.c.col || LIME;
-              const beads = Math.min(10, Math.max(1, Math.round(gap / 26)));
               strokeLink(
                 { sx: a.hx, sy: a.hy },
                 { sx: b.hx, sy: b.hy },
                 col,
-                clamp(0.1 + gap / 400, 0.1, 0.22),
-                0.65,
+                quality === 'high' ? clamp(0.1 + gap / 400, 0.1, 0.22) : 0.12,
+                quality === 'high' ? 0.65 : 0.55,
               );
+              if (quality !== 'high') continue;
+              const beads = Math.min(6, Math.max(1, Math.round(gap / 32)));
               for (let bi = 1; bi <= beads; bi++) {
-                const t = bi / (beads + 1);
-                // slight sideways wobble so it reads as a star lane, not a ruler
+                const tt = bi / (beads + 1);
                 const nx = -(b.hy - a.hy) / gap;
                 const ny = (b.hx - a.hx) / gap;
-                const wob = Math.sin(t * Math.PI * 2 + (a.c.a0 || 0)) * Math.min(6, gap * 0.04);
-                const x = a.hx + (b.hx - a.hx) * t + nx * wob;
-                const y = a.hy + (b.hy - a.hy) * t + ny * wob;
+                const wob = Math.sin(tt * Math.PI * 2 + (a.c.a0 || 0)) * Math.min(6, gap * 0.04);
+                const x = a.hx + (b.hx - a.hx) * tt + nx * wob;
+                const y = a.hy + (b.hy - a.hy) * tt + ny * wob;
                 if (inCore(x, y, 8)) continue;
                 const mag = 0.9 + (bi % 3 === 0 ? 0.55 : 0.15);
                 prettyStar(x, y, col, 0.45 + mag * 0.25, 1.1 + mag * 0.7, 0.92);
@@ -2933,7 +2959,7 @@ export function initVoidEngine() {
           }
         }
 
-        for (const item of scored) {
+        for (const item of figItems) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
           const forced = picked || mine || celebrating || c.hover > 0.15;
 
@@ -2999,7 +3025,7 @@ export function initVoidEngine() {
               ];
           const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.05 : 0.85;
 
-          if (forced && !inCore(hx, hy, figScale * 0.4)) {
+          if (forced && quality === 'high' && !inCore(hx, hy, figScale * 0.4)) {
             const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.95);
             plate.addColorStop(0, rgba(strokeCol, 0.1));
             plate.addColorStop(1, rgba(strokeCol, 0));
@@ -3017,11 +3043,11 @@ export function initVoidEngine() {
             const midX = (a.sx + b.sx) * 0.5;
             const midY = (a.sy + b.sy) * 0.5;
             if (inCore(midX, midY, 3)) continue;
-            strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
+            if (quality === 'high') strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
             strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
-          if ((picked || celebrating) && !inCore(hx, hy, 8)) {
+          if ((picked || celebrating) && quality !== 'low' && !inCore(hx, hy, 8)) {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
             const rad = (celebrating ? 56 : 40) + boom * 18;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
@@ -3045,8 +3071,8 @@ export function initVoidEngine() {
       // Occlude anything that still bled onto the event horizon
       paintBlackCore();
 
-      if (scale > 0.95 && scale < 9) {
-        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
+      if (scale > 0.95 && scale < 9 && quality !== 'low') {
+        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'medium' ? 2 : 1);
         const yoursLabels = [];
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
