@@ -355,7 +355,33 @@ export function initVoidEngine() {
         return best;
       }
 
+      // Spatial hash instead of O(n²) "check every prior sector" — packing
+      // 2800 grains used to burn 200–600ms on the main thread at boot and
+      // was the hitch that made the constellation stutter while the page
+      // was still settling. Cell size ≈ typical minDist so each probe only
+      // inspects a few neighbours.
       const sectors = [];
+      const packCell = 8;
+      const packGrid = new Map();
+      function packKey(cx, cy) {
+        return cx + ',' + cy;
+      }
+      function packOccupied(x, y, minDist) {
+        const cx = Math.floor(x / packCell);
+        const cy = Math.floor(y / packCell);
+        const reach = Math.ceil(minDist / packCell) + 1;
+        for (let dx = -reach; dx <= reach; dx++) {
+          for (let dy = -reach; dy <= reach; dy++) {
+            const bucket = packGrid.get(packKey(cx + dx, cy + dy));
+            if (!bucket) continue;
+            for (let bi = 0; bi < bucket.length; bi++) {
+              const s = bucket[bi];
+              if (Math.hypot(x - s._px, y - s._py) < minDist) return true;
+            }
+          }
+        }
+        return false;
+      }
       let tries = 0;
       while (sectors.length < 2800 && tries++ < 90000) {
         const mass = rollGrainMass();
@@ -364,17 +390,9 @@ export function initVoidEngine() {
         const a0 = (arm / m.arms) * Math.PI * 2 + (r / R) * m.twist + rnd(-0.28, 0.28);
         const off = rnd(-14, 14);
         const minDist = 4.0 + mass.viz * 0.95;
-        let ok = true;
-        for (const s of sectors) {
-          if (
-            Math.hypot(r * Math.cos(a0) - s.r * Math.cos(s.a0), r * Math.sin(a0) - s.r * Math.sin(s.a0)) <
-            minDist
-          ) {
-            ok = false;
-            break;
-          }
-        }
-        if (!ok) continue;
+        const px = r * Math.cos(a0);
+        const py = r * Math.sin(a0);
+        if (packOccupied(px, py, minDist)) continue;
         const c = nearestConstel(r, a0);
         const sec = {
           id: 1000 + sectors.length,
@@ -398,9 +416,22 @@ export function initVoidEngine() {
           constel: c.id,
           cName: c.name,
           cCol: c.col,
+          _px: px,
+          _py: py,
         };
         sectors.push(sec);
         c.grains.push(sec);
+        const ck = packKey(Math.floor(px / packCell), Math.floor(py / packCell));
+        let bucket = packGrid.get(ck);
+        if (!bucket) {
+          bucket = [];
+          packGrid.set(ck, bucket);
+        }
+        bucket.push(sec);
+      }
+      for (const s of sectors) {
+        delete s._px;
+        delete s._py;
       }
 
       for (const c of constels) {
@@ -504,8 +535,13 @@ export function initVoidEngine() {
       }
       return 'medium';
     }
-    let quality = detectStartQuality(); // 'high' | 'medium' | 'low'
-    if (quality === 'low') {
+    // Always boot at 'low' for ~1.5s so the first paints don't compete with
+    // React hydration / fonts / wallet session. Detected quality is the
+    // ceiling we climb to once the page has settled — never higher than
+    // medium (high freezes phones during connect/claim).
+    const targetQuality = detectStartQuality();
+    let quality = 'low';
+    if (targetQuality === 'low') {
       autoSpin = false;
       orbitMode = false;
       document.getElementById('spinBtn')?.classList.remove('on');
@@ -529,6 +565,17 @@ export function initVoidEngine() {
       applyQualityClass();
       resize();
     }
+    const bootPromoteTimer = setTimeout(() => {
+      if (quality === 'low' && targetQuality !== 'low') {
+        // Boot hitches inflate badStreak — clear it or the next frame
+        // immediately demotes us back to low and the warm-start never sticks.
+        badStreak = 0;
+        goodStreak = 0;
+        frameMs = 16.7;
+        setQuality(targetQuality);
+      }
+    }, 1600);
+    onCleanup(() => clearTimeout(bootPromoteTimer));
     function sampleFrameTime(now) {
       const dt = now - lastSampleT;
       lastSampleT = now;
@@ -1272,17 +1319,17 @@ export function initVoidEngine() {
         const c = g0.constels.find((x) => x.id === grain.s.constel);
         if (c) return { c, p: constelWorld(c, g0) };
       }
-          let best = null,
-            bd = 1e9;
+      let best = null,
+        bd = 1e9;
       const hitR = g0.R * (scale < 2 ? 0.22 : scale < 5 ? 0.16 : 0.11);
-          for (const c of g0.constels) {
-            const p = constelWorld(c, g0);
-            const d = Math.hypot(wx - p.x, wy - p.y);
+      for (const c of g0.constels) {
+        const p = constelWorld(c, g0);
+        const d = Math.hypot(wx - p.x, wy - p.y);
         if (d < hitR && d < bd) {
-              bd = d;
-              best = { c, p };
-            }
-          }
+          bd = d;
+          best = { c, p };
+        }
+      }
       return best;
     }
 
@@ -2281,6 +2328,9 @@ export function initVoidEngine() {
     // the one allocation actually worth removing without rewriting the
     // star loop into a riskier flat-typed-array form I can't visually test.
     const starBatch = [];
+    let bgDeepGrad = null;
+    let bgDeepW = 0;
+    let bgDeepH = 0;
     function draw(now) {
       // No requestAnimationFrame(draw) on either of these early returns —
       // that's what actually stops the chain. alive=false (unmount) is
@@ -2312,21 +2362,20 @@ export function initVoidEngine() {
 
       ctx.fillStyle = '#010308';
       ctx.fillRect(0, 0, W, H);
-      {
-        const deep = ctx.createRadialGradient(
-          W / 2 + panX * 0.02,
-          H / 2 + panY * 0.02,
-          10,
-          W / 2,
-          H / 2,
-          Math.max(W, H) * 0.75,
-        );
-      deep.addColorStop(0, '#050a18');
-      deep.addColorStop(0.55, '#02040c');
-      deep.addColorStop(1, '#000');
-      ctx.fillStyle = deep;
-      ctx.fillRect(0, 0, W, H);
+      // Cached deep-space wash — recreating a radial gradient every frame
+      // was free fill-rate work for a near-static backdrop. Rebuild only
+      // when the canvas size changes; pan offset of 0.02*pan was invisible.
+      if (!bgDeepGrad || bgDeepW !== W || bgDeepH !== H) {
+        bgDeepW = W;
+        bgDeepH = H;
+        const deep = ctx.createRadialGradient(W / 2, H / 2, 10, W / 2, H / 2, Math.max(W, H) * 0.75);
+        deep.addColorStop(0, '#050a18');
+        deep.addColorStop(0.55, '#02040c');
+        deep.addColorStop(1, '#000');
+        bgDeepGrad = deep;
       }
+      ctx.fillStyle = bgDeepGrad;
+      ctx.fillRect(0, 0, W, H);
       if (W > 4 && H > 4 && !window.__voidMapPainted) {
         window.__voidMapPainted = true;
         window.dispatchEvent(new Event('void-cosmos-frame'));
@@ -2361,9 +2410,9 @@ export function initVoidEngine() {
           }
         }
         if (quality !== 'low') {
-        for (const c of g.constels) {
-          const p = constelWorld(c, g);
-          c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
+          for (const c of g.constels) {
+            const p = constelWorld(c, g);
+            c.hover += ((Math.hypot(p.x - mx, p.y - my) < g.R * 0.14 ? 1 : 0) - c.hover) * 0.12;
           }
         }
       } else {
@@ -2433,10 +2482,10 @@ export function initVoidEngine() {
       }
 
       // Gas-lane ribbons: 3 lanes/arm at full quality, thinned to 1 under
-      // load, skipped entirely at 'low' — each lane is a 56-segment stroked
+      // medium, skipped entirely at 'low' — each lane is a 56-segment stroked
       // path rebuilt every frame, so this is one of the pricier decorative
       // layers relative to how subtle it is.
-      const ribbonLanes = quality === 'high' ? 3 : 1;
+      const ribbonLanes = quality === 'high' ? 3 : quality === 'medium' ? 1 : 0;
       if (scale < 6 && ribbonLanes > 0) {
         for (let arm = 0; arm < g.m.arms; arm++) {
           for (let lane = 0; lane < ribbonLanes; lane++) {
@@ -2462,10 +2511,11 @@ export function initVoidEngine() {
         }
       }
 
-      // Nebulae: full on high, still on medium (cached gradients), skip on low.
-      if (true) {
+      // Nebulae: full on high, every other on medium, skip on low (boot
+      // quality). Each nebula is a save/restore + scaled radial fill.
+      if (quality !== 'low') {
         const breath = 0.85 + 0.15 * Math.sin(t * 0.7);
-        const nebStep = quality === 'low' ? 2 : 1;
+        const nebStep = quality === 'medium' ? 2 : 1;
         for (let ni = 0; ni < g.nebulae.length; ni += nebStep) {
           const n = g.nebulae[ni];
           const [lx2, ly2] = polarLocal(n.r, n.a0 + Math.sin(t * n.sp + n.ph) * 0.02, 0);
@@ -2798,8 +2848,8 @@ export function initVoidEngine() {
               ctx.lineTo(x + d, y + d);
               ctx.moveTo(x - d, y + d);
               ctx.lineTo(x + d, y - d);
-          ctx.stroke();
-        }
+              ctx.stroke();
+            }
           }
 
           // warm core
@@ -3081,8 +3131,8 @@ export function initVoidEngine() {
           if (tip1) tip1.textContent = `${hover.s.cName} · #${hover.s.id}`;
           if (tip2)
             tip2.textContent = `${hover.s.tier} · ${hover.s.size}c · ${formatUsd(hover.s.usd)} · ${
-          hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
-        }`;
+              hover.s.kind === 'empty' ? 'unclaimed' : hover.s.kind
+            }`;
         }
         const [sx, sy] = w2s(hover.wx, hover.wy);
         tip.style.left = Math.min(W - 200, sx + 12) + 'px';
@@ -3098,7 +3148,7 @@ export function initVoidEngine() {
         console.error('[void cosmos] draw() frame threw — recovering, will retry next frame', err);
       } finally {
         if (alive && !uiPaused && pageVisible && (inView || arenaMode) && (demoActive || arenaMode)) {
-      rafId = requestAnimationFrame(draw);
+          rafId = requestAnimationFrame(draw);
         }
       }
     }
