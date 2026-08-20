@@ -2910,18 +2910,13 @@ export function initVoidEngine() {
         }
         scored.sort((a, b) => a.priority - b.priority);
 
-        // Cap full figures — 190 × bloom stars froze the map.
-        const maxFigs = quality === 'high' ? 90 : quality === 'medium' ? 36 : 16;
-        const figItems =
-          scored.length > maxFigs ? scored.slice(scored.length - maxFigs) : scored;
-
         const placed = [];
         const crowdRef = scale < 1.15 ? 16 : scale < 1.8 ? 20 : 26;
         // Bead chains only on high; medium keeps a stroke-only arm link.
+        // All constellation figures still draw below — no figure cap.
         if (quality !== 'low') {
           const byArm = new Map();
-          const armSrc = quality === 'high' ? scored : figItems;
-          for (const item of armSrc) {
+          for (const item of scored) {
             const arm = item.c.arm ?? 0;
             if (!byArm.has(arm)) byArm.set(arm, []);
             byArm.get(arm).push(item);
@@ -2959,7 +2954,7 @@ export function initVoidEngine() {
           }
         }
 
-        for (const item of figItems) {
+        for (const item of scored) {
           const { c, picked, mine, celebrating, hot, hx, hy } = item;
           const forced = picked || mine || celebrating || c.hover > 0.15;
 
