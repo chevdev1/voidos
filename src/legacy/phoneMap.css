@@ -271,11 +271,18 @@
     top: max(52px, calc(env(safe-area-inset-top) + 44px));
     bottom: auto;
     right: 8px;
+    /* Minimap sits at bottom:~76 + ~102 tall; dock below that. Cap so the
+       6-button column can't run into either on a short phone. */
+    max-height: calc(100% - 200px);
+    overflow: hidden;
   }
 
   body.arena-live .vc button {
     width: 40px;
-    height: 40px;
+    height: auto;
+    flex: 0 1 40px;
+    min-height: 28px;
+    max-height: 40px;
     border-radius: 11px;
     font-size: 16px;
   }
@@ -506,10 +513,12 @@
 
   body.arena-live .vc {
     top: 44px;
+    max-height: calc(100% - 190px);
   }
 
   body.arena-live .vc button {
     width: 36px;
-    height: 36px;
+    max-height: 36px;
+    font-size: 15px;
   }
 }

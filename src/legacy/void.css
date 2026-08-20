@@ -685,6 +685,16 @@ body.arena-live .vc{
   top:max(72px, calc(env(safe-area-inset-top) + 64px));
   right:8px;
   z-index:25;
+  /* Compact at the top; only shrinks when the frame is too short to keep
+     a gap above the minimap (~129px + 12px breathing room). */
+  max-height:calc(100% - 150px);
+  overflow:hidden;
+}
+body.arena-live .vc button{
+  flex:0 1 32px;
+  min-height:26px;
+  height:auto;
+  max-height:36px;
 }
 body.arena-live .cart-dock{
   bottom:calc(88px + env(safe-area-inset-bottom));
