@@ -153,6 +153,83 @@ export function initVoidEngine() {
 
     const LIME = [204, 255, 0];
     const EMPTY_LIST = []; // shared, never mutated — avoids a fresh [] every frame when comets are skipped
+    // Pre-baked star sprites: createRadialGradient×N per star per frame was the
+    // real lag. Bake once per (color,size,spikes), then drawImage — same look,
+    // ~50–100× cheaper on the constellation pass.
+    const starSpriteCache = new Map();
+    function starColKey(col) {
+      return ((col[0] >> 3) << 10) | ((col[1] >> 3) << 5) | (col[2] >> 3);
+    }
+    function bakeStarSprite(col, rr, withSpikes) {
+      const sizeBucket = Math.max(1.2, Math.round(rr * 2) / 2);
+      const key = starColKey(col) + ':' + sizeBucket + ':' + (withSpikes ? 1 : 0);
+      let spr = starSpriteCache.get(key);
+      if (spr) return spr;
+      const glowR = sizeBucket * 4.4;
+      const pad = Math.ceil(glowR + 3);
+      const dim = pad * 2;
+      const cnv = document.createElement('canvas');
+      cnv.width = dim;
+      cnv.height = dim;
+      const g = cnv.getContext('2d');
+      const cx = pad;
+      const cy = pad;
+      const a = 1;
+      const bloom = g.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      bloom.addColorStop(0, rgba([255, 255, 235], a * 0.55));
+      bloom.addColorStop(0.18, rgba(col, a * 0.42));
+      bloom.addColorStop(0.5, rgba(col, a * 0.12));
+      bloom.addColorStop(1, rgba(col, 0));
+      g.fillStyle = bloom;
+      g.beginPath();
+      g.arc(cx, cy, glowR, 0, Math.PI * 2);
+      g.fill();
+      if (withSpikes) {
+        const spike = sizeBucket * 4.0;
+        const spikeA = 0.35;
+        const g1 = g.createLinearGradient(cx - spike, cy, cx + spike, cy);
+        g1.addColorStop(0, rgba(col, 0));
+        g1.addColorStop(0.5, rgba([255, 255, 220], spikeA));
+        g1.addColorStop(1, rgba(col, 0));
+        g.strokeStyle = g1;
+        g.lineWidth = Math.max(0.55, sizeBucket * 0.18);
+        g.beginPath();
+        g.moveTo(cx - spike, cy);
+        g.lineTo(cx + spike, cy);
+        g.stroke();
+        const g2 = g.createLinearGradient(cx, cy - spike, cx, cy + spike);
+        g2.addColorStop(0, rgba(col, 0));
+        g2.addColorStop(0.5, rgba([255, 255, 220], spikeA));
+        g2.addColorStop(1, rgba(col, 0));
+        g.strokeStyle = g2;
+        g.beginPath();
+        g.moveTo(cx, cy - spike);
+        g.lineTo(cx, cy + spike);
+        g.stroke();
+        if (sizeBucket > 2.4) {
+          const d = spike * 0.55;
+          g.strokeStyle = rgba(col, spikeA * 0.35);
+          g.lineWidth = 0.45;
+          g.beginPath();
+          g.moveTo(cx - d, cy - d);
+          g.lineTo(cx + d, cy + d);
+          g.moveTo(cx - d, cy + d);
+          g.lineTo(cx + d, cy - d);
+          g.stroke();
+        }
+      }
+      g.fillStyle = rgba([255, 255, 245], 1);
+      g.beginPath();
+      g.arc(cx, cy, Math.max(0.7, sizeBucket * 0.38), 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = rgba(col, 1);
+      g.beginPath();
+      g.arc(cx, cy, Math.max(1.0, sizeBucket * 0.62), 0, Math.PI * 2);
+      g.fill();
+      spr = { canvas: cnv, glowBase: glowR };
+      starSpriteCache.set(key, spr);
+      return spr;
+    }
     const NAME_A = [
       'VOID', 'LIME', 'ASH', 'NYX', 'HOLLOW', 'RIM', 'CORE', 'GHOST', 'EDGE', 'BURN', 'SILENT', 'FAR', 'DRIFT',
       'ECHO', 'SIGIL', 'MERIDIAN', 'PULSE', 'VEIL', 'CROWN', 'KEY', 'SPINE', 'WING', 'BELT', 'CHOIR', 'TAIL',
@@ -228,7 +305,7 @@ export function initVoidEngine() {
       // a slightly larger brightness/size range below, per the request to
       // trade raw particle count for rendered size rather than fill-rate.
       // Fewer stars = map stays live while wallet / claim run on the same thread.
-      for (let i = 0; i < 1600; i++) {
+      for (let i = 0; i < 2800; i++) {
         const arm = ri(0, m.arms - 1);
         let r,
           a0,
@@ -565,23 +642,32 @@ export function initVoidEngine() {
       applyQualityClass();
       resize();
     }
+    let demoteGraceUntil = 0;
     const bootPromoteTimer = setTimeout(() => {
-      if (quality === 'low' && targetQuality !== 'low' && frameMs < 20) {
-        // Boot hitches inflate badStreak — clear it or the next frame
-        // immediately demotes us back to low and the warm-start never sticks.
+      if (quality === 'low' && targetQuality !== 'low') {
+        // Always promote after warm-start; demotion path still catches
+        // machines that can't hold the target quality — but give a grace
+        // window so boot EMA junk doesn't yank us straight back to low.
         badStreak = 0;
         goodStreak = 0;
         frameMs = 16.7;
+        demoteGraceUntil = performance.now() + 4000;
         setQuality(targetQuality);
       }
-    }, 2200);
+    }, 1800);
     onCleanup(() => clearTimeout(bootPromoteTimer));
     function sampleFrameTime(now) {
       const dt = now - lastSampleT;
       lastSampleT = now;
       frameMs = frameMs * 0.9 + dt * 0.1; // EMA smooths one-off hitches (GC pause, tab switch)
-      if (frameMs > 22) {
-        // sustained < ~45fps
+      if (now < demoteGraceUntil) {
+        badStreak = 0;
+        return;
+      }
+      if (frameMs > 28) {
+        // sustained < ~35fps — was 22ms/45fps, which yanked medium back to
+        // low even when the sky was still readable. Sprites made medium cheap
+        // enough that we only shed quality under real struggle.
         badStreak++;
         goodStreak = 0;
       } else if (frameMs < 15) {
@@ -592,8 +678,8 @@ export function initVoidEngine() {
         badStreak = 0;
         goodStreak = 0;
       }
-      // Downgrade faster (~0.75s at 60Hz) so mid PCs don't cook before adapting
-      if (badStreak > 30 && quality !== 'low') {
+      // ~2s at 60Hz of sustained struggle before shedding
+      if (badStreak > 90 && quality !== 'low') {
         setQuality('low');
         badStreak = 0;
       }
@@ -618,9 +704,9 @@ export function initVoidEngine() {
       return 1;
     }
     function renderScaleForQuality() {
-      if (quality === 'high') return 0.75;
-      if (quality === 'medium') return 0.55;
-      return 0.4;
+      if (quality === 'high') return 0.85;
+      if (quality === 'medium') return 0.7;
+      return 0.55;
     }
     function fitHomeScale() {
       if (!W || !H || !g0) return 0.85;
@@ -2349,9 +2435,9 @@ export function initVoidEngine() {
       // instead of failing in total silence.
       try {
       sampleFrameTime(now);
-      // Cap paint rate under load — spinning the sky at 60fps with hundreds
-      // of figures is what kept mid PCs stuttering after boot.
-      const minFrameMs = quality === 'low' ? 33 : quality === 'medium' ? 22 : 0;
+      // Soft cap only on low — sprite stars leave enough headroom for 60fps
+      // on medium. Low still throttles to keep phones cool.
+      const minFrameMs = quality === 'low' ? 22 : 0;
       if (minFrameMs && now - lastPaintT < minFrameMs) return;
       lastPaintT = now;
       const t = (now - t0) / 1000;
@@ -2440,7 +2526,7 @@ export function initVoidEngine() {
       // this is the actual "halve the particle count under load" lever.
       // 'low' was bumped 3->4: rather than cutting the base count again
       // for every device, struggling ones now shed more automatically.
-      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 2 : 3;
+      const qualityLodMul = quality === 'high' ? 1 : quality === 'medium' ? 1 : 2;
       const lod = (scale < 0.65 ? 4 : scale < 1.3 ? 3 : scale < 2.6 ? 2 : 1) * qualityLodMul;
       const [gcx, gcy] = w2s(g.m.x, g.m.y);
       const holeFlat = Math.max(0.18, Math.abs(Math.cos(viewPitch)) * 0.65 + 0.2);
@@ -2804,84 +2890,23 @@ export function initVoidEngine() {
         }
 
         /**
-         * Beautiful star: soft bloom + bright core + thin diffraction spikes.
-         * Reads as a real sky sparkle, not a neon + stamp.
+         * Same astronomy look as before, but sprites are baked once and
+         * stamped with drawImage — createRadialGradient per star per frame
+         * was the lag. Twinkle = globalAlpha + slight scale.
          */
         function prettyStar(x, y, col, a, r, twinkle) {
           const rr = Math.max(1.2, r || 2);
-          // Medium/low: plain disc. Full bloom+spikes createRadialGradient
-          // for ~190 figures was the hitch that kept the map lagging.
-          if (quality !== 'high') {
-            ctx.fillStyle = rgba(col, clamp(a, 0, 1));
-            ctx.beginPath();
-            ctx.arc(x, y, rr * (quality === 'medium' ? 0.85 : 0.7), 0, Math.PI * 2);
-            ctx.fill();
-            if (quality === 'medium' && rr > 2) {
-              ctx.fillStyle = rgba([255, 255, 245], Math.min(1, a * 0.7));
-              ctx.beginPath();
-              ctx.arc(x, y, Math.max(0.6, rr * 0.28), 0, Math.PI * 2);
-              ctx.fill();
-            }
-            return;
-          }
           const tw = twinkle == null ? 1 : twinkle;
+          const alpha = clamp(a, 0, 1);
+          if (alpha < 0.04) return;
+          const withSpikes = rr > 1.9 && alpha > 0.45;
+          const spr = bakeStarSprite(col, rr, withSpikes);
           const glowR = rr * (3.8 + tw * 0.6);
-          const bloom = ctx.createRadialGradient(x, y, 0, x, y, glowR);
-          bloom.addColorStop(0, rgba([255, 255, 235], a * 0.55 * tw));
-          bloom.addColorStop(0.18, rgba(col, a * 0.42 * tw));
-          bloom.addColorStop(0.5, rgba(col, a * 0.12));
-          bloom.addColorStop(1, rgba(col, 0));
-          ctx.fillStyle = bloom;
-          ctx.beginPath();
-          ctx.arc(x, y, glowR, 0, Math.PI * 2);
-          ctx.fill();
-
-          // soft diffraction spikes (astronomy look) — only brighter stars
-          if (rr > 1.9 && a > 0.45) {
-            const spike = rr * (2.8 + tw * 1.2);
-            const spikeA = a * 0.35 * tw;
-            const g1 = ctx.createLinearGradient(x - spike, y, x + spike, y);
-            g1.addColorStop(0, rgba(col, 0));
-            g1.addColorStop(0.5, rgba([255, 255, 220], spikeA));
-            g1.addColorStop(1, rgba(col, 0));
-            ctx.strokeStyle = g1;
-            ctx.lineWidth = Math.max(0.55, rr * 0.18);
-            ctx.beginPath();
-            ctx.moveTo(x - spike, y);
-            ctx.lineTo(x + spike, y);
-            ctx.stroke();
-            const g2 = ctx.createLinearGradient(x, y - spike, x, y + spike);
-            g2.addColorStop(0, rgba(col, 0));
-            g2.addColorStop(0.5, rgba([255, 255, 220], spikeA));
-            g2.addColorStop(1, rgba(col, 0));
-            ctx.strokeStyle = g2;
-            ctx.beginPath();
-            ctx.moveTo(x, y - spike);
-            ctx.lineTo(x, y + spike);
-            ctx.stroke();
-            // faint diagonal sparkle
-            if (rr > 2.4) {
-              const d = spike * 0.55;
-              ctx.strokeStyle = rgba(col, spikeA * 0.35);
-              ctx.lineWidth = 0.45;
-              ctx.beginPath();
-              ctx.moveTo(x - d, y - d);
-              ctx.lineTo(x + d, y + d);
-              ctx.moveTo(x - d, y + d);
-              ctx.lineTo(x + d, y - d);
-              ctx.stroke();
-            }
-          }
-
-          // warm core
-          ctx.fillStyle = rgba([255, 255, 245], Math.min(1, a * 1.05));
-          ctx.beginPath();
-          ctx.arc(x, y, Math.max(0.7, rr * 0.38), 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = rgba(col, a);
-          ctx.beginPath();
-          ctx.arc(x, y, Math.max(1.0, rr * 0.62), 0, Math.PI * 2);
-          ctx.fill();
+          const dim = glowR * 2;
+          const prev = ctx.globalAlpha;
+          ctx.globalAlpha = prev * alpha * (0.85 + 0.15 * tw);
+          ctx.drawImage(spr.canvas, x - glowR, y - glowR, dim, dim);
+          ctx.globalAlpha = prev;
         }
 
         const viewCx = W * 0.5;
@@ -2912,9 +2937,8 @@ export function initVoidEngine() {
 
         const placed = [];
         const crowdRef = scale < 1.15 ? 16 : scale < 1.8 ? 20 : 26;
-        // Bead chains only on high; medium keeps a stroke-only arm link.
-        // All constellation figures still draw below — no figure cap.
-        if (quality !== 'low') {
+        // Arm bead chains — sprites make these cheap enough on every quality.
+        {
           const byArm = new Map();
           for (const item of scored) {
             const arm = item.c.arm ?? 0;
@@ -2928,17 +2952,19 @@ export function initVoidEngine() {
               const b = list[i + 1];
               if (inCore(a.hx, a.hy, 6) || inCore(b.hx, b.hy, 6)) continue;
               const gap = Math.hypot(a.hx - b.hx, a.hy - b.hy);
-              if (gap < (quality === 'high' ? 16 : 22)) continue;
+              if (gap < 16) continue;
               const col = a.c.col || LIME;
+              const beads =
+                quality === 'low'
+                  ? Math.min(3, Math.max(1, Math.round(gap / 40)))
+                  : Math.min(10, Math.max(1, Math.round(gap / 26)));
               strokeLink(
                 { sx: a.hx, sy: a.hy },
                 { sx: b.hx, sy: b.hy },
                 col,
-                quality === 'high' ? clamp(0.1 + gap / 400, 0.1, 0.22) : 0.12,
-                quality === 'high' ? 0.65 : 0.55,
+                clamp(0.1 + gap / 400, 0.1, 0.22),
+                0.65,
               );
-              if (quality !== 'high') continue;
-              const beads = Math.min(6, Math.max(1, Math.round(gap / 32)));
               for (let bi = 1; bi <= beads; bi++) {
                 const tt = bi / (beads + 1);
                 const nx = -(b.hy - a.hy) / gap;
@@ -3020,7 +3046,7 @@ export function initVoidEngine() {
               ];
           const lineW = celebrating ? 1.55 : mine || picked ? 1.25 : hot ? 1.05 : 0.85;
 
-          if (forced && quality === 'high' && !inCore(hx, hy, figScale * 0.4)) {
+          if (forced && !inCore(hx, hy, figScale * 0.4)) {
             const plate = ctx.createRadialGradient(hx, hy, 2, hx, hy, figScale * 0.95);
             plate.addColorStop(0, rgba(strokeCol, 0.1));
             plate.addColorStop(1, rgba(strokeCol, 0));
@@ -3038,11 +3064,11 @@ export function initVoidEngine() {
             const midX = (a.sx + b.sx) * 0.5;
             const midY = (a.sy + b.sy) * 0.5;
             if (inCore(midX, midY, 3)) continue;
-            if (quality === 'high') strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
+            strokeLink(a, b, strokeCol, lineA * 0.22, lineW + 1.6);
             strokeLink(a, b, strokeCol, lineA, lineW);
           }
 
-          if ((picked || celebrating) && quality !== 'low' && !inCore(hx, hy, 8)) {
+          if ((picked || celebrating) && !inCore(hx, hy, 8)) {
             const boom = celebrating ? 0.5 + 0.5 * Math.sin(t * 6) : 0;
             const rad = (celebrating ? 56 : 40) + boom * 18;
             const halo = ctx.createRadialGradient(hx, hy, 2, hx, hy, rad);
@@ -3066,8 +3092,8 @@ export function initVoidEngine() {
       // Occlude anything that still bled onto the event horizon
       paintBlackCore();
 
-      if (scale > 0.95 && scale < 9 && quality !== 'low') {
-        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'medium' ? 2 : 1);
+      if (scale > 0.95 && scale < 9) {
+        const step = (scale < 1.3 ? 3 : scale < 2.2 ? 2 : 1) * (quality === 'low' ? 2 : 1);
         const yoursLabels = [];
         g.constels.forEach((c, idx) => {
           const picked = selectedConstels.has(c.id);
