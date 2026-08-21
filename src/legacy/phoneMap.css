@@ -270,12 +270,13 @@
   }
 
   body.arena-live .vc {
-    top: max(52px, calc(env(safe-area-inset-top) + 44px));
-    bottom: auto !important;
-    right: 8px;
-    max-height: none;
+    top: auto !important;
+    /* Raise above phone minimap (bottom ~76 + ~102) */
+    bottom: max(210px, calc(env(safe-area-inset-bottom) + 210px)) !important;
+    right: 8px !important;
+    max-height: calc(100dvh - 52px - 220px);
     height: auto;
-    overflow: visible;
+    overflow: hidden;
   }
 
   body.arena-live .vc button {
@@ -513,9 +514,9 @@
   }
 
   body.arena-live .vc {
-    top: 44px;
-    bottom: auto !important;
-    max-height: none;
+    top: auto !important;
+    bottom: max(190px, calc(env(safe-area-inset-bottom) + 190px)) !important;
+    max-height: calc(100dvh - 44px - 200px);
   }
 
   body.arena-live .vc button {
