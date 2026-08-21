@@ -685,9 +685,10 @@ body.arena-live .vc{
   top:max(72px, calc(env(safe-area-inset-top) + 64px));
   right:8px;
   z-index:25;
-  /* Compact at the top; only shrinks when the frame is too short to keep
-     a gap above the minimap (~129px + 12px breathing room). */
-  max-height:calc(100% - 150px);
+  /* Minimap sits beside the column (not under it), so the column only
+     needs to clear the top chrome — not a fake bottom budget that still
+     let the last buttons paint over the map thumbnail. */
+  max-height:calc(100% - 96px);
   overflow:hidden;
 }
 body.arena-live .vc button{
@@ -695,6 +696,12 @@ body.arena-live .vc button{
   min-height:26px;
   height:auto;
   max-height:36px;
+}
+/* Park the minimap to the left of the zoom column so they never stack. */
+body.arena-live .minimap{
+  right:54px;
+  bottom:14px;
+  z-index:24;
 }
 body.arena-live .cart-dock{
   bottom:calc(88px + env(safe-area-inset-bottom));

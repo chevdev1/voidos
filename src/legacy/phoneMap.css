@@ -247,10 +247,12 @@
   body.arena-live .minimap {
     display: block !important;
     width: 104px;
-    right: 8px;
+    /* Clear the zoom column (~40px) + gap — was right:8px and sat under it. */
+    right: 56px;
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px));
     padding: 5px;
     transform: none;
+    z-index: 24;
   }
 
   body.arena-live .minimap canvas {
@@ -271,9 +273,7 @@
     top: max(52px, calc(env(safe-area-inset-top) + 44px));
     bottom: auto;
     right: 8px;
-    /* Minimap sits at bottom:~76 + ~102 tall; dock below that. Cap so the
-       6-button column can't run into either on a short phone. */
-    max-height: calc(100% - 200px);
+    max-height: calc(100% - 140px);
     overflow: hidden;
   }
 
@@ -513,7 +513,7 @@
 
   body.arena-live .vc {
     top: 44px;
-    max-height: calc(100% - 190px);
+    max-height: calc(100% - 120px);
   }
 
   body.arena-live .vc button {
