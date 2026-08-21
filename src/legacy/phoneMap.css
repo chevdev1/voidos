@@ -247,7 +247,8 @@
   body.arena-live .minimap {
     display: block !important;
     width: 104px;
-    right: 8px !important;
+    /* Beside the 40px zoom column — never under it */
+    right: 56px !important;
     bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px)) !important;
     padding: 5px;
     transform: none;
@@ -270,19 +271,18 @@
 
   body.arena-live .vc {
     top: max(52px, calc(env(safe-area-inset-top) + 44px));
-    /* Sit above phone minimap (bottom ~76 + ~102 tall) — not max-height:% */
-    bottom: max(200px, calc(env(safe-area-inset-bottom) + 200px)) !important;
+    bottom: auto !important;
     right: 8px;
     max-height: none;
     height: auto;
-    overflow: hidden;
+    overflow: visible;
   }
 
   body.arena-live .vc button {
     width: 40px;
-    height: auto;
-    flex: 0 1 40px;
-    min-height: 28px;
+    height: 40px;
+    flex: 0 0 40px;
+    min-height: 40px;
     max-height: 40px;
     border-radius: 11px;
     font-size: 16px;
@@ -514,7 +514,7 @@
 
   body.arena-live .vc {
     top: 44px;
-    bottom: max(180px, calc(env(safe-area-inset-bottom) + 180px)) !important;
+    bottom: auto !important;
     max-height: none;
   }
 
