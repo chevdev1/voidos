@@ -1,4 +1,5 @@
 {
+  "regions": ["iad1"],
   "rewrites": [
     { "source": "/((?!api/|assets/).*)", "destination": "/index.html" }
   ],
