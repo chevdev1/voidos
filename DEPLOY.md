@@ -12,7 +12,7 @@ Full client handoff: **[HANDOFF.md](./HANDOFF.md)**.
 
 | Var | Link |
 |-----|------|
-| `GEMINI_API_KEY` | https://aistudio.google.com/apikey → check `GET /api/health` → `gemini: true` |
+| `GEMINI_API_KEY` | https://aistudio.google.com/apikey → check `GET /api/chat` → `gemini: true` |
 | `VITE_WALLETCONNECT_PROJECT_ID` | https://cloud.reown.com |
 | `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` | https://turso.tech |
 | `VITE_RH_CHAIN_ID` / `RH_RPC_URL` | Robinhood Chain (`4663`) |

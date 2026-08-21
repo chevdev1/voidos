@@ -68,6 +68,15 @@ function mergeOwnsForChat(dbList, clientList) {
 export default async function handler(req, res) {
   cors(req, res)
   if (req.method === 'OPTIONS') return res.status(204).end()
+  // Hobby plan caps serverless functions at 12 — health lives here (was /api/health).
+  if (req.method === 'GET') {
+    const gemini = Boolean(String(process.env.GEMINI_API_KEY || '').trim())
+    return res.status(200).json({
+      ok: true,
+      gemini,
+      model: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    })
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST only' })
 
   try {

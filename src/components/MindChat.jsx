@@ -83,7 +83,7 @@ export function MindChat() {
         const base = import.meta.env.VITE_MIND_API_URL
           ? String(import.meta.env.VITE_MIND_API_URL).replace(/\/$/, '')
           : ''
-        const hr = await fetch(`${base}/api/health`, { credentials: 'include' })
+        const hr = await fetch(`${base}/api/chat`, { credentials: 'include' })
         const hj = await hr.json().catch(() => ({}))
         if (!cancelled && typeof hj.gemini === 'boolean') setLive(hj.gemini)
       } catch {
