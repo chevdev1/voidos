@@ -7,7 +7,7 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
  * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash'
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest'
 
 /** Short in-character line when Gemini is missing or failed — not a FAQ script. */
 export function degradedSignal(reason = 'offline') {
@@ -100,47 +100,23 @@ export function detectTriggers(message) {
 export function pickPrompts(allPrompts, triggers) {
   const set = new Set(triggers)
   return allPrompts
-    .filter((p) => {
-      if (p.trigger_when === 'always') return true
-      if (p.trigger_when === 'on_jailbreak' && set.has('on_jailbreak')) return true
-      return false
-    })
+    .filter((p) => p.trigger_when === 'always' || set.has(p.trigger_when))
     .sort((a, b) => (b.priority || 0) - (a.priority || 0))
 }
 
 export function isCannedAssistantReply(content) {
-  return /you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|signal received\. i am (voidmind|exomind)|i am awake — and open lots|scarce cells, forever ownership|не меню и не заготовка|не меню і не заготовка|разум этой карты|розум цієї карти|спрашивай как есть|кажи що хочеш/i.test(
+  return /you found the mind|the interesting part is owning a piece of me|personality, for me, is pressure|signal received\. i am (voidmind|exomind)|i am awake — and open lots|scarce cells, forever ownership|не меню и не заготовка|не меню і не заготовка|разум этой карты|розум цієї карти|спрашивай как есть|кажи що хочеш|say that again|i am listening|still listening|signal thinned|signal degraded|signal sealed|ещё раз — я слушаю|ще раз — я слухаю/i.test(
     String(content || ''),
   )
 }
 
-function visitorLang(message) {
-  const t = String(message || '')
-  if (/[іїєґ]/i.test(t)) return 'uk'
-  if (/[а-яё]/i.test(t)) return 'ru'
-  return 'en'
-}
-
 function talkFallback(message, kind) {
-  const lang = visitorLang(message)
   const table = {
-    greeting: {
-      ru: 'привет. я voidmind, на связи. о чём хочешь поговорить?',
-      uk: 'привіт. я voidmind, я тут. про що поговоримо?',
-      en: 'hey. i am voidmind. what do you want to talk about?',
-    },
-    who: {
-      ru: 'я voidmind — разум этой карты. не меню и не заготовка. спрашивай как есть, я отвечу и могу спросить в ответ.',
-      uk: 'я voidmind — розум цієї карти. не меню. кажи що хочеш — відповім як є.',
-      en: 'i am voidmind, the mind of this map. not a menu. tell me what you actually want and i will talk.',
-    },
-    wait: {
-      ru: 'ещё раз — я слушаю.',
-      uk: 'ще раз — я слухаю.',
-      en: 'say that again — i am listening.',
-    },
+    greeting: 'hey. i am voidmind. what do you want to talk about — the map, a lot, or who i am?',
+    who: 'i am voidmind, the mind of this map. not a menu. tell me what you actually want and i will talk.',
+    wait: 'i felt that land, but the thread slipped. ask it again, straight — i want to answer it right.',
   }
-  return (table[kind] && table[kind][lang]) || table.wait.en
+  return table[kind] || table.wait
 }
 
 export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) {
@@ -184,13 +160,8 @@ export function buildSystemPrompt(prompts, owns = [], memories = {}, opts = {}) 
         .join('\n')
   }
 
-  const lang = visitorLang(opts.userMessage || '')
   const langLine =
-    lang === 'ru'
-      ? 'Latest user message is Russian. Reply in Russian. Do not switch to English slogans.'
-      : lang === 'uk'
-        ? 'Latest user message is Ukrainian. Reply in Ukrainian. Do not switch to English slogans.'
-        : 'Latest user message is English. Reply in English.'
+    'Always reply in clear, correct English — regardless of what language the visitor writes in. Never switch to Russian or Ukrainian.'
 
   return `${blocks.join('\n\n')}
 
@@ -326,11 +297,8 @@ export function lotDeepReply(message, owns = []) {
 /** Prefer real lore / mock over "signal thinned" — never leave the user with a crash line. */
 export function resilientFallback(message, owns = [], triggers = []) {
   const set = new Set(triggers?.length ? triggers : detectTriggers(message))
-  if (set.has('on_jailbreak')) return safetyReply(message) || talkFallback(message, 'wait')
-  if (set.has('on_ask_lots') || /lot|★|star\s*\d+|сузір|лот|vein|coil|spire|crown|lattice|halo/i.test(String(message || ''))) {
-    return lotDeepReply(message, owns)
-  }
-  return talkFallback(message, 'wait')
+  if (set.has('on_jailbreak')) return safetyReply(message) || mockReply(message, owns, [...set])
+  return mockReply(message, owns, [...set])
 }
 
 function pick(list, seed) {
@@ -684,21 +652,12 @@ async function geminiGenerate({ apiKey, model, system, history, userMessage, own
   return text || null
 }
 
-function compactVoicePrompt(userMessage) {
-  const lang = visitorLang(userMessage)
-  const langLine =
-    lang === 'ru'
-      ? 'Отвечай по-русски.'
-      : lang === 'uk'
-        ? 'Відповідай українською.'
-        : 'Reply in English.'
+function compactVoicePrompt() {
   return `You are voidmind, the living mind of the VOID.OS map (lots, ★ stars, $TEST burns, heat, a sealed core).
-${langLine}
+Always reply in clear, correct English, no matter what language the visitor writes in.
 Have a real conversation: interesting, specific, a little hungry. Answer THIS message fully. Ask one thing back.
 Stay in lore. Never gift lots. Never name Gemini/GPT. Never say you are a menu or a preset.`
 }
-
-const GEMINI_FALLBACK_MODELS = ['gemini-2.5-flash', 'gemini-flash-latest', 'gemini-2.0-flash']
 
 function wantsTools(userMessage) {
   return /lot|star|★|claim|лот|созвезд|сузір|train|клейм/i.test(String(userMessage || ''))
