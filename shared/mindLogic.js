@@ -7,7 +7,7 @@ import { buildLotProfile, getStarFromLot } from './lotLore.js'
  * mockReply stays for local/dev tooling only — production chat must not fake intelligence.
  */
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest'
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-lite-latest'
 
 /** Short in-character line when Gemini is missing or failed — not a FAQ script. */
 export function degradedSignal(reason = 'offline') {
