@@ -33,6 +33,7 @@ server/.env
 
 
 .vercel
+tmp-shots
 .env
 .env.local
 .env.*.local
