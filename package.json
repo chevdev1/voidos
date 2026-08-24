@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "start": "node server/index.js",
     "mind": "npm --prefix server run dev",
     "mind:seed": "npm --prefix server run seed"
   },

@@ -1,7 +1,7 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
@@ -427,6 +427,14 @@ app.post('/api/chat', async (req, res) => {
     })
   }
 })
+
+const distDir = join(__dirname, '..', 'dist')
+if (existsSync(distDir)) {
+  app.use(express.static(distDir))
+  app.get(/^\/(?!api\/).*/, (_req, res) => {
+    res.sendFile(join(distDir, 'index.html'))
+  })
+}
 
 app.listen(PORT, () => {
   console.log(`[mind] http://localhost:${PORT}  gemini=${Boolean(GEMINI_API_KEY)}`)
