@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Syne", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-void: #050505;
+  --color-void-soft: #0b0b0d;
+  --color-lime: #ccff00;
+  --color-lime-dim: #a8d600;
+  --color-ink: #f0f0f0;
+  --color-muted: #9a9aa2;
+  --color-muted-2: #5c5c64;
+  --color-line: rgba(204, 255, 0, 0.16);
+}
+
+html {
+  background: var(--color-void);
+  color-scheme: dark;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  overflow-x: clip;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  overflow-x: clip;
+  min-width: 0;
+}
+
+/* Mobile rhythm: readable type, no horizontal bleed */
+@media (max-width: 640px) {
+  .section {
+    padding-top: 48px !important;
+    padding-bottom: 48px !important;
+    padding-left: max(16px, env(safe-area-inset-left)) !important;
+    padding-right: max(16px, env(safe-area-inset-right)) !important;
+  }
+
+  .cta {
+    width: 100%;
+  }
+
+  .cta > * {
+    flex: 1 1 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .lead,
+  .price-note,
+  .ca-row {
+    max-width: 100% !important;
+  }
+
+  .hero-left {
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .hero-left .lead,
+  .hero-left .price-note {
+    display: block;
+    width: 100%;
+    max-width: 100% !important;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}
+
+::selection {
+  background: var(--color-lime);
+  color: #000;
+}
+
+/* Scrollbar — quiet, on-brand */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-void);
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1a1d;
+  border: 2px solid var(--color-void);
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-lime-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Wallet sheet — no blur (kills phones under the cosmos canvas) */
+.account-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 6200;
+  background: #000;
+  pointer-events: auto;
+  touch-action: auto;
+}
+.account-menu-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 6300;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #050505;
+  padding: 16px 16px max(16px, env(safe-area-inset-bottom));
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+@media (min-width: 768px) {
+  .account-menu-backdrop {
+    background: rgba(0, 0, 0, 0.55);
+  }
+  .account-menu-sheet {
+    inset: auto;
+    right: 16px;
+    top: 64px;
+    width: 22rem;
+    max-height: min(80vh, 36rem);
+    border: 1px solid rgba(204, 255, 0, 0.4);
+    padding: 20px;
+  }
+}
+
+body.wallet-ui-open,
+body.wc-modal-open {
+  overflow: hidden !important;
+  touch-action: auto !important;
+}
+body.wallet-ui-open.arena-live .arena-stage,
+body.wallet-ui-open.arena-live #cosmosFrame,
+body.wc-modal-open.arena-live .arena-stage,
+body.wc-modal-open.arena-live #cosmosFrame {
+  touch-action: auto !important;
+  pointer-events: none !important;
+}
+body.wallet-ui-open #term,
+body.wallet-ui-open .cart-dock,
+body.wc-modal-open #term,
+body.wc-modal-open .cart-dock {
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* WalletConnect modal — taps must work; do NOT set touch-action on every child */
+w3m-modal,
+wcm-modal,
+#w3m-modal,
+.wcm-overlay,
+.w3m-overlay {
+  z-index: 200000 !important;
+  pointer-events: auto !important;
+  touch-action: auto !important;
+}
+body.wc-modal-open .cosmos-map-pop,
+body.wc-modal-open .arena-stage,
+body.wc-modal-open canvas,
+body.wallet-ui-open canvas {
+  pointer-events: none !important;
+}
+body.wallet-ui-open .account-menu,
+body.wallet-ui-open .account-menu-sheet,
+body.wallet-ui-open .account-menu-backdrop,
+body.wc-modal-open w3m-modal,
+body.wc-modal-open wcm-modal {
+  pointer-events: auto !important;
+}
+
+@media (max-width: 640px) {
+  wcm-modal .wcm-container,
+  w3m-modal,
+  wui-card {
+    max-width: 100vw !important;
+    width: 100vw !important;
+    margin: 0 !important;
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "exomind-mind-server",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch --experimental-sqlite index.js",
+    "start": "node --experimental-sqlite index.js",
+    "seed": "node --experimental-sqlite seed.js",
+    "seed:sql": "node --experimental-sqlite db.js --seed"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.15.15",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "viem": "^2.55.13"
+  }
+}

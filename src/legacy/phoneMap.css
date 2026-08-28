@@ -1,0 +1,527 @@
+/* Phone map UX
+   - Demo: explore + zoom/orbit on map, actions under map
+   - Full map: map stays free; tools in a collapsed bottom dock
+*/
+
+.hero-map-actions {
+  display: none;
+}
+
+.mind-dock-row,
+.mind-btn--ask-compact,
+.mind-dock-toggle {
+  display: none;
+}
+
+/* Lives in the band between the header and the lot sheet. Only mounted on
+   phones (see LotPreview.jsx), so no breakpoint guard is needed here — the
+   height budget is what keeps it clear of the sheet on short viewports. */
+.lot-preview {
+  position: fixed;
+  z-index: 5300;
+  left: 8px;
+  right: 8px;
+  top: max(54px, calc(env(safe-area-inset-top) + 48px));
+  /* LotFigure scales the silhouette off min(width, height), so in a wide
+     box the height is what decides how big the constellation reads. */
+  height: min(24vh, 176px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(204, 255, 0, 0.34);
+  border-radius: 14px;
+  background: rgba(2, 5, 10, 0.92);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.62);
+}
+
+.lot-preview-figure {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  touch-action: none;
+}
+
+.lot-preview-figure canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.lot-preview-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  padding: 5px 10px 7px;
+  border-top: 1px solid rgba(204, 255, 0, 0.16);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lot-preview-cap b {
+  overflow: hidden;
+  color: var(--lime);
+  text-overflow: ellipsis;
+}
+
+.lot-preview-cap span {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+@media (max-width: 960px) {
+  .hero,
+  .hero-cosmos-slot,
+  .hero-right {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* The slot clips (overflow:hidden) and until now it kept the old
+     min(36vh,300px) height from void.css while the frame below was bumped to
+     52/56vh here — so the bottom third of the demo map, zoom column included,
+     was being cut off. Slot and frame have to be sized together. */
+  .hero-cosmos-slot:not(.cosmos-away) {
+    margin-right: 0 !important;
+    height: min(52vh, 440px);
+    min-height: min(52vh, 440px);
+    max-height: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .hero-right:not(.in-arena) {
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+  }
+
+  .hero-right:not(.in-arena) {
+    width: 100%;
+    min-height: min(52vh, 440px);
+    height: min(52vh, 440px);
+    max-height: none;
+    margin-right: 0 !important;
+  }
+
+  .hero-right:not(.in-arena) .mind-bar,
+  .hero-right:not(.in-arena) .mind-meta,
+  .hero-right:not(.in-arena) .cosmos-hud,
+  .hero-right:not(.in-arena) .minimap {
+    display: none !important;
+  }
+
+  .hero-right:not(.in-arena) .cosmos-explore {
+    display: inline-flex !important;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 8px;
+    font-size: 9px;
+    font-weight: 500;
+  }
+
+  /* Capped rather than a fixed 6 x 40px stack: the demo frame is sized off
+     the viewport, so on a short phone that stack was taller than the map and
+     the last button hung out past its bottom edge. max-height keeps the box
+     hugging its buttons when there's room and squeezes them when there isn't. */
+  .hero-right:not(.in-arena) .vc {
+    display: flex !important;
+    top: 44px;
+    bottom: auto;
+    max-height: calc(100% - 54px);
+    right: 8px;
+    z-index: 20;
+  }
+
+  .hero-right:not(.in-arena) .vc button {
+    width: 40px;
+    height: auto;
+    flex: 0 1 40px;
+    min-height: 28px;
+    font-size: 15px;
+  }
+
+  .hero-map-actions {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .hero-map-actions > button,
+  .hero-map-actions > .btn-lime,
+  .hero-map-actions > .btn-ghost {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+
+  .hero-map-actions .btn-ghost {
+    border-color: rgba(204, 255, 0, 0.4);
+    color: var(--lime);
+  }
+
+  .hero-left .cta .btn-ghost {
+    display: none;
+  }
+
+  /* ========== FULL MAP: free sky, thin dock ========== */
+
+  /* Kill the giant title that covers the galaxy */
+  body.arena-live .arena-hud {
+    max-width: none;
+    padding: max(12px, calc(env(safe-area-inset-top) + 6px)) 12px 0;
+    background: linear-gradient(180deg, rgba(0, 0, 0, 0.45) 0%, transparent 70%);
+  }
+
+  body.arena-live .arena-eyebrow,
+  body.arena-live .arena-hud h2,
+  body.arena-live .arena-lead {
+    display: none !important;
+  }
+
+  /* The logo pill and the board/cabinet/Buy cluster are two independent
+     absolutely-positioned layers. Anchoring the pill right put both in the
+     same corner, so the pill (z-20) sat under the cluster (z-5100). Pill
+     stays left; the cluster gets a hard right-hand budget that can't reach
+     into it. */
+  body.arena-live .arena-hud-top {
+    justify-content: flex-start;
+  }
+
+  body.arena-live .arena-hud-actions {
+    top: max(15px, calc(env(safe-area-inset-top) + 9px));
+    right: 8px;
+    gap: 5px;
+    flex-wrap: nowrap;
+    max-width: calc(100vw - 76px);
+  }
+
+  body.arena-live .arena-hud-actions .arena-close {
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
+  /* Mark reads as the home button on its own — the wordmark only costs
+     width the action cluster needs. */
+  body.arena-live .arena-home {
+    gap: 0;
+    margin-bottom: 0;
+    padding: 4px;
+    font-size: 0;
+  }
+
+  body.arena-live .arena-back {
+    min-height: 40px;
+  }
+
+  /* The board and the zoom column were both pinned to right:8px, so the
+     column sat straight on top of the board's count column. The board keeps
+     the top-right corner; it just stops one column-width short of it. */
+  body.arena-live .cosmos-hud {
+    display: flex !important;
+    font-size: 9px;
+    gap: 8px;
+    flex-wrap: wrap;
+    max-width: min(58vw, 220px);
+    top: max(52px, calc(env(safe-area-inset-top) + 44px));
+    right: 60px;
+    left: auto;
+    bottom: auto;
+  }
+
+  /* Clears the collapsed dock, which is a z-40 layer over the whole bottom
+     edge and used to swallow the lower half of the minimap. */
+  body.arena-live .minimap {
+    display: block !important;
+    width: 104px;
+    /* Beside the 40px zoom column — never under it */
+    right: 56px !important;
+    bottom: max(76px, calc(env(safe-area-inset-bottom) + 76px)) !important;
+    padding: 5px;
+    transform: none;
+    z-index: 24;
+  }
+
+  body.arena-live .minimap canvas {
+    height: 62px;
+  }
+
+  body.arena-live .minimap .cap {
+    font-size: 8px;
+    line-height: 1.3;
+  }
+
+  /* Nothing to clear once the dock is expanded — it owns that whole band. */
+  body.arena-live.mind-dock-open .minimap {
+    display: none !important;
+  }
+
+  body.arena-live .vc {
+    top: auto !important;
+    /* Raise above phone minimap (bottom ~76 + ~102) */
+    bottom: max(210px, calc(env(safe-area-inset-bottom) + 210px)) !important;
+    right: 8px !important;
+    max-height: calc(100dvh - 52px - 220px);
+    height: auto;
+    overflow: hidden;
+  }
+
+  body.arena-live .vc button {
+    width: 40px;
+    height: 40px;
+    flex: 0 0 40px;
+    min-height: 40px;
+    max-height: 40px;
+    border-radius: 11px;
+    font-size: 16px;
+  }
+
+  body.arena-live .mind-bar,
+  .hero-right.in-arena .mind-bar {
+    left: 8px;
+    right: 8px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+    max-width: none;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 8px;
+    padding: 8px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border-radius: 14px;
+    z-index: 40;
+    max-height: min(42vh, 280px);
+  }
+
+  body.arena-live .mind-dock-row,
+  .hero-right.in-arena .mind-dock-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  body.arena-live .mind-dock-toggle,
+  .hero-right.in-arena .mind-dock-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 16px;
+    border: 1px solid rgba(204, 255, 0, 0.2);
+    border-radius: 999px;
+    color: var(--muted);
+    background: rgba(204, 255, 0, 0.04);
+    font: inherit;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+
+  body.arena-live .mind-dock-toggle:hover,
+  .hero-right.in-arena .mind-dock-toggle:hover {
+    border-color: rgba(204, 255, 0, 0.45);
+    color: var(--lime);
+  }
+
+  body.arena-live .mind-btn--ask-compact,
+  .hero-right.in-arena .mind-btn--ask-compact {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 44px;
+    border-radius: 999px;
+    border: 1px solid rgba(204, 255, 0, 0.4);
+    background: rgba(204, 255, 0, 0.1);
+    color: var(--lime);
+    font-size: 12px;
+    font-weight: 700;
+    box-shadow: 0 0 10px rgba(204, 255, 0, 0.06);
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  }
+
+  body.arena-live .mind-btn--ask-compact:hover,
+  .hero-right.in-arena .mind-btn--ask-compact:hover {
+    border-color: rgba(204, 255, 0, 0.65);
+    background: rgba(204, 255, 0, 0.16);
+    box-shadow: 0 0 16px rgba(204, 255, 0, 0.12);
+  }
+
+  body.arena-live .mind-meta {
+    display: none !important;
+  }
+
+  body.arena-live:not(.mind-dock-open) .mind-legend,
+  body.arena-live:not(.mind-dock-open) .mind-sep,
+  body.arena-live:not(.mind-dock-open) .mind-actions {
+    display: none !important;
+  }
+
+  body.arena-live:not(.mind-dock-open) .mind-bar {
+    max-height: none;
+  }
+
+  body.arena-live:not(.mind-dock-open) #actAsk {
+    display: none !important;
+  }
+
+  /* Expanded tools panel */
+  body.arena-live.mind-dock-open .mind-legend {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+  }
+
+  body.arena-live.mind-dock-open .mind-leg {
+    min-height: 36px;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 6px;
+    font-size: 10px;
+  }
+
+  body.arena-live.mind-dock-open .mind-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    width: 100%;
+    overflow-y: auto;
+    max-height: min(28vh, 180px);
+  }
+
+  body.arena-live.mind-dock-open .mind-btn {
+    min-height: 40px;
+    min-width: 0;
+    padding: 6px 4px;
+    font-size: 10px;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+    border-radius: 8px;
+  }
+
+  body.arena-live.mind-dock-open .mind-btn[data-act='ask'] {
+    grid-column: 1 / -1;
+  }
+
+  body.arena-live.mind-dock-open .mind-btn--ask-compact {
+    display: none !important;
+  }
+
+  body.arena-live.mind-dock-open .mind-bar {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  body.arena-live .cart-dock {
+    bottom: calc(72px + env(safe-area-inset-bottom));
+    width: calc(100vw - 16px);
+    left: 50%;
+    transform: translateX(-50%);
+    box-sizing: border-box;
+  }
+
+  body.arena-live.mind-dock-open .cart-dock {
+    bottom: calc(min(42vh, 280px) + 12px + env(safe-area-inset-bottom));
+  }
+
+  body.arena-live.term-open .cart-dock {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    z-index: 112;
+  }
+
+  body.arena-live.term-open .mind-bar {
+    opacity: 0.25;
+    pointer-events: none;
+  }
+
+  /* The preview claims the whole band above the sheet; everything else that
+     normally lives up there would sit on top of it. */
+  body.arena-live.term-open .arena-hud,
+  body.arena-live.term-open .minimap,
+  body.arena-live.term-open .vc {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* 70vh + the preview leaves no gap on a short phone; the sheet scrolls
+     internally, so the height it gives up costs nothing.
+     Opaque, unlike the desktop drawer: here the stack dock sits directly
+     behind the sheet, and 4% translucency was enough to read its lime text
+     straight through the lot details. */
+  body.arena-live .term {
+    max-height: 62vh;
+    background: #040600;
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-cosmos-slot:not(.cosmos-away),
+  .hero-right:not(.in-arena) {
+    min-height: min(56vh, 460px);
+    height: min(56vh, 460px);
+    max-height: none;
+  }
+
+  /* Same destination as the logo pill — the only control here worth its
+     width on a narrow phone is the one that isn't a duplicate. */
+  body.arena-live .arena-close-x {
+    display: none;
+  }
+
+  .hero-map-actions {
+    flex-direction: column;
+  }
+
+  body.arena-live.mind-dock-open .mind-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Landscape phones: keep dock ultra-thin */
+@media (max-width: 960px) and (orientation: landscape) and (max-height: 500px) {
+  body.arena-live .mind-bar {
+    left: 8px;
+    right: 8px;
+    max-height: 34vh;
+  }
+
+  body.arena-live.mind-dock-open .mind-actions {
+    max-height: 18vh;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  body.arena-live .vc {
+    top: auto !important;
+    bottom: max(190px, calc(env(safe-area-inset-bottom) + 190px)) !important;
+    max-height: calc(100dvh - 44px - 200px);
+  }
+
+  body.arena-live .vc button {
+    width: 36px;
+    max-height: 36px;
+    font-size: 15px;
+  }
+}

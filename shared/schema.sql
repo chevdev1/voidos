@@ -1,0 +1,92 @@
+-- VOID.OS / voidmind durable client schema (SQLite / libSQL / Turso)
+
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  guest_key TEXT NOT NULL UNIQUE,
+  display_name TEXT UNIQUE,
+  password_hash TEXT,
+  google_sub TEXT UNIQUE,
+  email TEXT,
+  avatar_url TEXT,
+  wallet_pubkey TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS conversations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user','assistant','system')),
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS ownerships (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  constel_id TEXT NOT NULL,
+  constel_name TEXT NOT NULL,
+  claimed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  trained INTEGER NOT NULL DEFAULT 0,
+  trained_at TEXT,
+  wallet TEXT,
+  UNIQUE(user_id, constel_id)
+);
+
+-- Global exclusive lot lock (one owner worldwide). Applied in migrate() for existing DBs too.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ownerships_constel ON ownerships(constel_id);
+
+CREATE INDEX IF NOT EXISTS idx_ownerships_user ON ownerships(user_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_wallet ON users(lower(wallet_pubkey))
+  WHERE wallet_pubkey IS NOT NULL AND wallet_pubkey != '';
+
+CREATE TABLE IF NOT EXISTS prompts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  slug TEXT NOT NULL UNIQUE,
+  kind TEXT NOT NULL,
+  trigger_when TEXT NOT NULL,
+  priority INTEGER NOT NULL DEFAULT 0,
+  body TEXT NOT NULL,
+  active INTEGER NOT NULL DEFAULT 1
+);
+
+CREATE TABLE IF NOT EXISTS memories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE(user_id, key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conv ON messages(conversation_id, id);
+CREATE INDEX IF NOT EXISTS idx_memories_user ON memories(user_id);
+
+CREATE TABLE IF NOT EXISTS paid_txs (
+  tx_hash TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,
+  user_id INTEGER,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS used_wallet_link_messages (
+  message_hash TEXT PRIMARY KEY,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS claim_reservations (
+  lot_id TEXT PRIMARY KEY,
+  intent_id TEXT NOT NULL,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  wallet TEXT NOT NULL,
+  expires_at TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_claim_reservations_intent ON claim_reservations(intent_id);
+CREATE INDEX IF NOT EXISTS idx_claim_reservations_expiry ON claim_reservations(expires_at);
