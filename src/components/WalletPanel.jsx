@@ -339,7 +339,7 @@ export function WalletPanel({ user, onUser }) {
             </p>
           </div>
           <div className="overflow-hidden rounded-md border border-gray-800 bg-black p-3">
-            <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">$TEST</p>
+            <p className="truncate text-[10px] uppercase tracking-wider text-gray-500">$VOID</p>
             <p className="mt-1 truncate text-sm text-lime">
               {balances?.exo == null
                 ? balances?.exoToken

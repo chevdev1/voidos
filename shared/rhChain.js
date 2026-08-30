@@ -6,15 +6,20 @@
 export const RH_CHAIN_MAIN = 4663
 export const RH_CHAIN_TEST = 46630
 
-/** Live $TEST on Pons / RH mainnet. Swap this CA later for the real token. */
-export const TOKEN_SYMBOL = 'TEST'
-export const DEFAULT_EXO_TOKEN = '0x26feef8a105b282377102308d3769bf9C9E60e76'
-export const DEFAULT_POOL = '0x61ce95Ee9d36d83A4776598E14CED9a4648D1A03'
-export const DEFAULT_DEX_URL = `https://dexscreener.com/robinhood/${DEFAULT_POOL}`
-export const DEFAULT_GECKO_URL = `https://www.geckoterminal.com/robinhood/pools/${DEFAULT_POOL}`
+/** Live $VOID on Robinhood Chain. */
+export const TOKEN_SYMBOL = 'VOID'
+export const DEFAULT_EXO_TOKEN = '0x55b7c52aed0f5b6010b3ec0a87f5b0d70a9b68e4'
+/** DEX pair/pool address for $VOID — not the token CA. Set once liquidity is live
+ *  (Dexscreener/GeckoTerminal pool id), via env (MARKET_POOL) or here. Empty until then
+ *  so the market widget shows "—" instead of stale numbers from the old $TEST pool. */
+export const DEFAULT_POOL = ''
+export const DEFAULT_DEX_URL = DEFAULT_POOL ? `https://dexscreener.com/robinhood/${DEFAULT_POOL}` : ''
+export const DEFAULT_GECKO_URL = DEFAULT_POOL
+  ? `https://www.geckoterminal.com/robinhood/pools/${DEFAULT_POOL}`
+  : ''
 /** Burn sink — claim sends tokens here (no extra claim contract needed). */
 export const BURN_SINK = '0x000000000000000000000000000000000000dEaD'
-/** Tiny but visible amount so wallets don't show "0 TEST" and fail gas estimate. */
+/** Tiny but visible amount so wallets don't show "0 VOID" and fail gas estimate. */
 export const DEFAULT_CLAIM_PRICE_WEI = 10n ** 15n
 
 export function rhChainId() {
@@ -80,9 +85,9 @@ export function claimTokensPerLot() {
 export function formatClaimBurn(lotCount = 1) {
   const n = Math.max(0, Number(lotCount) || 0)
   const t = claimTokensPerLot() * n
-  if (!n || !t) return '0 $TEST'
+  if (!n || !t) return '0 $VOID'
   const s = t >= 0.01 ? t.toFixed(3).replace(/0+$/, '').replace(/\.$/, '') : t.toPrecision(2)
-  return `${s} $TEST`
+  return `${s} $VOID`
 }
 
 /**

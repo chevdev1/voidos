@@ -3,8 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ScrambleText } from './ScrambleText'
 import { BuyExoButton } from './BuyExoButton'
 import { VoidChart } from './VoidChart'
-import { getDexUrl, getExoCa, copyExoCa } from '../lib/buyExo'
-import { DEFAULT_GECKO_URL } from '../../shared/rhChain.js'
+import { getDexUrl, getGeckoUrl, getExoCa, copyExoCa } from '../lib/buyExo'
 import { candlesForTimeframe } from '../../shared/geckoMarket.js'
 import '../legacy/void.css'
 
@@ -43,6 +42,7 @@ function fmtM(n) {
 
 export function MarketSection() {
   const dex = getDexUrl()
+  const gecko = getGeckoUrl()
   const ca = getExoCa()
   const [copied, setCopied] = useState(false)
   const [tf, setTf] = useState('15m')
@@ -102,7 +102,7 @@ export function MarketSection() {
           <ScrambleText text="MARKET" duration={450} />
         </div>
         <h2>
-          $TEST / <em>VOID</em>
+          $<em>VOID</em>
         </h2>
       </motion.div>
 
@@ -150,9 +150,9 @@ export function MarketSection() {
         className="mt-6 flex flex-col gap-4 border border-lime/30 bg-black/40 p-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:p-5"
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $test</p>
+          <p className="text-[10px] uppercase tracking-[0.18em] text-lime">buy $void</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted sm:text-sm">
-            Live $TEST on Robinhood Chain. Swap on Dex, then claim lots on the map. Each claim burns $TEST.
+            Live $VOID on Robinhood Chain. Swap on Dex, then claim lots on the map. Each claim burns $VOID.
           </p>
           {ca ? (
             <button
@@ -171,7 +171,7 @@ export function MarketSection() {
           <BuyExoButton
             filled
             className="!w-full !justify-center sm:!w-auto"
-            label={dex ? 'Buy $TEST ↗' : ca ? 'Copy CA' : 'Buy $TEST · soon'}
+            label={dex ? 'Buy $VOID ↗' : ca ? 'Copy CA' : 'Buy $VOID · soon'}
           />
           <button
             type="button"
@@ -195,16 +195,18 @@ export function MarketSection() {
         transition={{ duration: 0.55, ease: EASE_OUT, delay: 0.15 }}
       >
         <div className="chart-tools">
-          <span className="font-mono text-[11px] tracking-wide">TEST / USD</span>
+          <span className="font-mono text-[11px] tracking-wide">VOID / USD</span>
           <div className="flex items-center gap-3">
-            <a
-              href={DEFAULT_GECKO_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="hidden font-mono text-[10px] text-muted hover:text-lime sm:inline"
-            >
-              gecko ↗
-            </a>
+            {gecko ? (
+              <a
+                href={gecko}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden font-mono text-[10px] text-muted hover:text-lime sm:inline"
+              >
+                gecko ↗
+              </a>
+            ) : null}
             <div className="tfs" id="tfs">
               {TFS.map((key) => (
                 <button

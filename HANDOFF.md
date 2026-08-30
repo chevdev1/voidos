@@ -14,10 +14,10 @@ Last code note: **wallet-only auth** (no Google) — Robinhood Wallet on **Robin
 |------|---------------|-------------------|
 | **Turso DB** | Підключено / код готовий | Тримати `TURSO_*` на Vercel. Без цього guest-сесії на сервері можуть злітати. |
 | **Свої ключі** | Працює на ключах білдера | Замінити Gemini / Reown на акаунти клієнта. |
-| **`$EXO` ERC-20 / CA** | Hero: `CA TBA` | Коли токен на RH Chain: `EXO_TOKEN` + `VITE_EXO_TOKEN` / `VITE_EXO_CA` → Redeploy. |
+| **`$VOID` ERC-20 / CA** | Hero: `CA TBA` | Коли токен на RH Chain: `EXO_TOKEN` + `VITE_EXO_TOKEN` / `VITE_EXO_CA` → Redeploy. |
 | **RH RPC** | Default placeholder | Set `RH_RPC_URL` / `VITE_RH_RPC_URL`. |
 | **Реальний burn / claim** | Test claim після connect | Set `VITE_CLAIM_CONTRACT` + token. |
-| **Реальний training burn** | `Train patch (test)` | Після token — палити $EXO. |
+| **Реальний training burn** | `Train patch (test)` | Після token — палити $VOID. |
 | **Соцмережі / Dex** | Footer `soon` | `VITE_X_URL` … на Vercel. |
 | **Audit / CA** | FAQ: audit ще немає | Оновити FAQ коли буде. |
 | **Custom domain** | Vercel default | Підключити домен; оновити Reown. |

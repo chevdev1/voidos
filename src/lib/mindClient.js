@@ -457,7 +457,7 @@ export function peekMapOwnerships() {
   return _mapOwnsCache
 }
 
-/** Mark a claimed lot as trained after an on-chain $TEST burn (when live). */
+/** Mark a claimed lot as trained after an on-chain $VOID burn (when live). */
 export async function mindTrainLot(constelId, { txHash } = {}) {
   const id = String(constelId || '').trim()
   if (!id) return loadOwnerships()

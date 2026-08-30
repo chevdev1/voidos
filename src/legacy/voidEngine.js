@@ -1006,7 +1006,7 @@ export function initVoidEngine() {
               ? 'RESERVED · ' + shortWallet(taken?.wallet)
               : !hasWallet
                 ? 'connect wallet to claim'
-                : 'claim · burn $TEST'
+                : 'claim · burn $VOID'
           : 'connect wallet to claim';
         buyBtn.disabled =
           !lastTermConstel ||

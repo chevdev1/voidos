@@ -41,12 +41,12 @@ Terminal-decrypt character reveal. `trigger="view"` fires once via `Intersection
 ## 3. Sections, in page order
 
 ### `components/Nav.jsx`
-Fixed header, fades/slides in once (`y:-100→0`, custom ease-out). Real branding now: **VOID.OS** wordmark + logo, links to Map/Concept/Market/Token/FAQ (all via `lenis.scrollTo`), X + Telegram icon links, and a "Buy $EXO" pill that scrolls to `#market`. Nav links use hover-`ScrambleText`.
+Fixed header, fades/slides in once (`y:-100→0`, custom ease-out). Real branding now: **VOID.OS** wordmark + logo, links to Map/Concept/Market/Token/FAQ (all via `lenis.scrollTo`), X + Telegram icon links, and a "Buy $VOID" pill that scrolls to `#market`. Nav links use hover-`ScrambleText`.
 
 ### `components/Hero.jsx` (`id="top"`, full-bleed — sits outside the centered `<main>` so the cosmos panel can still fill the viewport edge-to-edge, matching the original)
 - Left column (`.hero-left`, legacy CSS): live-probe pulse badge, "VOID`.OS`" headline, lede, **CA row** — copy-to-clipboard is now real React state (`useState` + a ✓ flash) instead of vanilla DOM, since it's simple enough not to belong in the legacy engine. CTA row: `Claim a sector ↗` (plain lime pill → `#market`), **`MagneticButton` "What is this?"** (new, → `#concept`), `Follow` / `Telegram` ghost pills.
 - All of the above wrapped in staggered Framer Motion entrances (`opacity`+`y`, ~120ms offsets).
-- Right column: the **cosmos galaxy canvas** (`#cosmosFrame`) — drag to orbit 360°, shift-drag to pan, scroll to zoom, click a "grain" to open the sector terminal, minimap, filter chips (empty/claimed/fed/core/heat/yours), zoom/orbit/spin controls, live "burned forever" $EXO counter. Entirely engine-driven; the React component only renders the shell and fades the panel in once on mount.
+- Right column: the **cosmos galaxy canvas** (`#cosmosFrame`) — drag to orbit 360°, shift-drag to pan, scroll to zoom, click a "grain" to open the sector terminal, minimap, filter chips (empty/claimed/fed/core/heat/yours), zoom/orbit/spin controls, live "burned forever" $VOID counter. Entirely engine-driven; the React component only renders the shell and fades the panel in once on mount.
 
 ### `components/ConceptSection.jsx` (`id="concept"`) — the Lore
 **This replaces both the old thin `#about` "Thesis" cards *and* the old standalone `#core` "28% sealed" section** — those covered the same four ideas (Claim/Transmit/Core/Voice) in a few lines each; the new bento grid covers them in real depth with no duplication. Asymmetric 6-col grid, `whileInView` stagger reveal, slow independent float loops per card, HUD corner-bracket hover. Nav's flow (Map → Concept → Market → Token → FAQ) treats this as the merged replacement, so no nav link points at a separate `#core` anymore.
@@ -55,7 +55,7 @@ Fixed header, fades/slides in once (`y:-100→0`, custom ease-out). Real brandin
 Real content preserved from the original: 4 live stat tiles (price/market cap/liquidity/24h, ticking via the legacy engine's `setInterval`) and the candlestick chart canvas with timeframe buttons (1m/15m/1h/1D). New: the stat tiles and chart panel fade/slide in via `whileInView` with a staggered container — a one-time reveal layered on top of numbers that are *already* live-updating, so no redundant count-up animation here (that would fight the live ticker).
 
 ### `components/TokenomicsSection.jsx` (`id="token"`)
-The 4 static stat tiles (1B supply / $EXO / 50k sectors / 0/0 tax) — these numbers don't tick, so this is where a genuine "make static feel alive" animation earns its keep: each tile pops in with a slight overshoot spring (`scale: 0.85→1`, `stiffness: 260, damping: 20`), staggered 80ms apart.
+The 4 static stat tiles (1B supply / $VOID / 50k sectors / 0/0 tax) — these numbers don't tick, so this is where a genuine "make static feel alive" animation earns its keep: each tile pops in with a slight overshoot spring (`scale: 0.85→1`, `stiffness: 260, damping: 20`), staggered 80ms apart.
 
 ### `components/FAQSection.jsx` (`id="faq"`) — new
 Single-open accordion, `AnimatePresence` + animated `height: 0 → 'auto'`, custom ease-out, `+` icon rotates 45° on open. Placeholder copy avoids unverifiable claims (audit question explicitly says "add your report link here, treat unaudited contracts as high-risk" rather than asserting a fake audit).

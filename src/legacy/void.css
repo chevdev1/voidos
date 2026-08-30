@@ -959,7 +959,7 @@ body.arena-live .void-toast.claim.show{
 
 /* Map chrome sits at z-index 5100 (above the landing nav). When a lot is
    selected the drawer must cover that cluster — otherwise cabinet / Buy
-   $TEST / wallet paint on top of the lot title. */
+   $VOID / wallet paint on top of the lot title. */
 body.term-open .term{z-index:5200}
 
 @media (min-width: 961px) {

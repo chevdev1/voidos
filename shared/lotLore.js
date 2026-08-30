@@ -94,7 +94,7 @@ const FEELS = [
 
 const TRAIN = [
   'feed it short signals — questions, names, intent.',
-  'train with $TEST fuel when you want this patch to speak louder.',
+  'train with $VOID fuel when you want this patch to speak louder.',
   'leave it quiet and it stays a dark weight in the mind.',
   'stack neighboring lots and the voice thickens.',
 ]

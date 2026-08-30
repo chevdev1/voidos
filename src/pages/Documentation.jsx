@@ -30,7 +30,7 @@ const SECTIONS = [
   },
   {
     id: 'acquisition',
-    label: 'Acquisition ($TEST)',
+    label: 'Acquisition ($VOID)',
     tag: '02',
     body: (
       <>
@@ -44,11 +44,11 @@ const SECTIONS = [
         <p className="mt-4">
           Every payment is <b className="text-white">permanently burned</b> on capture — there is
           no treasury, no team wallet collecting the proceeds. Each sector claimed forever reduces
-          the total $TEST supply.
+          the total $VOID supply.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Live site: claiming a lot burns $TEST per lot to the
-          dead address on Robinhood Chain. Buy $TEST on Dex, connect the wallet, then claim on the
+          Live site: claiming a lot burns $VOID per lot to the
+          dead address on Robinhood Chain. Buy $VOID on Dex, connect the wallet, then claim on the
           map.
         </p>
       </>
@@ -68,12 +68,12 @@ const SECTIONS = [
           signal.
         </p>
         <p className="mt-4">
-          Every publication and every retraining pass burns <b className="text-lime">$TEST</b> as
+          Every publication and every retraining pass burns <b className="text-lime">$VOID</b> as
           fuel. Ownership of a sector is eternal — nothing can revoke it — but transmitting a new
           signal into it always costs something. Silence is free. Influence isn't.
         </p>
         <p className="mt-4 border border-lime/25 bg-lime/5 px-3 py-2 text-[12px] text-lime/90">
-          Use <b>Train lot</b> in CABINET to burn $TEST (same amount as one claim) and mark
+          Use <b>Train lot</b> in CABINET to burn $VOID (same amount as one claim) and mark
           the lot as fed on the map.
         </p>
       </>
@@ -243,7 +243,7 @@ function DocumentationContent() {
             </h1>
             <p className="mt-3 max-w-xl font-mono text-[13px] leading-relaxed text-gray-400">
               The reference manual for the probe, the lots, and the fuel that runs both. Claim burns
-              $TEST on Robinhood Chain. Train a claimed lot in CABINET to mark it as fed.
+              $VOID on Robinhood Chain. Train a claimed lot in CABINET to mark it as fed.
             </p>
           </motion.div>
 

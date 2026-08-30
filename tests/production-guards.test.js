@@ -1,5 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import {
   isValidLotId,
   lotBookStats,
@@ -43,7 +45,7 @@ test('session cookie is signed and guest key comes from cookie', () => {
 })
 
 test('claim intent protects and atomically finalizes a paid batch', async () => {
-  process.env.TURSO_DATABASE_URL = `file:C:/Users/yoiso/AppData/Local/Temp/voidos-test-${Date.now()}.db`
+  process.env.TURSO_DATABASE_URL = `file:${join(tmpdir(), `voidos-test-${Date.now()}.db`).replace(/\\/g, '/')}`
   const user = await getOrCreateUser(`intent_test_${Date.now()}`)
   const linked = await linkWallet(user.id, '0x4444444444444444444444444444444444444444')
   const intent = await createClaimIntent(linked.id, [{ id: 'C8', name: 'safe' }])

@@ -155,7 +155,7 @@ export function Hero() {
           className="ca-row"
         >
           <div className="ca-box" id="ca" title={caLive ? CA : 'Contract / mint not live yet'}>
-            {caLive ? `$TEST · ${CA}` : 'CA TBA · mint not live'}
+            {caLive ? `$VOID · ${CA}` : 'CA TBA · mint not live'}
           </div>
           <motion.button
             whileTap={{ scale: caLive ? 0.94 : 1 }}

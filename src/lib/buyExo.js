@@ -1,5 +1,5 @@
 /**
- * $TEST buy helpers. Trust in-app browser freezes on window.open / target=_blank.
+ * $VOID buy helpers. Trust in-app browser freezes on window.open / target=_blank.
  */
 
 import { DEFAULT_DEX_URL, DEFAULT_EXO_TOKEN, DEFAULT_GECKO_URL } from '../../shared/rhChain.js'

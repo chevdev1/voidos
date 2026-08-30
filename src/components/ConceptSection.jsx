@@ -120,7 +120,7 @@ export function ConceptSection() {
           </p>
           <p className="mt-4">
             Ownership is forever. Transmitting new signals — every publication, every
-            retraining — burns <b className="text-lime">$TEST</b> as fuel.
+            retraining — burns <b className="text-lime">$VOID</b> as fuel.
           </p>
         </CardShell>
 

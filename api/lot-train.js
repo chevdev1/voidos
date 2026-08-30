@@ -37,7 +37,7 @@ export default async function handler(req, res) {
       txHash = String(body.txHash || body.hash || '').trim()
       if (!txHash) {
         return res.status(403).json({
-          error: 'paid train only — burn $TEST, then send the tx hash',
+          error: 'paid train only — burn $VOID, then send the tx hash',
           code: 'TRAIN_PAID_ONLY',
         })
       }

@@ -92,6 +92,7 @@ export async function fetchTokenMarket(tfKey = '15m') {
   }
 
   const pool = poolAddress()
+  if (!pool) throw new Error('no market pool configured')
   const base = `https://api.geckoterminal.com/api/v2/networks/${GECKO_NETWORK}/pools/${pool}`
   const headers = { Accept: 'application/json', 'User-Agent': 'void-os-market' }
 
@@ -125,7 +126,7 @@ export async function fetchTokenMarket(tfKey = '15m') {
     liq: num(a.reserve_in_usd),
     chg24: num(a.price_change_percentage?.h24),
     series,
-    symbol: 'TEST',
+    symbol: 'VOID',
     pool,
   }
   _cacheAt = now

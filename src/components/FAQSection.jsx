@@ -8,15 +8,15 @@ const SPRING = { type: 'spring', duration: 0.4, bounce: 0 }
 const FAQS = [
   {
     q: 'How do I claim a constellation lot?',
-    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns $TEST per lot.',
+    a: 'Connect Robinhood Wallet from the wallet menu in the nav. CABINET appears only after connect. Then open the full map, select lots, and claim. Each constellation can be owned by only one wallet — after claim others see RESERVED. Claim burns $VOID per lot.',
   },
   {
-    q: 'What happens if I sell my $TEST?',
-    a: 'Lot ownership and $TEST balance are separate. Selling $TEST does not revoke lots you already claimed. Training later can still burn $TEST as fuel — silence stays free.',
+    q: 'What happens if I sell my $VOID?',
+    a: 'Lot ownership and $VOID balance are separate. Selling $VOID does not revoke lots you already claimed. Training later can still burn $VOID as fuel — silence stays free.',
   },
   {
     q: 'Is the smart contract audited?',
-    a: 'No audited claim contract is required: lots are paid by burning $TEST. Treat unaudited tokens as high-risk. Check the CA on official Dex / Blockscout links.',
+    a: 'No audited claim contract is required: lots are paid by burning $VOID. Treat unaudited tokens as high-risk. Check the CA on official Dex / Blockscout links.',
   },
   {
     q: 'What is the Immutable Core?',
@@ -28,7 +28,7 @@ const FAQS = [
   },
   {
     q: 'How does training work?',
-    a: 'In CABINET, open a claimed lot and use Train lot. That burns $TEST (same amount as one claim) to the dead address, then marks the lot as fed on the map. Silence / chat stays free.',
+    a: 'In CABINET, open a claimed lot and use Train lot. That burns $VOID (same amount as one claim) to the dead address, then marks the lot as fed on the map. Silence / chat stays free.',
   },
 ]
 

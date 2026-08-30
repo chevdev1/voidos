@@ -362,7 +362,7 @@ app.post('/api/lot-train', async (req, res) => {
       txHash = String(req.body?.txHash || req.body?.hash || '').trim()
       if (!txHash) {
         return res.status(403).json({
-          error: 'paid train only — burn $TEST, then send the tx hash',
+          error: 'paid train only — burn $VOID, then send the tx hash',
           code: 'TRAIN_PAID_ONLY',
         })
       }

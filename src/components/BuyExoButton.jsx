@@ -10,13 +10,13 @@ import {
 import { isTrustInjected } from '../lib/rhWallets'
 
 /**
- * Buy $TEST. On Trust / phone: pause the map and stay in this tab — Dex popups freeze Trust.
+ * Buy $VOID. On Trust / phone: pause the map and stay in this tab — Dex popups freeze Trust.
  */
 export function BuyExoButton({
   className = '',
   filled = true,
   onFallback,
-  label = 'Buy $TEST',
+  label = 'Buy $VOID',
 }) {
   const dex = useMemo(() => getDexUrl(), [])
   const gecko = useMemo(() => getGeckoUrl(), [])
@@ -77,7 +77,7 @@ export function BuyExoButton({
 
   return (
     <span className="relative inline-flex max-w-full flex-col items-stretch">
-      <button type="button" onClick={onClick} className={`${base} ${className}`} title="Buy $TEST">
+      <button type="button" onClick={onClick} className={`${base} ${className}`} title="Buy $VOID">
         {label}
       </button>
       {note ? (
@@ -91,10 +91,10 @@ export function BuyExoButton({
           <div
             className="w-full max-w-sm border border-lime/40 bg-black p-4"
             role="dialog"
-            aria-label="Buy $TEST"
+            aria-label="Buy $VOID"
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <p className="text-[10px] uppercase tracking-[0.2em] text-lime">buy $TEST</p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-lime">buy $VOID</p>
               <button type="button" className="min-h-10 min-w-10 text-muted" onClick={closeSheet}>
                 ✕
               </button>

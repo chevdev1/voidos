@@ -130,7 +130,7 @@ export function Nav() {
           <AccountMenu />
           <BuyExoButton
             filled
-            label="Buy $TEST"
+            label="Buy $VOID"
             onFallback={() => goHash('#market')}
             className="!px-2.5 !py-2 !text-[10px] sm:!px-3"
           />

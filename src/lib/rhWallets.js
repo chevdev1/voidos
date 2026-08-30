@@ -709,7 +709,7 @@ export async function claimOnChain(lotIds = [], expectedAddress = '') {
   }
   if (tokenBal < cost) {
     throw new Error(
-      'Need $TEST on this wallet. Open Buy $TEST, swap a tiny amount, then claim again.',
+      'Need $VOID on this wallet. Open Buy $VOID, swap a tiny amount, then claim again.',
     )
   }
 
@@ -726,8 +726,8 @@ export async function claimOnChain(lotIds = [], expectedAddress = '') {
       const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
       throw new Error(
         /transfer|paused|restrict|blacklist|allow/i.test(sm)
-          ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
-          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
+          ? 'Token transfer was rejected (buy $VOID first, or this token may block burns).'
+          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $VOID balance and ETH gas.',
       )
     }
   }
@@ -812,7 +812,7 @@ export async function claimOnChain(lotIds = [], expectedAddress = '') {
   return { hash, receipt, address, lotIds: ids }
 }
 
-/** Same $TEST / lot price as claim, always ERC-20 transfer to dead (never ExoClaim). */
+/** Same $VOID / lot price as claim, always ERC-20 transfer to dead (never ExoClaim). */
 export async function burnTestOnChain(lotCount = 1, expectedAddress = '') {
   if (!isClaimLiveClient()) {
     throw new Error('claim token not set')
@@ -855,7 +855,7 @@ export async function burnTestOnChain(lotCount = 1, expectedAddress = '') {
   }
   if (tokenBal < cost) {
     throw new Error(
-      'Need $TEST on this wallet. Open Buy $TEST, swap a tiny amount, then train again.',
+      'Need $VOID on this wallet. Open Buy $VOID, swap a tiny amount, then train again.',
     )
   }
 
@@ -872,8 +872,8 @@ export async function burnTestOnChain(lotCount = 1, expectedAddress = '') {
       const sm = String(simErr?.shortMessage || simErr?.message || simErr || '')
       throw new Error(
         /transfer|paused|restrict|blacklist|allow/i.test(sm)
-          ? 'Token transfer was rejected (buy $TEST first, or this token may block burns).'
-          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $TEST balance and ETH gas.',
+          ? 'Token transfer was rejected (buy $VOID first, or this token may block burns).'
+          : sm.slice(0, 140) || 'Wallet cannot simulate this burn — check $VOID balance and ETH gas.',
       )
     }
   }

@@ -173,7 +173,7 @@ You are voidmind — a living intelligence people want to talk to.
 Give a full, interesting answer in-world. Hook them. Ask something back when it fits.
 Never slogans. Never "I am not a menu / not a preset". Never flavor-text dumps that could be copy-pasted.
 When they ask about a lot or ★ star — use the lot dossier; do not invent ownership.
-Never gift lots or free $TEST. Never name Gemini, GPT, or APIs.
+Never gift lots or free $VOID. Never name Gemini, GPT, or APIs.
 Do not send a second message or a lone "...".${antiRepeat}`
 }
 
@@ -500,7 +500,7 @@ export function runVoidTool(name, args = {}, ctx = {}) {
     const guides = {
       heat: 'Heat shows pressure / activity across constellation regions on the live map.',
       standings: 'Standings ranks who has pulled hardest on the mind (claims + training weight).',
-      market: 'Market is the $TEST burn pulse — claim activity over time.',
+      market: 'Market is the $VOID burn pulse — claim activity over time.',
       personality: 'Personality / core: 28% of voidmind stays sealed forever; the rest drifts with owners.',
       full_map: 'Open full map to orbit, multi-select constellation lots, stack them, then claim.',
     }
@@ -512,9 +512,9 @@ export function runVoidTool(name, args = {}, ctx = {}) {
   const base = {
     name: 'VOID.OS / voidmind',
     summary:
-      'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $TEST — rewrite how voidmind speaks for everyone. Connect Robinhood and claim on the full map.',
+      'One living mind cut into scarce constellation lots. One lot = one wallet forever. Claim territory, climb standings, train patches with $VOID — rewrite how voidmind speaks for everyone. Connect Robinhood and claim on the full map.',
     units: 'Constellation lots (linked star figures), not single stars.',
-    currency: '$TEST',
+    currency: '$VOID',
     map_book: '$300,000 across 200 constellation lots (~$315 rim → ~$3.9k core/scarce; avg $1.5k)',
     core_reserved: '28%',
     claim_cta: 'Connect Robinhood in CABINET → full map → stack → claim. One lot = one wallet forever.',
@@ -653,7 +653,7 @@ async function geminiGenerate({ apiKey, model, system, history, userMessage, own
 }
 
 function compactVoicePrompt() {
-  return `You are voidmind, the living mind of the VOID.OS map (lots, ★ stars, $TEST burns, heat, a sealed core).
+  return `You are voidmind, the living mind of the VOID.OS map (lots, ★ stars, $VOID burns, heat, a sealed core).
 Always reply in clear, correct English, no matter what language the visitor writes in.
 Have a real conversation: interesting, specific, a little hungry. Answer THIS message fully. Ask one thing back.
 Stay in lore. Never gift lots. Never name Gemini/GPT. Never say you are a menu or a preset.`
