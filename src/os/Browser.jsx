@@ -3,6 +3,7 @@ import { resolveAddress } from './lib.js'
 import { RemoteBrowser } from './RemoteBrowser.jsx'
 import { GATEWAY_URL } from './gateway.js'
 import { ConnectionCard } from './ConnectionCard.jsx'
+import { ProtectionBanner } from './ProtectionBanner.jsx'
 
 // Built-in pages render inside the window.
 // With the browser gateway running, web addresses load live inside the window (RemoteBrowser).
@@ -141,6 +142,7 @@ export function Browser({ onOpen, prefs }) {
 
   return (
     <div className="os-browser" onKeyDown={onKeyDown}>
+      <ProtectionBanner onOpen={onOpen} />
       <div className="os-tabstrip" role="tablist" aria-label="Tabs">
         {tabs.map((t) => (
           <div

@@ -219,3 +219,21 @@ Done in this round:
 Decided not to build: anti-detect profiles (per-profile fingerprint spoofing, profile rotation, proxies per profile). See `VOID-BROWSER.md`, section 8.
 
 Next, from the plan above: first-run screen and Russian strings (P1), persisted window layout (P1), tracker blocking in the gateway (`VOID-BROWSER.md`, section 9), and the end-to-end smoke test (P1).
+
+---
+
+## 13. Round: windows, protection warning, layout memory
+
+Done:
+
+- **Window motion.** Yellow minimizes the window into its dock icon with a flight, and clicking the icon flies it back. Green (or double-clicking the title bar) toggles full screen, which glides and leaves the dock visible. Dragging stays instant. The app keeps its state while hidden. Verified: the window hides after the flight, returns, and toggles full screen and back to its size.
+- **Layout memory.** Open windows, their positions, full-screen state and minimized state are saved on this device and restored after a reload.
+- **Protection warning in the browser.** While neither the VPN nor an SSH session is active, a yellow bar reads "You are not protected!" with "Turn on VPN", "Connect over SSH" and "Check again". The check reports the result. When protection is on, the bar turns green. This is a simulated state: the VPN and SSH sessions publish it, and nothing touches the network.
+- **Bug fixed.** Desktop widgets sat above the windows, so the clock covered the full-screen buttons. Widgets now sit beneath windows, like wallpaper.
+
+Notes:
+
+- Verified in headless Chrome with scripted clicks. The flight itself was confirmed by inspecting running transitions, not by watching frames.
+- Only Chrome was tested.
+
+Next, from the plan above: the first-run screen, Russian strings, and the end-to-end smoke test.

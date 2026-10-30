@@ -9,7 +9,7 @@ import { Pulse } from './Pulse.jsx'
 import { WifiCheck } from './WifiCheck.jsx'
 import { Settings } from './Settings.jsx'
 import { XApp } from './XApp.jsx'
-import { AppBoundary } from './AppBoundary.jsx'
+import { WindowFrame } from './WindowFrame.jsx'
 import { CodeApp } from './code/CodeApp.jsx'
 import { AppTile } from './AppTile.jsx'
 import { readPrefs } from './prefs.js'
@@ -24,7 +24,6 @@ import {
   InspectorIcon,
   NetworkIcon,
   SettingsIcon,
-  CloseIcon,
   CodeIcon,
   TerminalIcon,
   VpnIcon,
@@ -55,6 +54,7 @@ const APPS = {
   wifi: { title: 'Wi-Fi Check', w: 480, h: 560, tint: '#7fc0ff', grad: ["#6cc0ff","#2a7ae0"], Icon: WifiIcon, Component: WifiCheck },
 }
 const DOCK = ['browser', 'vpn', 'mac', 'terminal', 'code', 'ai', 'wallet', 'market', 'pulse', 'inspector', 'wifi', 'x', 'network', 'settings']
+const LAYOUT_KEY = 'void-os-layout'
 const BOOT_LINES = [
   'kernel: loading',
   'mounting constellations',
@@ -66,13 +66,31 @@ const BOOT_LINES = [
 
 // ---------- window state ----------
 
+function readLayout() {
+  try {
+    const list = JSON.parse(localStorage.getItem(LAYOUT_KEY) || '[]')
+    return Array.isArray(list) ? list.filter((w) => w && typeof w.app === 'string' && Number.isFinite(w.x) && Number.isFinite(w.y)) : []
+  } catch {
+    return []
+  }
+}
+
+function writeLayout(wins) {
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(wins.map(({ app, x, y, min, max }) => ({ app, x, y, min, max }))))
+  } catch {
+    /* storage full or disabled: the layout simply is not remembered */
+  }
+}
+
+
 function openWindow(state, app, payload) {
   const z = state.z + 1
   const existing = state.wins.find((w) => w.app === app)
   if (existing) {
     return {
       z,
-      wins: state.wins.map((w) => (w.app === app ? { ...w, z, payload: payload ?? w.payload, minimized: false } : w)),
+      wins: state.wins.map((w) => (w.app === app ? { ...w, z, payload: payload ?? w.payload, min: false } : w)),
     }
   }
   const n = state.wins.length
@@ -82,7 +100,7 @@ function openWindow(state, app, payload) {
   // Open to the right of the widget column, cascading down.
   const x = Math.max(12, Math.min(380 + n * 28, vw - w - 12))
   const y = Math.max(44, Math.min(84 + n * 24, vh - h - 110))
-  return { z, wins: [...state.wins, { app, x, y, z, payload }] }
+  return { z, wins: [...state.wins, { app, x, y, z, payload, min: false, max: false }] }
 }
 
 function reducer(state, action) {
@@ -93,85 +111,22 @@ function reducer(state, action) {
       return { ...state, z: state.z + 1, wins: state.wins.map((w) => (w.app === action.app ? { ...w, z: state.z + 1 } : w)) }
     case 'move':
       return { ...state, wins: state.wins.map((w) => (w.app === action.app ? { ...w, x: action.x, y: action.y } : w)) }
+    case 'min':
+      return { ...state, wins: state.wins.map((w) => (w.app === action.app ? { ...w, min: true } : w)) }
+    case 'max':
+      return { ...state, wins: state.wins.map((w) => (w.app === action.app ? { ...w, max: !w.max, z: state.z + 1 } : w)), z: state.z + 1 }
+    case 'restore': {
+      // Rebuild the windows saved on the last visit. Unknown apps are skipped.
+      const wins = action.wins
+        .filter((w) => APPS[w.app])
+        .map((w, i) => ({ app: w.app, x: w.x, y: w.y, z: i + 1, payload: undefined, min: Boolean(w.min), max: Boolean(w.max) }))
+      return { z: wins.length, wins }
+    }
     case 'close':
       return { ...state, wins: state.wins.filter((w) => w.app !== action.app) }
     default:
       return state
   }
-}
-
-// ---------- window chrome ----------
-
-function WindowFrame({ win, active, onFocus, onClose, onMove, children }) {
-  const app = APPS[win.app]
-  const drag = useRef(null)
-  const [closing, setClosing] = useState(false)
-  const narrow = typeof window !== 'undefined' && window.innerWidth < 700
-
-  // Play the close animation first, then remove the window from state.
-  const requestClose = () => {
-    if (closing) return
-    setClosing(true)
-    setTimeout(onClose, 200)
-  }
-
-  const onPointerDown = (e) => {
-    if (narrow || e.target.closest('button')) return
-    onFocus()
-    drag.current = { sx: e.clientX, sy: e.clientY, ox: win.x, oy: win.y }
-    e.currentTarget.setPointerCapture(e.pointerId)
-  }
-  const onPointerMove = (e) => {
-    if (!drag.current) return
-    const { sx, sy, ox, oy } = drag.current
-    const x = Math.max(8, Math.min(ox + e.clientX - sx, window.innerWidth - 120))
-    const y = Math.max(36, Math.min(oy + e.clientY - sy, window.innerHeight - 80))
-    onMove(x, y)
-  }
-  const onPointerUp = () => {
-    drag.current = null
-  }
-
-  const { Icon } = app
-  return (
-    <section
-      className={`os-window ${active ? 'is-active' : ''} ${closing ? 'is-closing' : ''}`}
-      style={{
-        left: narrow ? 8 : win.x,
-        top: narrow ? 44 : win.y,
-        width: narrow ? 'calc(100vw - 16px)' : app.w,
-        height: narrow ? 'calc(100vh - 150px)' : app.h,
-        zIndex: 10 + win.z,
-        '--tint': app.tint,
-      }}
-      onMouseDown={onFocus}
-      aria-label={app.title}
-    >
-      <header
-        className="os-window-bar"
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
-      >
-        <div className="os-lights">
-          <button className="os-light os-light-red" aria-label={`Close ${app.title}`} onClick={requestClose}>
-            <CloseIcon />
-          </button>
-          <span className="os-light os-light-yellow" aria-hidden="true" />
-          <span className="os-light os-light-green" aria-hidden="true" />
-        </div>
-        <div className="os-window-title">
-          <AppTile Icon={Icon} grad={app.grad} size="sm" />
-          {app.title}
-        </div>
-        <span className="os-window-spacer" aria-hidden="true" />
-      </header>
-      <div className="os-window-body">
-        <AppBoundary name={app.title} onClose={requestClose}>{children}</AppBoundary>
-      </div>
-    </section>
-  )
 }
 
 // ---------- chrome ----------
@@ -348,7 +303,9 @@ export default function OsDemo() {
     setExiting(true)
     setTimeout(() => {
       setBooted(true)
-      dispatch({ type: 'open', app: 'welcome' })
+      const saved = readLayout()
+      if (saved.length) dispatch({ type: 'restore', wins: saved })
+      else dispatch({ type: 'open', app: 'welcome' })
     }, 420)
   }, [])
 
@@ -358,8 +315,12 @@ export default function OsDemo() {
     document.title = 'VOID.OS · demo'
   }, [])
 
+  useEffect(() => {
+    if (booted) writeLayout(state.wins)
+  }, [state.wins, booted])
+
   // Cmd/Ctrl+K opens Spotlight. Esc closes Spotlight first, otherwise the top window.
-  const topApp = state.wins.reduce((a, w) => (a === null || w.z > a.z ? w : a), null)
+  const topApp = state.wins.filter((w) => !w.min).reduce((a, w) => (a === null || w.z > a.z ? w : a), null)
   const topZ = topApp ? topApp.z : -1
   useEffect(() => {
     const onKey = (e) => {
@@ -401,10 +362,13 @@ export default function OsDemo() {
               <WindowFrame
                 key={win.app}
                 win={win}
-                active={win.z === topZ}
+                app={APPS[win.app]}
+                active={win.z === topZ && !win.min}
                 onFocus={() => dispatch({ type: 'focus', app: win.app })}
                 onClose={() => dispatch({ type: 'close', app: win.app })}
                 onMove={(x, y) => dispatch({ type: 'move', app: win.app, x, y })}
+                onMinimize={() => dispatch({ type: 'min', app: win.app })}
+                onToggleMax={() => dispatch({ type: 'max', app: win.app })}
               >
                 <Component payload={win.payload} onOpen={open} prefs={prefs} setPrefs={setPrefs} />
               </WindowFrame>

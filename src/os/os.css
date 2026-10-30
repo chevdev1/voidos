@@ -722,7 +722,7 @@
   position: absolute;
   top: 44px;
   left: 16px;
-  z-index: 300;
+  z-index: 5;
   width: 232px;
   display: flex;
   flex-direction: column;
@@ -1677,7 +1677,7 @@
 /* ---------- windows ---------- */
 
 .os-window {
-  animation: os-win-in 0.36s var(--os-ease-spring) both;
+  animation: os-win-in 0.36s var(--os-ease-spring) backwards;
   transform-origin: 50% 100%;
 }
 
@@ -2890,4 +2890,139 @@
   .os-settings-value {
     text-align: left;
   }
+}
+
+/* ---------- window motion: maximize glides, dragging stays instant ---------- */
+
+.os-window {
+  transition:
+    left 0.32s var(--os-ease-out),
+    top 0.32s var(--os-ease-out),
+    width 0.32s var(--os-ease-out),
+    height 0.32s var(--os-ease-out),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.os-window.is-dragging {
+  transition: none;
+}
+
+.os-window.is-max {
+  border-radius: 10px;
+}
+
+.os-window .os-light-yellow,
+.os-window .os-light-green {
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.os-window .os-light-yellow:hover {
+  filter: brightness(1.15);
+}
+
+.os-window .os-light-green:disabled {
+  cursor: default;
+}
+
+.os-window[aria-hidden='true'] {
+  pointer-events: none;
+}
+
+/* ---------- protection banner (browser) ---------- */
+
+.os-protect {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--os-line-2);
+  flex-wrap: wrap;
+  animation: os-line-in 0.35s var(--os-ease-out) both;
+}
+
+.os-protect.is-open {
+  background: linear-gradient(90deg, rgba(242, 201, 76, 0.22), rgba(242, 153, 74, 0.12));
+  border-bottom-color: rgba(242, 201, 76, 0.55);
+  color: #ffe7a3;
+}
+
+.os-protect.is-ok {
+  background: rgba(79, 209, 165, 0.1);
+  color: var(--os-ok);
+}
+
+.os-protect-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--os-ok);
+  box-shadow: 0 0 10px var(--os-ok);
+  flex: none;
+}
+
+.os-protect-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.os-protect-text b {
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  color: #ffd66b;
+}
+
+.os-protect-still {
+  color: #ffb4a8;
+}
+
+.os-protect-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  color: var(--os-muted);
+  font-family: 'IBM Plex Mono', monospace;
+}
+
+.os-protect-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.os-root .os-protect-btn {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 107, 0.6);
+  background: #ffd66b;
+  color: #1a1400;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s ease, filter 0.2s ease;
+}
+
+.os-root .os-protect-btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.os-root .os-protect-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.os-root .os-protect-btn.is-ghost {
+  background: transparent;
+  color: #ffe7a3;
+}
+
+.os-root .os-protect-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
 }

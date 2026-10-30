@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { setProtection, getProtection } from './protection.js'
 
 // Simulated tunnel. Endpoints use the RFC 5737 documentation range, so nothing here is a real server.
 const SERVERS = [
@@ -39,6 +40,16 @@ export function Vpn({ payload }) {
   const [spark, setSpark] = useState(() => Array.from({ length: SPARK_POINTS }, () => 0.4))
   const [killSwitch, setKillSwitch] = useState(true)
   const timers = useRef([])
+
+  // Publish the state so the browser can warn when nothing protects the session.
+  useEffect(() => {
+    if (phase === 'on') setProtection('vpn')
+    else if (phase === 'connecting') setProtection('connecting')
+    else if (getProtection() === 'vpn' || getProtection() === 'connecting') setProtection('off')
+  }, [phase])
+  useEffect(() => () => {
+    if (getProtection() === 'vpn' || getProtection() === 'connecting') setProtection('off')
+  }, [])
 
   const later = (fn, ms) => timers.current.push(setTimeout(fn, ms))
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { setProtection, getProtection } from './protection.js'
 import { MatrixRain } from './MatrixRain.jsx'
 import { loadTrending } from './useTrending.js'
 import { formatCompactUsd, formatPercent } from './lib.js'
@@ -54,6 +55,14 @@ export function Terminal({ payload, onOpen }) {
   const [lines, setLines] = useState(() => [])
   const [input, setInput] = useState('')
   const [mode, setMode] = useState({ kind: 'local' })
+  // An SSH session counts as protection while it is open.
+  useEffect(() => {
+    if (mode.kind === 'ssh') setProtection('ssh')
+    else if (getProtection() === 'ssh') setProtection('off')
+  }, [mode.kind])
+  useEffect(() => () => {
+    if (getProtection() === 'ssh') setProtection('off')
+  }, [])
   const [busy, setBusy] = useState(false)
   const [matrix, setMatrix] = useState(null)
   const scroller = useRef(null)
