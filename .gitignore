@@ -39,3 +39,6 @@ tmp-shots
 .env.*.local
 !.env.example
 !server/.env.example
+
+# Browser gateway
+gateway/node_modules

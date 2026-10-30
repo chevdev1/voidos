@@ -195,6 +195,10 @@ export function Hero() {
           <button type="button" className="btn-ghost" onClick={openFullMap}>
             Open full map
           </button>
+
+          <a className="btn-ghost" href="/os" target="_blank" rel="noopener noreferrer">
+            Try VOID.OS ↗
+          </a>
         </motion.div>
 
         <motion.p

@@ -1,0 +1,18 @@
+{
+  "name": "void-browser-gateway",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Streams a real Chromium page into the VOID.OS browser window.",
+  "scripts": {
+    "start": "node index.mjs",
+    "test": "node --test safety.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "puppeteer-core": "^23.11.1",
+    "ws": "^8.22.0"
+  }
+}
