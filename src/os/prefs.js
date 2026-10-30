@@ -15,6 +15,7 @@ export function defaults() {
     dockMagnify: true, // icons grow under the pointer
     motion: true, // all animation (also off under the system reduced-motion setting)
     reduceTransparency: false, // solid panels instead of blur
+    sounds: true, // soft clicks and window sounds
     textSize: 'md', // sm | md | lg
     browserHome: 'void://start', // page a new browser window starts on
   }

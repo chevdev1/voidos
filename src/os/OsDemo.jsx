@@ -10,6 +10,11 @@ import { WifiCheck } from './WifiCheck.jsx'
 import { Settings } from './Settings.jsx'
 import { XApp } from './XApp.jsx'
 import { WindowFrame } from './WindowFrame.jsx'
+import { Player } from './Player.jsx'
+import { setSoundsEnabled, clickSoft } from './sound.js'
+import { getPlayer, subscribePlayer, nowPlaying } from './player.js'
+import { PlayerIcon } from './icons.jsx'
+import { useSyncExternalStore } from 'react'
 import { CodeApp } from './code/CodeApp.jsx'
 import { AppTile } from './AppTile.jsx'
 import { readPrefs } from './prefs.js'
@@ -49,11 +54,12 @@ const APPS = {
   settings: { title: 'Settings', w: 660, h: 500, tint: '#c3cad4', grad: ["#c9ced8","#7d8594"], Icon: SettingsIcon, Component: Settings },
   mac: { title: 'MAC Changer', w: 480, h: 540, tint: '#f2994a', grad: ["#ffb34d","#f2701a"], Icon: MacIcon, Component: MacChanger },
   pulse: { title: 'Pulse', w: 520, h: 520, tint: '#4fd1a5', grad: ["#ff7090","#d6284d"], Icon: PulseIcon, Component: Pulse },
+  player: { title: 'Player', w: 460, h: 540, tint: '#ffd66b', grad: ['#ffd66b', '#e0a22e'], Icon: PlayerIcon, Component: Player },
   code: { title: 'VOID.CODE', w: 900, h: 580, tint: '#4aa3ff', grad: ['#4aa3ff', '#1565c0'], Icon: CodeIcon, Component: CodeApp },
   x: { title: 'X', w: 440, h: 540, tint: '#f0f0f0', grad: ["#3a3a3f","#000000"], Icon: XIcon, Component: XApp },
   wifi: { title: 'Wi-Fi Check', w: 480, h: 560, tint: '#7fc0ff', grad: ["#6cc0ff","#2a7ae0"], Icon: WifiIcon, Component: WifiCheck },
 }
-const DOCK = ['browser', 'vpn', 'mac', 'terminal', 'code', 'ai', 'wallet', 'market', 'pulse', 'inspector', 'wifi', 'x', 'network', 'settings']
+const DOCK = ['browser', 'vpn', 'mac', 'terminal', 'code', 'ai', 'wallet', 'market', 'player', 'pulse', 'inspector', 'wifi', 'x', 'network', 'settings']
 const LAYOUT_KEY = 'void-os-layout'
 const BOOT_LINES = [
   'kernel: loading',
@@ -77,7 +83,7 @@ function readLayout() {
 
 function writeLayout(wins) {
   try {
-    localStorage.setItem(LAYOUT_KEY, JSON.stringify(wins.map(({ app, x, y, min, max }) => ({ app, x, y, min, max }))))
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(wins.map(({ app, x, y, w, h, min, max }) => ({ app, x, y, w, h, min, max }))))
   } catch {
     /* storage full or disabled: the layout simply is not remembered */
   }
@@ -119,9 +125,11 @@ function reducer(state, action) {
       // Rebuild the windows saved on the last visit. Unknown apps are skipped.
       const wins = action.wins
         .filter((w) => APPS[w.app])
-        .map((w, i) => ({ app: w.app, x: w.x, y: w.y, z: i + 1, payload: undefined, min: Boolean(w.min), max: Boolean(w.max) }))
+        .map((w, i) => ({ app: w.app, x: w.x, y: w.y, w: w.w, h: w.h, z: i + 1, payload: undefined, min: Boolean(w.min), max: Boolean(w.max) }))
       return { z: wins.length, wins }
     }
+    case 'resize':
+      return { ...state, wins: state.wins.map((w) => (w.app === action.app ? { ...w, w: action.w ?? undefined, h: action.h ?? undefined } : w)) }
     case 'close':
       return { ...state, wins: state.wins.filter((w) => w.app !== action.app) }
     default:
@@ -130,6 +138,19 @@ function reducer(state, action) {
 }
 
 // ---------- chrome ----------
+
+// Menu bar readout while music plays. Click it to open the player.
+function NowPlaying({ onOpen }) {
+  const p = useSyncExternalStore(subscribePlayer, getPlayer, getPlayer)
+  const title = nowPlaying(p)
+  if (!title) return null
+  return (
+    <button className="os-menu-btn os-nowplaying" onClick={() => onOpen('player')} aria-label={`Now playing ${title}. Open player`}>
+      ♪ {title}
+    </button>
+  )
+}
+
 
 function MenuBar({ onOpen, onSpotlight }) {
   const [now, setNow] = useState(() => new Date())
@@ -168,6 +189,7 @@ function MenuBar({ onOpen, onSpotlight }) {
       </div>
       <div className="os-menubar-right">
         <button className="os-menu-btn os-kbd" onClick={onSpotlight} aria-label="Open Spotlight">⌘K</button>
+        <NowPlaying onOpen={onOpen} />
         <span className="os-status"><i className="os-dot os-dot-ok" />Robinhood 4663</span>
         <span className="os-status"><i className="os-dot os-dot-warn" />Tor · sim</span>
         <time dateTime={now.toISOString()}>
@@ -319,6 +341,20 @@ export default function OsDemo() {
     if (booted) writeLayout(state.wins)
   }, [state.wins, booted])
 
+  useEffect(() => {
+    setSoundsEnabled(prefs.sounds !== false)
+  }, [prefs.sounds])
+
+  // Soft tick on every press of a button, tab or dock icon. Pointer-down in the capture phase, so it always fires.
+  useEffect(() => {
+    const onDown = (e) => {
+      const t = e.target
+      if (t instanceof Element && t.closest('.os-root button, .os-root [role="tab"], .os-root .os-dock-item')) clickSoft()
+    }
+    document.addEventListener('pointerdown', onDown, true)
+    return () => document.removeEventListener('pointerdown', onDown, true)
+  }, [])
+
   // Cmd/Ctrl+K opens Spotlight. Esc closes Spotlight first, otherwise the top window.
   const topApp = state.wins.filter((w) => !w.min).reduce((a, w) => (a === null || w.z > a.z ? w : a), null)
   const topZ = topApp ? topApp.z : -1
@@ -369,6 +405,7 @@ export default function OsDemo() {
                 onMove={(x, y) => dispatch({ type: 'move', app: win.app, x, y })}
                 onMinimize={() => dispatch({ type: 'min', app: win.app })}
                 onToggleMax={() => dispatch({ type: 'max', app: win.app })}
+                onResize={(w, h) => dispatch({ type: 'resize', app: win.app, w, h })}
               >
                 <Component payload={win.payload} onOpen={open} prefs={prefs} setPrefs={setPrefs} />
               </WindowFrame>

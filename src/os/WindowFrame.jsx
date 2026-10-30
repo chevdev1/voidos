@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AppTile } from './AppTile.jsx'
 import { AppBoundary } from './AppBoundary.jsx'
 import { CloseIcon } from './icons.jsx'
+import { whoosh, chime } from './sound.js'
 
 // Window chrome and motion. States: 'shown' → 'minimizing' → 'hidden' → 'restoring' → 'shown'.
 // Minimize flies the window into its dock icon. Restore flies it back out of the icon.
@@ -21,7 +22,7 @@ function dockCenter(title) {
   return { x: window.innerWidth / 2, y: window.innerHeight - 40 }
 }
 
-export function WindowFrame({ win, app, active, onFocus, onClose, onMove, onMinimize, onToggleMax, children }) {
+export function WindowFrame({ win, app, active, onFocus, onClose, onMove, onResize, onMinimize, onToggleMax, children }) {
   const ref = useRef(null)
   const drag = useRef(null)
   const center = useRef(null) // window centre captured when it starts to minimize
@@ -49,8 +50,10 @@ export function WindowFrame({ win, app, active, onFocus, onClose, onMove, onMini
       const r = ref.current.getBoundingClientRect()
       center.current = { x: r.left + r.width / 2, y: r.top + r.height / 2 }
       setFx({ transform: flyTo(), opacity: 0, transition: `transform ${MIN_MS}ms ${EASE}, opacity ${MIN_MS}ms ease-in` })
+      whoosh()
       setPhase('minimizing')
     } else if (!win.min && (phase === 'hidden' || phase === 'minimizing')) {
+      chime()
       setFx({ transform: flyTo(), opacity: 0, transition: 'none' })
       setPhase('restoring')
     }
@@ -105,7 +108,30 @@ export function WindowFrame({ win, app, active, onFocus, onClose, onMove, onMini
   let box
   if (narrow) box = { left: 8, top: 44, width: 'calc(100vw - 16px)', height: 'calc(100vh - 150px)' }
   else if (maximized) box = { left: 8, top: MENU_H, width: 'calc(100vw - 16px)', height: `calc(100vh - ${MENU_H + DOCK_RESERVE}px)` }
-  else box = { left: win.x, top: win.y, width: app.w, height: app.h }
+  else box = { left: win.x, top: win.y, width: win.w ?? app.w, height: win.h ?? app.h }
+
+  // Resize from the bottom-right grip. Minimum 300 × 220, never past the screen. Double-click resets the size.
+  const rs = useRef(null)
+  const onResizeDown = (e) => {
+    if (maximized || narrow) return
+    e.stopPropagation()
+    onFocus()
+    rs.current = { sx: e.clientX, sy: e.clientY, w: win.w ?? app.w, h: win.h ?? app.h }
+    setDragging(true)
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+  const onResizeMove = (e) => {
+    if (!rs.current) return
+    const { sx, sy, w, h } = rs.current
+    onResize(
+      Math.max(300, Math.min(w + e.clientX - sx, window.innerWidth - win.x - 8)),
+      Math.max(220, Math.min(h + e.clientY - sy, window.innerHeight - win.y - 110)),
+    )
+  }
+  const onResizeUp = () => {
+    rs.current = null
+    setDragging(false)
+  }
 
   const { Icon } = app
   return (
@@ -155,6 +181,17 @@ export function WindowFrame({ win, app, active, onFocus, onClose, onMove, onMini
       <div className="os-window-body">
         <AppBoundary name={app.title} onClose={requestClose}>{children}</AppBoundary>
       </div>
+      <span
+        className="os-grip"
+        role="separator"
+        aria-label="Resize window"
+        title="Drag to resize · double-click to reset"
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        onPointerCancel={onResizeUp}
+        onDoubleClick={() => onResize(null, null)}
+      />
     </section>
   )
 }

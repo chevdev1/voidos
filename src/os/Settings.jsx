@@ -45,6 +45,7 @@ const SECTIONS = [
         title: 'Theme',
         rows: [
           { kind: 'info', label: 'Theme', value: 'VOID dark', hint: 'The landing also has aurora and night themes. The desktop keeps one look for now.' },
+          { kind: 'switch', key: 'sounds', label: 'Sounds', hint: 'Soft clicks on buttons and dock icons, a whoosh when a window minimizes.' },
           { kind: 'switch', key: 'reduceTransparency', label: 'Reduce transparency', hint: 'Solid panels instead of blur. Helps on weaker machines.' },
         ],
       },

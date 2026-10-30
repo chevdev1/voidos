@@ -106,17 +106,13 @@ export function Browser({ onOpen, prefs }) {
       return
     }
 
-    // Fallback: a real tab. Without noopener the handle comes back, so a blocked popup (null) can be told apart.
-    const opened = window.open(r.url, '_blank')
-    if (opened) opened.opener = null
+    // Without the gateway, the site opens from a real link: browsers block tabs that a script opens by itself.
     patch(active.id, {
       address: r.url,
       page: null,
       external: r.url,
       remote: false,
-      note: opened
-        ? 'Opened in a new browser tab. Sites load there, not inside this window. Run the browser gateway to load them here.'
-        : 'Your browser blocked the new tab. Allow pop-ups for this site, or use the button below.',
+      note: 'Click “Open in a new tab” below. Sites open from a click, so the browser never blocks them. Run the browser gateway to load them inside this window.',
     })
     setDraft(r.url)
   }

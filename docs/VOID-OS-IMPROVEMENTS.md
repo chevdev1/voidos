@@ -237,3 +237,20 @@ Notes:
 - Only Chrome was tested.
 
 Next, from the plan above: the first-run screen, Russian strings, and the end-to-end smoke test.
+
+---
+
+## 14. Round: sounds, player, window size, browser links
+
+Done:
+
+- **Sounds.** Soft clicks on buttons, tabs and dock icons. A short air whoosh when a window minimizes, and a two-note chime when it comes back. All are synthesized in the browser, so no audio files are shipped. Turn them off in Settings → Appearance → Sounds.
+- **Player.** A new app with built-in generative ambient (three tracks, synthesized on the device: Nebula, Orbit, Drift) and your own audio files, added with a button or by dropping them on the window. It starts on its own the first time it is opened. Music lives in a shared module, so it keeps playing after the window closes, and the menu bar shows "♪ title" while it plays.
+- **Window size.** Drag the bottom-right corner to resize any window (minimum 300 × 220, never past the screen). Double-click the corner to reset it. Sizes are remembered with the layout.
+- **Browser links.** Without the gateway, a web address now opens from a real link. Browsers block tabs that a script opens by itself, which is why sites did not open before. The gateway path is unchanged.
+
+Notes:
+
+- The built-in music is generated, not recorded. Licensed music needs rights, so it is not included. Your own files work.
+- Verified in headless Chrome: first-open autostart, the menu bar readout, resize from 580 to 720 px, the browser link, and no errors through minimize and full screen. Sound quality was not listened to in this environment.
+- Only Chrome was tested.

@@ -198,3 +198,13 @@ export function PlayIcon(props) {
     </svg>
   )
 }
+
+export function PlayerIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M9.5 17.5V6.2l9-2.2v11.3" />
+      <circle cx="7" cy="17.5" r="2.5" />
+      <circle cx="16.5" cy="15.3" r="2.5" />
+    </svg>
+  )
+}
