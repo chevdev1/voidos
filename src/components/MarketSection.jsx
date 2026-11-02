@@ -163,9 +163,7 @@ export function MarketSection() {
             >
               {copied ? 'copied ✓' : ca}
             </button>
-          ) : (
-            <p className="mt-2 font-mono text-[11px] text-muted">CA TBA</p>
-          )}
+          ) : null}
         </div>
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:shrink-0 sm:flex-row sm:flex-wrap">
           <BuyExoButton
