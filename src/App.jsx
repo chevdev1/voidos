@@ -5,6 +5,7 @@ import Documentation from './pages/Documentation'
 import Cabinet from './pages/Cabinet'
 import MapPage from './pages/MapPage'
 import Board from './pages/Board'
+import OsDocs from './pages/OsDocs'
 
 // VOID.OS demo opens in a new tab from the landing; keep it out of the landing bundle.
 const OsDemo = lazy(() => import('./os/OsDemo.jsx'))
@@ -31,6 +32,7 @@ export default function App() {
             </Suspense>
           }
         />
+        <Route path="/os/docs" element={<OsDocs />} />
       </Routes>
     </Router>
   )

@@ -10,7 +10,8 @@ export function isLowEndDevice() {
 // Every setting the Settings app can change. Add a key here and in SECTIONS, nowhere else.
 export function defaults() {
   return {
-    wallpaper: !isLowEndDevice(), // galaxy behind the windows
+    wallpaper: true, // desktop background on or off
+    wallpaperKind: 'liquid', // liquid | nebula | stars | void | custom
     widgets: true, // clock and trending on the desktop
     dockMagnify: true, // icons grow under the pointer
     motion: true, // all animation (also off under the system reduced-motion setting)
@@ -20,6 +21,8 @@ export function defaults() {
     browserHome: 'void://start', // page a new browser window starts on
   }
 }
+
+import { KINDS } from './wallpapers.js'
 
 const TEXT_SIZES = ['sm', 'md', 'lg']
 const HOMES = ['void://start', 'void://docs']
@@ -35,6 +38,7 @@ export function readPrefs() {
   // Only accept known values, so a hand-edited or old value cannot break the desktop.
   if (!TEXT_SIZES.includes(merged.textSize)) merged.textSize = 'md'
   if (!HOMES.includes(merged.browserHome)) merged.browserHome = 'void://start'
+  if (!KINDS.includes(merged.wallpaperKind)) merged.wallpaperKind = 'liquid'
   return merged
 }
 

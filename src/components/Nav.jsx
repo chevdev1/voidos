@@ -9,6 +9,7 @@ import { VoidLogo } from './VoidLogo'
 import { loadUser, mindSession, saveUser } from '../lib/mindClient'
 
 const LINKS = [
+  { label: 'OS', hash: '#os' },
   { label: 'MAP', to: '/map' },
   { label: 'CABINET', to: '/cabinet' },
   { label: 'ASK THE MIND', hash: '#mind' },

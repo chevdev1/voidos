@@ -4,6 +4,11 @@ import { RemoteBrowser } from './RemoteBrowser.jsx'
 import { GATEWAY_URL } from './gateway.js'
 import { ConnectionCard } from './ConnectionCard.jsx'
 import { ProtectionBanner } from './ProtectionBanner.jsx'
+import { useProtection, isProtected } from './protection.js'
+
+// The private search the desktop starts on once a VPN or SSH session is up.
+const SEARCH_HOME = 'https://duckduckgo.com/'
+const searchUrl = (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}`
 
 // Built-in pages render inside the window.
 // With the browser gateway running, web addresses load live inside the window (RemoteBrowser).
@@ -57,6 +62,21 @@ export function Browser({ onOpen, prefs }) {
   const [draft, setDraft] = useState(prefs?.browserHome || 'void://start')
   const addressRef = useRef(null)
   const navRefs = useRef(new Map())
+  const level = useProtection()
+  const wasProtected = useRef(isProtected())
+
+  // Going from unprotected to protected (VPN or SSH up) lands on DuckDuckGo.
+  // Opening the browser while already protected does the same, on a blank start tab.
+  useEffect(() => {
+    const now = isProtected(level)
+    if (now && !wasProtected.current) openAddress(SEARCH_HOME)
+    wasProtected.current = now
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [level])
+  useEffect(() => {
+    if (isProtected() && active?.address === 'void://start') openAddress(SEARCH_HOME)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const active = tabs.find((t) => t.id === activeId) || tabs[0]
 
@@ -248,6 +268,18 @@ export function Browser({ onOpen, prefs }) {
 
         {!active?.external && !info && (
           <div className="os-pad os-stack">
+            <form
+              className="os-browser-search"
+              onSubmit={(e) => {
+                e.preventDefault()
+                const q = new FormData(e.currentTarget).get('q')?.toString().trim()
+                if (q) openAddress(/^https?:\/\//.test(q) || /\.[a-z]{2,}$/i.test(q) && !/\s/.test(q) ? q : searchUrl(q))
+              }}
+            >
+              <input name="q" placeholder="Search DuckDuckGo, or type a website" aria-label="Search" autoComplete="off" spellCheck={false} />
+              <button className="os-btn os-btn-primary" type="submit">Search</button>
+            </form>
+            <p className="os-muted os-small">Searches go to DuckDuckGo, which does not build a profile of you.</p>
             <ConnectionCard />
             <p className="os-eyebrow">void://start</p>
             <h2 className="os-title">Where to go</h2>

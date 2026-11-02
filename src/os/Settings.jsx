@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { AppTile } from './AppTile.jsx'
 import { savePrefs, clearPrefs, defaults, TEXT_SIZE_OPTIONS, HOME_OPTIONS } from './prefs.js'
+import { WallpaperPicker } from './WallpaperPicker.jsx'
 import { GATEWAY_URL } from './gateway.js'
 import {
   SettingsIcon,
@@ -17,6 +18,15 @@ import {
 // Each section is data: rows of kind 'switch' | 'segment' | 'info' | 'action'.
 // Rows bind to a preference key, so adding a setting is one line here plus a default in prefs.js.
 const SECTIONS = [
+  {
+    id: 'wallpaper',
+    title: 'Wallpaper',
+    subtitle: 'Desktop backgrounds',
+    grad: ['#ffb3e0', '#c24fa0'],
+    Icon: SettingsIcon,
+    custom: 'wallpaper',
+    groups: [{ title: 'Wallpaper', rows: [{ kind: 'info', label: 'Wallpaper', value: 'Gallery and your own image', hint: 'Pick a desktop background, or add your own' }] }],
+  },
   {
     id: 'about',
     title: 'About',
@@ -81,7 +91,7 @@ const SECTIONS = [
       {
         title: 'Desktop',
         rows: [
-          { kind: 'switch', key: 'wallpaper', label: 'Galaxy wallpaper', hint: 'The landing galaxy behind the windows. Off by default on weaker machines.' },
+          { kind: 'switch', key: 'wallpaper', label: 'Wallpaper', hint: 'The lime liquid wallpaper behind the windows. Off shows a plain black desktop.' },
           { kind: 'switch', key: 'widgets', label: 'Widgets', hint: 'Clock and trending tokens on the left.' },
         ],
       },
@@ -282,7 +292,8 @@ export function Settings({ prefs, setPrefs }) {
               <h2 id={`st-${s.id}`}>{s.title}</h2>
               <p className="os-muted os-small">{s.subtitle}</p>
             </header>
-            {s.groups.map((g) => (
+            {s.custom === 'wallpaper' && <WallpaperPicker prefs={prefs} setPrefs={setPrefs} />}
+            {!s.custom && s.groups.map((g) => (
               <div key={g.title} className="os-settings-group">
                 <div className="os-label os-settings-group-title">{g.title}</div>
                 <div className="os-settings-card">

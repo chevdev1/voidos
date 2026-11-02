@@ -1,8 +1,13 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import './os.css'
-import { Galaxy } from './Galaxy.jsx'
-import { ClockWidget, TrendingWidget } from './widgets.jsx'
-import { WelcomeApp, WalletApp, InspectorApp, NetworkApp } from './apps.jsx'
+import './cursors.css'
+import { Wallpaper } from './Wallpaper.jsx'
+import { ClockWidget, TrendingWidget, PlayerWidget, WeatherWidget, CalendarWidget } from './widgets.jsx'
+import { WelcomeApp, InspectorApp, NetworkApp } from './apps.jsx'
+import { Wallet } from './Wallet.jsx'
+import { Notes } from './notes/Notes.jsx'
+import { Files } from './files/Files.jsx'
+import { DesktopFolders } from './files/DesktopFolders.jsx'
 import { MarketApp } from './Market.jsx'
 import { MacChanger } from './MacChanger.jsx'
 import { Pulse } from './Pulse.jsx'
@@ -12,12 +17,14 @@ import { XApp } from './XApp.jsx'
 import { WindowFrame } from './WindowFrame.jsx'
 import { Player } from './Player.jsx'
 import { setSoundsEnabled, clickSoft } from './sound.js'
-import { getPlayer, subscribePlayer, nowPlaying } from './player.js'
-import { PlayerIcon } from './icons.jsx'
+import { getPlayer, subscribePlayer, nowPlaying, autostart } from './player.js'
+import { PlayerIcon, NotesIcon, FilesIcon } from './icons.jsx'
 import { useSyncExternalStore } from 'react'
 import { CodeApp } from './code/CodeApp.jsx'
 import { AppTile } from './AppTile.jsx'
 import { readPrefs } from './prefs.js'
+import { startPerfWatch } from './perf.js'
+startPerfWatch()
 import { Terminal } from './Terminal.jsx'
 import { Vpn } from './Vpn.jsx'
 import { VoidAi } from './VoidAi.jsx'
@@ -47,19 +54,21 @@ const APPS = {
   vpn: { title: 'VPN', w: 460, h: 540, tint: '#4fd1a5', grad: ["#3ddc97","#0f9d6b"], Icon: VpnIcon, Component: Vpn },
   terminal: { title: 'Terminal', w: 640, h: 420, tint: '#ccff00', grad: ["#3a3f48","#0b0c0f"], Icon: TerminalIcon, Component: Terminal },
   ai: { title: 'VOID.AI', w: 460, h: 520, tint: '#b9a6ff', grad: ["#b59cff","#6d4dff"], Icon: AiIcon, Component: VoidAi },
-  wallet: { title: 'Wallet', w: 480, h: 470, tint: '#4fd1a5', grad: ["#5fe0b5","#17a077"], Icon: WalletIcon, Component: WalletApp },
+  wallet: { title: 'Wallet', w: 480, h: 470, tint: '#4fd1a5', grad: ["#5fe0b5","#17a077"], Icon: WalletIcon, Component: Wallet },
   market: { title: 'Market', w: 580, h: 470, tint: '#ccff00', grad: ["#a6e22e","#4f8a10"], Icon: MarketIcon, Component: MarketApp },
   inspector: { title: 'Inspector', w: 500, h: 380, tint: '#7fc0ff', grad: ["#9aa6bb","#56627a"], Icon: InspectorIcon, Component: InspectorApp },
   network: { title: 'Network', w: 420, h: 380, tint: '#b9a6ff', grad: ["#8fa0ff","#4d5fd1"], Icon: NetworkIcon, Component: NetworkApp },
   settings: { title: 'Settings', w: 660, h: 500, tint: '#c3cad4', grad: ["#c9ced8","#7d8594"], Icon: SettingsIcon, Component: Settings },
   mac: { title: 'MAC Changer', w: 480, h: 540, tint: '#f2994a', grad: ["#ffb34d","#f2701a"], Icon: MacIcon, Component: MacChanger },
   pulse: { title: 'Pulse', w: 520, h: 520, tint: '#4fd1a5', grad: ["#ff7090","#d6284d"], Icon: PulseIcon, Component: Pulse },
+  files: { title: 'Files', w: 760, h: 470, tint: '#9fd4ff', grad: ['#9ccfff', '#3b74c9'], Icon: FilesIcon, Component: Files },
+  notes: { title: 'Notes', w: 860, h: 580, tint: '#e6e8eb', grad: ['#eef0f3', '#9aa3b2'], Icon: NotesIcon, Component: Notes },
   player: { title: 'Player', w: 460, h: 540, tint: '#ffd66b', grad: ['#ffd66b', '#e0a22e'], Icon: PlayerIcon, Component: Player },
   code: { title: 'VOID.CODE', w: 900, h: 580, tint: '#4aa3ff', grad: ['#4aa3ff', '#1565c0'], Icon: CodeIcon, Component: CodeApp },
   x: { title: 'X', w: 440, h: 540, tint: '#f0f0f0', grad: ["#3a3a3f","#000000"], Icon: XIcon, Component: XApp },
   wifi: { title: 'Wi-Fi Check', w: 480, h: 560, tint: '#7fc0ff', grad: ["#6cc0ff","#2a7ae0"], Icon: WifiIcon, Component: WifiCheck },
 }
-const DOCK = ['browser', 'vpn', 'mac', 'terminal', 'code', 'ai', 'wallet', 'market', 'player', 'pulse', 'inspector', 'wifi', 'x', 'network', 'settings']
+const DOCK = ['browser', 'vpn', 'mac', 'terminal', 'code', 'ai', 'wallet', 'market', 'player', 'notes', 'pulse', 'inspector', 'wifi', 'x', 'network', 'settings']
 const LAYOUT_KEY = 'void-os-layout'
 const BOOT_LINES = [
   'kernel: loading',
@@ -69,6 +78,18 @@ const BOOT_LINES = [
   'tor: simulated (demo)',
   'ready',
 ]
+
+// Pixel ripple at a press point: a small lime square that steps outward and fades. Removed when done.
+function spawnRipple(x, y) {
+  const root = document.querySelector('.os-root')
+  if (!root) return
+  const el = document.createElement('span')
+  el.className = 'os-ripple'
+  el.style.left = `${x}px`
+  el.style.top = `${y}px`
+  el.addEventListener('animationend', () => el.remove(), { once: true })
+  root.appendChild(el)
+}
 
 // ---------- window state ----------
 
@@ -129,7 +150,15 @@ function reducer(state, action) {
       return { z: wins.length, wins }
     }
     case 'resize':
-      return { ...state, wins: state.wins.map((w) => (w.app === action.app ? { ...w, w: action.w ?? undefined, h: action.h ?? undefined } : w)) }
+      // null means reset to the app's default size (double-click on a handle).
+      return {
+        ...state,
+        wins: state.wins.map((w) =>
+          w.app === action.app
+            ? { ...w, w: action.w ?? undefined, h: action.h ?? undefined, x: action.x ?? w.x, y: action.y ?? w.y }
+            : w,
+        ),
+      }
     case 'close':
       return { ...state, wins: state.wins.filter((w) => w.app !== action.app) }
     default:
@@ -345,11 +374,18 @@ export default function OsDemo() {
     setSoundsEnabled(prefs.sounds !== false)
   }, [prefs.sounds])
 
+  // Music starts as soon as the desktop is entered (on the first click if the browser needs one).
+  useEffect(() => {
+    autostart()
+  }, [])
+
   // Soft tick on every press of a button, tab or dock icon. Pointer-down in the capture phase, so it always fires.
   useEffect(() => {
     const onDown = (e) => {
       const t = e.target
-      if (t instanceof Element && t.closest('.os-root button, .os-root [role="tab"], .os-root .os-dock-item')) clickSoft()
+      if (!(t instanceof Element) || !t.closest('.os-root')) return
+      spawnRipple(e.clientX, e.clientY)
+      if (t.closest('.os-root button, .os-root [role="tab"], .os-root .os-dock-item')) clickSoft()
     }
     document.addEventListener('pointerdown', onDown, true)
     return () => document.removeEventListener('pointerdown', onDown, true)
@@ -379,18 +415,22 @@ export default function OsDemo() {
     <div
       className={`os-root text-${prefs.textSize} ${prefs.wallpaper ? '' : 'no-wallpaper'} ${prefs.motion ? '' : 'no-motion'} ${prefs.reduceTransparency ? 'reduce-transparency' : ''} ${prefs.dockMagnify ? '' : 'no-magnify'}`}
     >
-      {prefs.wallpaper && (
-        <div className="os-enter-galaxy">
-          <Galaxy />
-        </div>
-      )}
+      {prefs.wallpaper && <Wallpaper kind={prefs.wallpaperKind} animate={prefs.motion} />}
+      {booted && <DesktopFolders onOpen={open} />}
       {!booted && <Boot onDone={finishBoot} exiting={exiting} />}
       {booted && (
         <>
           {prefs.widgets && <div className="os-widgets">
             <ClockWidget />
             <TrendingWidget onOpen={open} />
+            <PlayerWidget onOpen={open} />
           </div>}
+          {prefs.widgets && (
+            <div className="os-widgets-right">
+              <WeatherWidget />
+              <CalendarWidget />
+            </div>
+          )}
           <MenuBar onOpen={open} onSpotlight={() => setSpot(true)} />
           {state.wins.map((win) => {
             const { Component } = APPS[win.app]
@@ -405,7 +445,7 @@ export default function OsDemo() {
                 onMove={(x, y) => dispatch({ type: 'move', app: win.app, x, y })}
                 onMinimize={() => dispatch({ type: 'min', app: win.app })}
                 onToggleMax={() => dispatch({ type: 'max', app: win.app })}
-                onResize={(w, h) => dispatch({ type: 'resize', app: win.app, w, h })}
+                onResize={(w, h, x, y) => dispatch({ type: 'resize', app: win.app, w, h, x, y })}
               >
                 <Component payload={win.payload} onOpen={open} prefs={prefs} setPrefs={setPrefs} />
               </WindowFrame>

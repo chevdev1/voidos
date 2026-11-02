@@ -2,21 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useLenis } from '../lib/SmoothScroll'
-import { MagneticButton } from './MagneticButton'
 import { CosmosPanel } from './CosmosPanel'
-import { DEFAULT_EXO_TOKEN } from '../../shared/rhChain.js'
 import '../legacy/void.css'
 import '../legacy/phoneMap.css'
 
 const EASE_OUT = [0.23, 1, 0.32, 1]
-const CA = String(
-  import.meta.env.VITE_EXO_CA ||
-    import.meta.env.VITE_EXO_TOKEN ||
-    import.meta.env.VITE_EXO_MINT ||
-    DEFAULT_EXO_TOKEN ||
-    '',
-).trim()
-const caLive = Boolean(CA)
 
 // Let the visitor spin the demo for a beat before nudging them toward the
 // real thing — long enough to feel like their own discovery, short enough
@@ -43,7 +33,6 @@ function UnderlineLink({ onClick, children }) {
 export function Hero() {
   const lenisRef = useLenis()
   const navigate = useNavigate()
-  const [copied, setCopied] = useState(false)
   const [showMapPrompt, setShowMapPrompt] = useState(false)
   const settledRef = useRef(false) // true once the user has acted (either way) — stops the timer from firing late
 
@@ -69,13 +58,6 @@ export function Hero() {
 
   function goTo(target) {
     lenisRef?.current?.scrollTo(target, { offset: -20, duration: 1.4 })
-  }
-
-  function copyCA() {
-    if (!caLive) return
-    navigator.clipboard?.writeText(CA)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 800)
   }
 
   // Shared by every "leave the demo" action in this section — the CTA row,
@@ -144,61 +126,71 @@ export function Hero() {
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.22 }}
           className="lead"
         >
-          A digital void for the next-gen OS. One autonomous AI probe — mind split across 50,000
-          sectors in 500 systems. Zoom the cosmos. Hover a cluster. Claim the pull.
+          A private desktop for crypto people, in development. Your wallet, encrypted notes and
+          research in one tab, with your keys kept on your own device.
         </motion.p>
 
-        <motion.div
+        <motion.a
+          href="/os"
+          target="_blank"
+          rel="noopener noreferrer"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.32 }}
-          className="ca-row"
+          className="group mb-6 flex w-full max-w-[320px] flex-col overflow-hidden rounded-2xl border border-lime/25 bg-black/60 transition duration-300 ease-out hover:-translate-y-0.5 hover:border-lime/70 hover:shadow-[0_0_40px_rgba(204,255,0,0.18)]"
+          aria-label="Open the VOID.OS desktop in a new tab"
         >
-          <div className="ca-box" id="ca" title={caLive ? CA : 'Contract / mint not live yet'}>
-            {caLive ? `$VOID · ${CA}` : 'CA TBA · mint not live'}
-          </div>
-          <motion.button
-            whileTap={{ scale: caLive ? 0.94 : 1 }}
-            className="ca-copy"
-            onClick={copyCA}
-            disabled={!caLive}
-            aria-label={caLive ? 'copy contract address' : 'contract not available yet'}
-          >
-            {caLive ? (copied ? '✓' : '⧉') : '—'}
-          </motion.button>
-        </motion.div>
+          <span className="relative block aspect-video overflow-hidden">
+            <img
+              src="/landing/desktop.webp"
+              alt=""
+              width={1600}
+              height={900}
+              loading="lazy"
+              className="h-full w-full object-cover transition duration-500 ease-out group-hover:scale-[1.04]"
+            />
+            <span className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          </span>
+          <span className="flex items-center justify-between gap-3 px-3.5 py-2.5 text-[11px] tracking-[0.14em]">
+            <span className="flex items-center gap-2 text-muted">
+              <i className="h-1.5 w-1.5 rounded-full bg-lime" />
+              VOID.OS DESKTOP
+            </span>
+            <span className="text-lime transition-transform duration-300 group-hover:translate-x-0.5">Open ↗</span>
+          </span>
+        </motion.a>
 
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: EASE_OUT, delay: 0.42 }}
-          className="cta"
+          className="mb-5 flex flex-wrap items-center gap-x-6 gap-y-4"
         >
           <a
-            className="btn-lime"
-            href="#market"
-            onClick={(e) => {
-              e.preventDefault()
-              goTo('#market')
-            }}
+            href="/os"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="group inline-flex items-center gap-2.5 rounded-full bg-lime px-7 py-3.5 font-display text-[15px] font-extrabold text-black shadow-[0_0_30px_rgba(204,255,0,0.3)] transition duration-300 ease-out hover:-translate-y-0.5 hover:shadow-[0_0_44px_rgba(204,255,0,0.55)]"
           >
-            Claim a sector ↗
+            Try VOID.OS now
+            <span className="transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5">↗</span>
           </a>
 
-          <MagneticButton
-            onClick={() => goTo('#concept')}
-            className="rounded-full bg-lime px-5 py-2.5 text-[13px] font-bold text-black shadow-[0_0_0_rgba(204,255,0,0)] transition-shadow duration-300 ease-out hover:shadow-[0_0_28px_rgba(204,255,0,0.5)]"
+          <button
+            type="button"
+            onClick={openFullMap}
+            className="text-[13px] font-medium text-muted transition-colors duration-200 hover:text-lime"
           >
-            What is this?
-          </MagneticButton>
-
-          <button type="button" className="btn-ghost" onClick={openFullMap}>
             Open full map
           </button>
 
-          <a className="btn-ghost" href="/os" target="_blank" rel="noopener noreferrer">
-            Try VOID.OS ↗
-          </a>
+          <button
+            type="button"
+            onClick={() => goTo('#market')}
+            className="text-[13px] font-medium text-muted transition-colors duration-200 hover:text-lime"
+          >
+            Claim a sector
+          </button>
         </motion.div>
 
         <motion.p

@@ -1,7 +1,5 @@
-import { useEffect, useRef, useSyncExternalStore, useState } from 'react'
-import { BUILTIN, getPlayer, subscribePlayer, play, toggle, next, prev, selectBuiltin, selectFile, setVolume, seek, addFiles, removeFile } from './player.js'
-
-const FIRST_RUN_KEY = 'void-os-player-seen'
+import { useRef, useSyncExternalStore, useState } from 'react'
+import { BUILTIN, getPlayer, subscribePlayer, toggle, next, prev, selectBuiltin, selectFile, setVolume, seek, addFiles, removeFile } from './player.js'
 
 function fmt(sec) {
   if (!Number.isFinite(sec) || sec < 0) return '0:00'
@@ -15,17 +13,6 @@ export function Player() {
   const [dragOver, setDragOver] = useState(false)
   const input = useRef(null)
 
-  // First time the player opens, the music starts on its own. Opening the window is the user gesture that allows it.
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem(FIRST_RUN_KEY)) {
-        localStorage.setItem(FIRST_RUN_KEY, '1')
-        if (!getPlayer().playing) play()
-      }
-    } catch {
-      /* storage blocked: skip the first-run start */
-    }
-  }, [])
 
   const current = p.mode === 'builtin' ? BUILTIN[p.trackIndex] : p.files[p.fileIndex]
   const title = current ? current.title || current.name : 'Nothing selected'

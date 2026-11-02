@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { SmoothScrollProvider } from '../lib/SmoothScroll'
 import { Nav } from '../components/Nav'
 import { Hero } from '../components/Hero'
+import { OsShowcase } from '../components/OsShowcase'
 import { CosmosArena } from '../components/CosmosArena'
 import { ConceptSection } from '../components/ConceptSection'
 import { MarketSection } from '../components/MarketSection'
@@ -100,6 +101,7 @@ export default function LandingPage() {
       {booting && <BootSplash ready={ready} onDone={finishBoot} />}
       <Nav />
       <Hero />
+      <OsShowcase />
       <div className="relative overflow-hidden bg-void">
         <BackgroundBeams />
         <main className="relative z-10 mx-auto max-w-6xl">

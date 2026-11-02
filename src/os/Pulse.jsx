@@ -47,6 +47,8 @@ export function Pulse() {
     let alive = true
     let last = 0
     const tick = async () => {
+      // A hidden tab does not need fresh blocks: skip the requests until it is visible again.
+      if (document.hidden) return
       try {
         const head = Number.parseInt(await rpc('eth_blockNumber'), 16)
         if (!alive) return

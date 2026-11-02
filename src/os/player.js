@@ -1,47 +1,48 @@
 import { audioContext } from './sound.js'
 
-// Music lives here, not in the window, so it keeps playing when the player is closed.
-// Two sources: built-in generative ambient (synthesized on the device) and MP3 files the user drops in.
-// Files never leave the device: they play from an object URL that is revoked when removed.
+// Music lives here, not in a window, so it survives closing the player.
+// Built-in ambient is synthesized on the device: soft pads in a warm register, a long convolution reverb
+// and glassy bells. Your own audio files play from an object URL that is revoked when removed.
 
-// Built-in ambient. Semitones are relative to the root frequency.
+// Built-in ambient. Semitones are relative to the root frequency. Roots sit high enough to avoid rumble.
 export const BUILTIN = [
   {
     id: 'nebula',
     title: 'Nebula',
-    sub: 'generative ambient · D lydian',
-    root: 73.42,
+    sub: 'ambient pads · D lydian',
+    root: 146.83, // D3
     chords: [[0, 4, 7, 11], [0, 4, 7, 14], [-5, 0, 4, 7], [-2, 0, 4, 9]],
-    scale: [0, 2, 4, 7, 9, 11, 12, 14, 16],
+    scale: [0, 2, 4, 6, 7, 9, 11, 12, 14],
   },
   {
     id: 'orbit',
     title: 'Orbit',
-    sub: 'generative ambient · A minor pentatonic',
-    root: 55,
+    sub: 'ambient pads · A minor pentatonic',
+    root: 110, // A2
     chords: [[0, 3, 7, 10], [-4, 0, 3, 7], [-2, 0, 5, 7], [-7, 0, 4, 7]],
     scale: [0, 3, 5, 7, 10, 12, 15, 17],
   },
   {
     id: 'drift',
     title: 'Drift',
-    sub: 'generative ambient · E phrygian',
-    root: 82.41,
+    sub: 'ambient pads · E phrygian',
+    root: 164.81, // E3
     chords: [[0, 5, 7, 12], [-2, 3, 7, 10], [-4, 0, 3, 7], [-5, -2, 2, 7]],
     scale: [0, 1, 3, 5, 7, 8, 10, 12],
   },
 ]
 
-const CHORD_MS = 9000
+const CHORD_MS = 12000
 const VOICES = 4
+const STOP_KEY = 'void-os-player-stopped'
 
 const initial = {
   mode: 'builtin', // builtin | file
   trackIndex: 0,
   playing: false,
   volume: 0.6,
-  elapsed: 0, // seconds in the current track
-  duration: 0, // known for files only
+  elapsed: 0,
+  duration: 0,
   files: [], // { id, name, url }
   fileIndex: -1,
   error: '',
@@ -57,6 +58,23 @@ function readSaved() {
     return typeof v.volume === 'number' ? { volume: Math.min(1, Math.max(0, v.volume)) } : {}
   } catch {
     return {}
+  }
+}
+
+function userStopped() {
+  try {
+    return localStorage.getItem(STOP_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function setUserStopped(on) {
+  try {
+    if (on) localStorage.setItem(STOP_KEY, '1')
+    else localStorage.removeItem(STOP_KEY)
+  } catch {
+    /* ignore */
   }
 }
 
@@ -78,152 +96,156 @@ export function subscribePlayer(fn) {
 
 // ----- generative ambient -----
 
-const ambient = {
-  ctx: null,
-  master: null,
-  delay: null,
-  voices: [],
-  chordTimer: null,
-  bellTimer: null,
-  clockTimer: null,
-  chord: 0,
-  track: null,
+const amb = { ctx: null, bus: null, verb: null, master: null, voices: [], chordTimer: null, bellTimer: null, clockTimer: null, chord: 0, track: null, stopTimer: null }
+
+function impulse(c, seconds = 5, decay = 3.4) {
+  const len = Math.floor(c.sampleRate * seconds)
+  const buf = c.createBuffer(2, len, c.sampleRate)
+  for (let ch = 0; ch < 2; ch++) {
+    const d = buf.getChannelData(ch)
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, decay)
+  }
+  return buf
 }
 
 function ambientStart(track) {
   const c = audioContext()
   if (!c) return false
   ambientStop(true)
-  ambient.ctx = c
-  ambient.track = track
+  amb.ctx = c
+  amb.track = track
 
   const master = c.createGain()
   master.gain.value = 0.0001
   master.connect(c.destination)
 
-  // Space: a long, dark delay that the bells feed into.
-  const delay = c.createDelay(2)
-  delay.delayTime.value = 0.62
-  const feedback = c.createGain()
-  feedback.gain.value = 0.42
+  const verb = c.createConvolver()
+  verb.buffer = impulse(c)
   const wet = c.createGain()
-  wet.gain.value = 0.35
-  delay.connect(feedback).connect(delay)
-  delay.connect(wet).connect(master)
+  wet.gain.value = 0.55
+  verb.connect(wet).connect(master)
 
-  // Pads: detuned pairs of sine and triangle, through a slow, breathing low-pass.
-  const lp = c.createBiquadFilter()
-  lp.type = 'lowpass'
-  lp.frequency.value = 900
-  lp.Q.value = 0.4
+  // Warm, slow filter: the pads breathe without ever getting harsh.
+  const bus = c.createBiquadFilter()
+  bus.type = 'lowpass'
+  bus.frequency.value = 2200
+  bus.Q.value = 0.3
   const lfo = c.createOscillator()
-  const lfoGain = c.createGain()
-  lfo.frequency.value = 0.045
-  lfoGain.gain.value = 320
-  lfo.connect(lfoGain).connect(lp.frequency)
+  const lfoAmt = c.createGain()
+  lfo.frequency.value = 0.03
+  lfoAmt.gain.value = 420
+  lfo.connect(lfoAmt).connect(bus.frequency)
   lfo.start()
-  lp.connect(master)
+  bus.connect(master)
+  bus.connect(verb)
 
   const voices = []
   for (let i = 0; i < VOICES; i++) {
     const g = c.createGain()
     g.gain.value = 0.0001
-    g.gain.exponentialRampToValueAtTime(0.11, c.currentTime + 4)
-    g.connect(lp)
+    g.gain.exponentialRampToValueAtTime(0.09, c.currentTime + 6) // slow, soft entrance
+    g.connect(bus)
+    // Two sines a hair apart give a gentle shimmer; a quiet octave adds air. No triangles or saws: they buzz.
     const a = c.createOscillator()
     const b = c.createOscillator()
+    const o = c.createOscillator()
     a.type = 'sine'
-    b.type = 'triangle'
-    b.detune.value = 6
+    b.type = 'sine'
+    o.type = 'sine'
+    b.detune.value = 4
+    o.detune.value = -3
     const ga = c.createGain()
-    ga.gain.value = 0.6
+    ga.gain.value = 0.5
     const gb = c.createGain()
-    gb.gain.value = 0.35
+    gb.gain.value = 0.4
+    const go = c.createGain()
+    go.gain.value = 0.1
     a.connect(ga).connect(g)
     b.connect(gb).connect(g)
+    o.connect(go).connect(g)
     a.start()
     b.start()
-    voices.push({ a, b, g })
+    o.start()
+    voices.push({ a, b, o, g, ga, gb, go })
   }
 
-  ambient.master = master
-  ambient.delay = delay
-  ambient.voices = voices
-  ambient.chord = 0
-  setChord(track, 0, 4)
-  master.gain.exponentialRampToValueAtTime(Math.max(0.0001, state.volume * 0.8), c.currentTime + 3)
+  amb.master = master
+  amb.bus = bus
+  amb.verb = verb
+  amb.voices = voices
+  amb.chord = 0
+  setChord(track, 0, 5)
+  master.gain.exponentialRampToValueAtTime(Math.max(0.0001, state.volume * 0.42), c.currentTime + 4)
 
-  ambient.chordTimer = setInterval(() => {
-    ambient.chord = (ambient.chord + 1) % track.chords.length
-    setChord(track, ambient.chord, 2.5)
+  amb.chordTimer = setInterval(() => {
+    amb.chord = (amb.chord + 1) % track.chords.length
+    setChord(track, amb.chord, 5)
   }, CHORD_MS)
-
-  ambient.bellTimer = setInterval(() => bell(track), 2600)
+  amb.bellTimer = setInterval(() => bell(track), 3800)
   return true
 }
 
 function setChord(track, index, glide) {
-  const c = ambient.ctx
+  const c = amb.ctx
   const chord = track.chords[index]
   const t = c.currentTime
-  ambient.voices.forEach((v, i) => {
+  amb.voices.forEach((v, i) => {
     const semis = chord[i % chord.length] + (i >= chord.length ? 12 : 0)
     const freq = track.root * Math.pow(2, semis / 12)
-    v.a.frequency.cancelScheduledValues(t)
-    v.b.frequency.cancelScheduledValues(t)
+    for (const osc of [v.a, v.b, v.o]) osc.frequency.cancelScheduledValues(t)
     v.a.frequency.exponentialRampToValueAtTime(freq, t + glide)
-    v.b.frequency.exponentialRampToValueAtTime(freq * 2, t + glide)
+    v.b.frequency.exponentialRampToValueAtTime(freq, t + glide)
+    v.o.frequency.exponentialRampToValueAtTime(freq * 2, t + glide)
   })
 }
 
+// A glassy bell: a pure sine two octaves above the pad, long decay, mostly sent to the reverb.
 function bell(track) {
-  const c = ambient.ctx
-  if (!c || !ambient.master) return
-  if (Math.random() < 0.35) return // not every tick: silence is part of the mood
-  const notes = track.scale
-  const semis = notes[Math.floor(Math.random() * notes.length)] + 12
-  const freq = track.root * 2 * Math.pow(2, semis / 12)
+  const c = amb.ctx
+  if (!c || !amb.master || Math.random() < 0.45) return
+  const semis = track.scale[Math.floor(Math.random() * track.scale.length)] + 24
+  const freq = track.root * Math.pow(2, semis / 12)
   const t = c.currentTime
   const osc = c.createOscillator()
   const g = c.createGain()
   osc.type = 'sine'
   osc.frequency.value = freq
   g.gain.setValueAtTime(0.0001, t)
-  g.gain.exponentialRampToValueAtTime(0.05, t + 0.02)
-  g.gain.exponentialRampToValueAtTime(0.0001, t + 3.2)
+  g.gain.exponentialRampToValueAtTime(0.035, t + 0.03)
+  g.gain.exponentialRampToValueAtTime(0.0001, t + 5)
   osc.connect(g)
-  g.connect(ambient.master)
-  g.connect(ambient.delay)
+  g.connect(amb.verb)
+  g.connect(amb.bus)
   osc.start(t)
-  osc.stop(t + 3.3)
+  osc.stop(t + 5.1)
 }
 
 function ambientStop(immediate = false) {
-  clearInterval(ambient.chordTimer)
-  clearInterval(ambient.bellTimer)
-  ambient.chordTimer = null
-  ambient.bellTimer = null
-  const c = ambient.ctx
-  if (!c || !ambient.master) return
-  const { master, voices, delay } = ambient
-  const fade = immediate ? 0.05 : 1.6
+  clearInterval(amb.chordTimer)
+  clearInterval(amb.bellTimer)
+  amb.chordTimer = null
+  amb.bellTimer = null
+  const c = amb.ctx
+  if (!c || !amb.master) return
+  const { master, voices, bus, verb } = amb
+  const fade = immediate ? 0.05 : 1.8
   master.gain.cancelScheduledValues(c.currentTime)
   master.gain.setValueAtTime(Math.max(0.0001, master.gain.value), c.currentTime)
   master.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + fade)
-  setTimeout(() => {
+  clearTimeout(amb.stopTimer)
+  amb.stopTimer = setTimeout(() => {
     voices.forEach((v) => {
       v.a.stop()
       v.b.stop()
-      v.a.disconnect()
-      v.b.disconnect()
+      v.o.stop()
       v.g.disconnect()
     })
+    bus.disconnect()
+    verb.disconnect()
     master.disconnect()
-    delay.disconnect()
-  }, fade * 1000 + 100)
-  ambient.master = null
-  ambient.voices = []
-  ambient.delay = null
+  }, fade * 1000 + 150)
+  amb.master = null
+  amb.voices = []
 }
 
 // ----- MP3 files -----
@@ -237,8 +259,8 @@ if (audio) {
 }
 
 function startClock() {
-  clearInterval(ambient.clockTimer)
-  ambient.clockTimer = setInterval(() => {
+  clearInterval(amb.clockTimer)
+  amb.clockTimer = setInterval(() => {
     if (state.mode === 'builtin' && state.playing) emit({ elapsed: state.elapsed + 1 })
   }, 1000)
 }
@@ -246,6 +268,7 @@ function startClock() {
 // ----- actions -----
 
 export function play() {
+  setUserStopped(false)
   if (state.mode === 'builtin') {
     const track = BUILTIN[state.trackIndex]
     if (!ambientStart(track)) return emit({ error: 'Audio is not available in this browser.' })
@@ -261,10 +284,12 @@ export function play() {
   ambientStop()
 }
 
-export function pause() {
+// byUser: a press on pause is remembered, so music does not come back on its own after a reload.
+export function pause(byUser = false) {
+  if (byUser) setUserStopped(true)
   if (state.mode === 'builtin') {
     ambientStop()
-    clearInterval(ambient.clockTimer)
+    clearInterval(amb.clockTimer)
   } else if (audio) {
     audio.pause()
   }
@@ -272,8 +297,26 @@ export function pause() {
 }
 
 export function toggle() {
-  if (state.playing) pause()
+  if (state.playing) pause(true)
   else play()
+}
+
+// Start the music as soon as the desktop is ready. Browsers only let audio start after a user gesture,
+// so if the page is not allowed to play yet, the first click or key press anywhere starts it.
+export function autostart() {
+  if (state.playing || userStopped()) return
+  const c = audioContext()
+  if (c && c.state === 'running') {
+    play()
+    return
+  }
+  const go = () => {
+    window.removeEventListener('pointerdown', go, true)
+    window.removeEventListener('keydown', go, true)
+    if (!state.playing && !userStopped()) play()
+  }
+  window.addEventListener('pointerdown', go, true)
+  window.addEventListener('keydown', go, true)
 }
 
 export function selectBuiltin(index) {
@@ -291,27 +334,19 @@ export function selectFile(index) {
 }
 
 export function next() {
-  if (state.mode === 'builtin') {
-    selectBuiltin((state.trackIndex + 1) % BUILTIN.length)
-  } else if (state.files.length) {
-    selectFile((state.fileIndex + 1) % state.files.length)
-  }
+  if (state.mode === 'builtin') selectBuiltin((state.trackIndex + 1) % BUILTIN.length)
+  else if (state.files.length) selectFile((state.fileIndex + 1) % state.files.length)
 }
 
 export function prev() {
-  if (state.mode === 'builtin') {
-    selectBuiltin((state.trackIndex + BUILTIN.length - 1) % BUILTIN.length)
-  } else if (state.files.length) {
-    selectFile((state.fileIndex - 1 + state.files.length) % state.files.length)
-  }
+  if (state.mode === 'builtin') selectBuiltin((state.trackIndex + BUILTIN.length - 1) % BUILTIN.length)
+  else if (state.files.length) selectFile((state.fileIndex - 1 + state.files.length) % state.files.length)
 }
 
 export function setVolume(v) {
   const volume = Math.min(1, Math.max(0, v))
   if (audio) audio.volume = volume
-  if (ambient.master && ambient.ctx) {
-    ambient.master.gain.setTargetAtTime(Math.max(0.0001, volume * 0.8), ambient.ctx.currentTime, 0.05)
-  }
+  if (amb.master && amb.ctx) amb.master.gain.setTargetAtTime(Math.max(0.0001, volume * 0.42), amb.ctx.currentTime, 0.05)
   emit({ volume })
 }
 
@@ -319,7 +354,6 @@ export function seek(seconds) {
   if (state.mode === 'file' && audio && Number.isFinite(seconds)) audio.currentTime = seconds
 }
 
-// Accepts only audio files. Anything else is refused with a message, the list stays unchanged.
 export function addFiles(fileList) {
   const added = []
   for (const f of Array.from(fileList || [])) {
@@ -345,7 +379,7 @@ export function removeFile(index) {
   }
 }
 
-// Used by the menu bar indicator: the title of whatever is playing.
+// Title of whatever is playing, for the menu bar and the desktop widget.
 export function nowPlaying(s = state) {
   if (!s.playing) return null
   if (s.mode === 'builtin') return BUILTIN[s.trackIndex].title

@@ -3,7 +3,6 @@ import {
   RH_CHAIN,
   classifyInput,
   explorerUrl,
-  shortHex,
 } from './lib.js'
 import { useTokenImage } from './tokenImage.js'
 
@@ -50,7 +49,6 @@ async function rpc(method, params = []) {
   }
 }
 
-const weiToEth = (hex) => (Number(BigInt(hex)) / 1e18).toFixed(6)
 
 // ---------- Welcome ----------
 
@@ -73,119 +71,6 @@ export function WelcomeApp({ onOpen }) {
         <button className="os-btn" onClick={() => onOpen('market')}>Open Market</button>
         <button className="os-btn" onClick={() => onOpen('inspector')}>Open Inspector</button>
       </div>
-    </div>
-  )
-}
-
-// ---------- Wallet ----------
-
-export function WalletApp() {
-  const [status, setStatus] = useState('idle')
-  const [account, setAccount] = useState('')
-  const [chainId, setChainId] = useState('')
-  const [balance, setBalance] = useState('')
-  const [error, setError] = useState('')
-  const [manual, setManual] = useState('')
-  const [manualBalance, setManualBalance] = useState(null)
-
-  const hasProvider = typeof window !== 'undefined' && Boolean(window.ethereum)
-
-  async function connect() {
-    setError('')
-    if (!window.ethereum) {
-      setError('No browser wallet found. Install MetaMask, Rabby or Trust, or use the read-only field below.')
-      return
-    }
-    setStatus('connecting')
-    try {
-      const [addr] = await window.ethereum.request({ method: 'eth_requestAccounts' })
-      const cid = await window.ethereum.request({ method: 'eth_chainId' })
-      const bal = await window.ethereum.request({ method: 'eth_getBalance', params: [addr, 'latest'] })
-      setAccount(addr)
-      setChainId(cid)
-      setBalance(weiToEth(bal))
-      setStatus('connected')
-    } catch (e) {
-      setError(e?.message || 'Connection was cancelled.')
-      setStatus('idle')
-    }
-  }
-
-  function disconnect() {
-    setAccount('')
-    setChainId('')
-    setBalance('')
-    setStatus('idle')
-  }
-
-  async function lookup(e) {
-    e.preventDefault()
-    const item = classifyInput(manual)
-    setManualBalance(null)
-    if (item.kind !== 'address') {
-      setManualBalance({ error: 'Enter a 0x address (40 hex characters).' })
-      return
-    }
-    try {
-      const bal = await rpc('eth_getBalance', [item.value, 'latest'])
-      setManualBalance({ address: item.value, eth: weiToEth(bal) })
-    } catch {
-      setManualBalance({ address: item.value, error: 'RPC is unreachable right now. Try again later.' })
-    }
-  }
-
-  const onChain = chainId && Number.parseInt(chainId, 16) === RH_CHAIN.id
-
-  return (
-    <div className="os-pad os-stack">
-      <div className="os-card">
-        <div className="os-row os-between">
-          <span className="os-label">Status</span>
-          <Tag tone={status === 'connected' ? 'ok' : 'muted'}>{status === 'connected' ? 'connected' : 'not connected'}</Tag>
-        </div>
-
-        {status === 'connected' ? (
-          <>
-            <div className="os-big">{balance} ETH</div>
-            <div className="os-muted os-mono">{shortHex(account)}</div>
-            <div className="os-row os-between">
-              <Tag tone={onChain ? 'ok' : 'warn'}>{onChain ? 'Robinhood Chain' : `chain ${Number.parseInt(chainId, 16)}`}</Tag>
-              <button className="os-btn" onClick={disconnect}>Disconnect</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="os-muted">Connect with your own wallet. The desktop never sees your keys.</p>
-            <button className="os-btn os-btn-primary" onClick={connect} disabled={status === 'connecting'}>
-              {status === 'connecting' ? 'Waiting for wallet…' : hasProvider ? 'Connect wallet' : 'Connect wallet (none found)'}
-            </button>
-          </>
-        )}
-        {error && <p className="os-error">{error}</p>}
-      </div>
-
-      <form className="os-card os-stack" onSubmit={lookup}>
-        <span className="os-label">Read-only address</span>
-        <div className="os-row">
-          <input
-            className="os-input"
-            value={manual}
-            onChange={(e) => setManual(e.target.value)}
-            placeholder="0x… public address"
-            spellCheck={false}
-            aria-label="Public address"
-          />
-          <button className="os-btn" type="submit">View</button>
-        </div>
-        {manualBalance?.error && <p className="os-error">{manualBalance.error}</p>}
-        {manualBalance?.eth && (
-          <p className="os-mono">
-            {manualBalance.eth} ETH · <span className="os-muted">{shortHex(manualBalance.address)}</span>
-          </p>
-        )}
-      </form>
-
-      <p className="os-note">Signing and sending stay inside your wallet app in this build.</p>
     </div>
   )
 }

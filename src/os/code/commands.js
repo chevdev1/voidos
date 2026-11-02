@@ -19,6 +19,9 @@ const HELP = [
   'ls                list project files',
   'cat <file>        print a file (first 40 lines)',
   'run <file>        run a .js file in the sandbox',
+  'mkdir <folder>   create a folder',
+  'touch <file>     create an empty file',
+  'rm <path>        delete a file or folder',
   'clear             clear the panel',
 ]
 
@@ -46,6 +49,15 @@ export function runCommand(input, files) {
       if (!(arg in files)) return { lines: [{ kind: 'err', text: `run: ${arg}: no such file` }] }
       if (!/\.js$/i.test(arg)) return { lines: [{ kind: 'err', text: 'run: only .js files can run' }] }
       return { lines: [], action: { type: 'run', path: arg } }
+    case 'mkdir':
+      if (!arg) return { lines: [{ kind: 'err', text: 'usage: mkdir <folder>' }] }
+      return { lines: [], action: { type: 'mkdir', path: arg } }
+    case 'touch':
+      if (!arg) return { lines: [{ kind: 'err', text: 'usage: touch <file>' }] }
+      return { lines: [], action: { type: 'touch', path: arg } }
+    case 'rm':
+      if (!arg) return { lines: [{ kind: 'err', text: 'usage: rm <file or folder>' }] }
+      return { lines: [], action: { type: 'rm', path: arg } }
     case 'clear':
       return { lines: [], action: { type: 'clear' } }
     default:
